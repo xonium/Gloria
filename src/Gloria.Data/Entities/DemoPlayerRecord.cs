@@ -9,5 +9,11 @@ public sealed class DemoPlayerRecord
 
     public string Name { get; set; } = "";
 
+    /// <summary>
+    /// The player's side in each live round, in round order: 'T', 'C', or '-' when unknown.
+    /// Turns round winners into this player's wins and losses.
+    /// </summary>
+    public string TeamsByRound { get; set; } = "";
+
     public DemoRecord? Demo { get; set; }
 }

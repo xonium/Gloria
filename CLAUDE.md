@@ -12,7 +12,7 @@ The projects, the Velopack startup hook, update source, database location and mi
 - outcome labels
 - ML training via `tools/Gloria.Trainer`
 
-A base model is shipped in `src/Gloria/models/base/`. Still to do: persisting encounters and labels in the database, aggregation, and the UI.
+A base model is shipped in `src/Gloria/models/base/`. A first UI slice runs on real data: import, profiles, Overview, Matches, Match, Encounter (with replay) and Progress. Findings and the gaps against the design are in `docs/ui-spike.md`. Still to do: user corrections, recoil in the replay, the rest of Progress, and filters.
 
 ## Commands
 
@@ -27,6 +27,7 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
 - Train on `_demos/`: `dotnet run --project tools/Gloria.Trainer -c Release -- all` (extract, train, report into `artifacts/training/`), then `-- publish` to copy the bundle into `src/Gloria/models/base/` and commit it. Re-run after changing the analysis; bump the stage's `Version` so cached features are re-extracted.
 - Package: `./build/pack.ps1 -Version 0.1.0`. This publishes to `artifacts/publish/` and runs `vpk pack` into `releases/`, producing `Gloria-win-Setup.exe`. Keep the `Velopack` NuGet version equal to the `vpk` version in `.config/dotnet-tools.json`.
 - Test in-app updates: install with Setup.exe, then pack a higher version and copy `releases/` to `%LocalAppData%\Gloria.Releases`, or set `GLORIA_UPDATE_DIR` to point at it.
+- Run the app against a scratch database: set `GLORIA_DATA_DIR`. To check a screen from a script, also set `GLORIA_START_ROUTE` (e.g. `encounter?id=12`) and `GLORIA_CAPTURE` (a .png path); see `Services/DevHooks.cs`. Desktop screenshot tools capture WinUI content as black, so use this instead.
 
 ## Solution layout (actual)
 
@@ -39,7 +40,10 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
   - `Classification`: the feature extractor and `OutcomeLabeler`.
   - `Analysis`: `DemoAnalyzer`, which runs the whole chain.
   - `Aggregation`.
-- `src/Gloria.Data`: EF Core SQLite: `GloriaDbContext`, `Migrations/`, `DatabaseLocation` (`%LocalAppData%\Gloria.Data\gloria.db`), and `DatabaseInitializer.Migrate`, which runs at startup.
+- `src/Gloria.Data`: EF Core SQLite: `GloriaDbContext`, `Migrations/`, `DatabaseLocation` (`%LocalAppData%\Gloria.Data\gloria.db`, or `GLORIA_DATA_DIR`), and `DatabaseInitializer.Migrate`, which runs at startup.
+  - `Import`: `DemoImporter` analyzes a demo once, for every player in it, and stores rounds, encounters, classifications and a compact per-tick trace (`TraceCodec`). No parse cache: the `.dem` isn't needed afterwards.
+  - `Queries`: `GloriaReadModel`, the UI's read side. Every query takes the viewed profile's SteamID.
+  - Profiles: one SteamID each (`ProfileRecord`). Demos are shared between profiles; switching profile only changes the SteamID filter.
 - `src/Gloria.Core/Classification`: aim categories (`AimCategory`), `EncounterFeatures`, `RuleBasedAimLabeler`, and `IAimClassifier` with its rule-based fallback. It has no ML.NET reference.
 - `src/Gloria.Ml`: ML.NET. See `docs/ml-classification.md`.
   - `AimModelTrainer` trains one FastTree binary model per category.
@@ -51,6 +55,11 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
   - `FeatureBinReport` produces the trainer report's statistics.
 - `tools/Gloria.Trainer`: the dev-time console tool that turns `_demos/` into the base model and `artifacts/training/report.md`.
 - `src/Gloria`: the MAUI app (exe `Gloria.exe`, Velopack packId `Gloria`). `Platforms/Windows/Program.cs` holds the custom `Main` with the Velopack hook. `Updates/UpdateSourceFactory` is the single switch point for the update source.
+  - Native XAML, dark theme in `Resources/Styles/Theme.xaml`. `AppShell` has a custom sidebar; detail routes (`match`, `encounter`) are created through DI by `ServiceRouteFactory`.
+  - `Pages/` and `ViewModels/` (plain `ObservableObject`, no MVVM package). `Graphics/` holds the `GraphicsView` drawables: sparklines, trace charts and the replay.
+  - `Services/`: `ImportQueue` (background import), `ProfileState` (current profile), `DemoSources` (pickers, drag and drop, CS2 replays folder), `Display` (wording and colors).
+  - Unhandled exceptions are written to `crash.log` in the data folder.
+  - MAUI pitfalls hit so far: see `docs/ui-spike.md`. The main one: use `Grid` columns, not `FlexLayout` with a percentage basis, for cards with long text.
 - `tests/Gloria.Core.Tests`, `tests/Gloria.Data.Tests`, `tests/Gloria.Ml.Tests`: xUnit v3. ML tests train on seeded synthetic features (`SyntheticEncounters`). Data tests use in-memory SQLite. `Fixtures/DemoFiles` finds `_demos/` and skips tests when it is empty.
 - Package versions are managed centrally in `Directory.Packages.props`.
 

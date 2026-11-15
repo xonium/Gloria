@@ -3,12 +3,67 @@
     x:Class="Gloria.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:Gloria"
-    Title="Gloria">
+    xmlns:pages="clr-namespace:Gloria.Pages"
+    xmlns:vm="clr-namespace:Gloria.ViewModels"
+    x:DataType="vm:ShellViewModel"
+    Title="Gloria"
+    FlyoutBehavior="Locked"
+    FlyoutWidth="248"
+    FlyoutBackgroundColor="{StaticResource Sidebar}">
 
-    <ShellContent
-        Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+    <Shell.FlyoutContent>
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="18" Padding="14,20">
+            <HorizontalStackLayout Spacing="10" Padding="8,4">
+                <Ellipse WidthRequest="22" HeightRequest="22" Stroke="{StaticResource Accent}" StrokeThickness="2" VerticalOptions="Center" />
+                <Label Text="Gloria" FontFamily="OpenSansSemibold" FontSize="20" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+
+            <Border Grid.Row="1" BackgroundColor="{StaticResource Panel2}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 10" Padding="10">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Profile" Style="{StaticResource Overline}" />
+                    <Picker ItemsSource="{Binding ProfileNames}" SelectedIndex="{Binding SelectedProfileIndex}" SemanticProperties.Description="Switch profile" />
+                    <Label Text="{Binding ProfileDetail}" Style="{StaticResource Caption}" />
+                    <Button Text="Track another player…" Command="{Binding TrackAnotherCommand}" Style="{StaticResource GhostButton}" MinimumHeightRequest="36" FontSize="13" />
+                </VerticalStackLayout>
+            </Border>
+
+            <VerticalStackLayout Grid.Row="2" Spacing="2" BindableLayout.ItemsSource="{Binding NavItems}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="vm:NavItem">
+                        <Border BackgroundColor="{Binding Background}" StrokeThickness="0" StrokeShape="RoundRectangle 8" Padding="12,0" MinimumHeightRequest="44"
+                                SemanticProperties.Description="{Binding Title}">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding Open}" />
+                            </Border.GestureRecognizers>
+                            <Label Text="{Binding Title}" TextColor="{Binding Foreground}" FontFamily="{Binding Font}" VerticalOptions="Center" />
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+
+            <Border Grid.Row="3" IsVisible="{Binding IsImporting}" VerticalOptions="Start" BackgroundColor="{StaticResource Panel}" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 8" Padding="12">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding OpenQueueCommand}" />
+                </Border.GestureRecognizers>
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="{Binding ImportText}" FontSize="13" />
+                    <ProgressBar Progress="{Binding ImportProgress}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Grid.Row="4" BackgroundColor="{StaticResource Panel}" StrokeThickness="0" StrokeShape="RoundRectangle 8" Padding="12">
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="{Binding AnalysisLabel}" Style="{StaticResource Caption}" />
+                    <Label Text="{Binding ClassifierLabel}" Style="{StaticResource Caption}" />
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+    </Shell.FlyoutContent>
+
+    <ShellContent Route="welcome" Title="Welcome" ContentTemplate="{DataTemplate pages:WelcomePage}" />
+    <ShellContent Route="overview" Title="Overview" ContentTemplate="{DataTemplate pages:OverviewPage}" />
+    <ShellContent Route="matches" Title="Matches" ContentTemplate="{DataTemplate pages:MatchesPage}" />
+    <ShellContent Route="trends" Title="Progress" ContentTemplate="{DataTemplate pages:TrendsPage}" />
+    <ShellContent Route="setup" Title="Folders &amp; player" ContentTemplate="{DataTemplate pages:SetupPage}" />
 
 </Shell>

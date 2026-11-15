@@ -2,12 +2,15 @@ namespace Gloria.Data;
 
 /// <summary>
 /// Where the database lives. It must stay outside the Velopack install directory
-/// (%LocalAppData%\Gloria\), which is replaced on every update.
+/// (%LocalAppData%\Gloria\), which is replaced on every update. Set GLORIA_DATA_DIR to use another
+/// folder, e.g. a scratch database while developing.
 /// </summary>
 public static class DatabaseLocation
 {
     public static string DataDirectory { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Gloria.Data");
+        Environment.GetEnvironmentVariable("GLORIA_DATA_DIR") is { Length: > 0 } custom
+            ? custom
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Gloria.Data");
 
     public static string DefaultPath { get; } = Path.Combine(DataDirectory, "gloria.db");
 

@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Gloria.ViewModels"
+             x:Class="Gloria.Pages.OverviewPage"
+             x:DataType="vm:OverviewViewModel"
+             Title="Overview">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="40,32,40,48" Spacing="20">
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Overview" Style="{StaticResource H1}" SemanticProperties.HeadingLevel="Level1" />
+                <Label Text="{Binding Subtitle}" Style="{StaticResource Sub}" FontSize="15" />
+            </VerticalStackLayout>
+
+            <Border Style="{StaticResource Card}" Padding="14,10" IsVisible="{Binding HasOlder}">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                    <Label Text="{Binding OlderText}" VerticalOptions="Center" />
+                    <Button Grid.Column="1" Text="Re-analyze" Style="{StaticResource GhostButton}" Command="{Binding ReanalyzeCommand}" />
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource Card}" IsVisible="{Binding IsEmpty}">
+                <Label Text="{Binding EmptyText}" Style="{StaticResource Sub}" />
+            </Border>
+
+            <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Tiles}" IsVisible="{Binding HasData}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="vm:TileItem">
+                        <Border Style="{StaticResource Card}" Padding="18,16,18,12" FlexLayout.Basis="23%" FlexLayout.Grow="1" MinimumWidthRequest="220" Margin="0,0,14,14">
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="{Binding Label}" Style="{StaticResource Sub}" FontSize="13" />
+                                <Label Text="{Binding Value}" Style="{StaticResource BigNumber}" FontSize="32" />
+                                <Label Text="{Binding Delta}" TextColor="{Binding DeltaColor}" FontSize="13" />
+                                <GraphicsView Drawable="{Binding Spark}" HeightRequest="40" SemanticProperties.Description="{Binding Label}" />
+                                <Label Text="{Binding Foot}" Style="{StaticResource Caption}" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </FlexLayout>
+
+            <Grid ColumnDefinitions="3*,2*" ColumnSpacing="16" IsVisible="{Binding HasData}">
+                <Border Style="{StaticResource Card}" VerticalOptions="Start">
+                    <VerticalStackLayout Spacing="10">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Aim habits" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                            <HorizontalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                                <BoxView WidthRequest="2" HeightRequest="12" Color="#d6d7da" />
+                                <Label Text="previous 10 demos" Style="{StaticResource Caption}" />
+                            </HorizontalStackLayout>
+                        </Grid>
+                        <Label Text="Share of your encounters flagged with each habit. One encounter can have several." Style="{StaticResource Caption}" FontSize="13" />
+                        <VerticalStackLayout Spacing="4" BindableLayout.ItemsSource="{Binding Habits}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="vm:HabitItem">
+                                    <Grid ColumnDefinitions="*,200,56" ColumnSpacing="14" MinimumHeightRequest="52" Padding="0,4">
+                                        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                                            <Label Text="{Binding Name}" FontFamily="OpenSansSemibold" />
+                                            <Label Text="{Binding Description}" Style="{StaticResource Caption}" />
+                                        </VerticalStackLayout>
+                                        <AbsoluteLayout Grid.Column="1" HeightRequest="14" VerticalOptions="Center" BackgroundColor="#24272c">
+                                            <BoxView Color="{StaticResource Accent}" AbsoluteLayout.LayoutFlags="All" AbsoluteLayout.LayoutBounds="{Binding Bar}" />
+                                            <BoxView Color="#d6d7da" IsVisible="{Binding HasPrevious}" AbsoluteLayout.LayoutFlags="XProportional,HeightProportional" AbsoluteLayout.LayoutBounds="{Binding Previous}" />
+                                        </AbsoluteLayout>
+                                        <Label Grid.Column="2" Text="{Binding Percent}" FontFamily="OpenSansSemibold" HorizontalTextAlignment="End" VerticalOptions="Center" />
+                                    </Grid>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource Card}" VerticalOptions="Start">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Worth a look" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                        <Label Text="Encounters from your last three demos that show your habits most clearly." Style="{StaticResource Caption}" FontSize="13" />
+                        <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding Review}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="vm:EncounterItem">
+                                    <Border Style="{StaticResource InnerCard}" Stroke="{StaticResource Line}" StrokeThickness="1">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding Open}" />
+                                        </Border.GestureRecognizers>
+                                        <VerticalStackLayout Spacing="8">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <Label Text="{Binding Where}" Style="{StaticResource Sub}" FontSize="13" LineBreakMode="TailTruncation" />
+                                                <Label Grid.Column="1" Text="{Binding Outcome}" Style="{StaticResource Sub}" FontSize="13" />
+                                            </Grid>
+                                            <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Tags}">
+                                                <BindableLayout.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:TagItem">
+                                                        <Border BackgroundColor="{Binding Background}" StrokeThickness="0" StrokeShape="RoundRectangle 5" Padding="8,3" Margin="0,0,6,4">
+                                                            <HorizontalStackLayout Spacing="6">
+                                                                <Ellipse WidthRequest="6" HeightRequest="6" Fill="{Binding Dot}" VerticalOptions="Center" />
+                                                                <Label Text="{Binding Name}" TextColor="{Binding Foreground}" FontSize="12" FontFamily="OpenSansSemibold" />
+                                                            </HorizontalStackLayout>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </BindableLayout.ItemTemplate>
+                                            </FlexLayout>
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Recent matches" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                        <Button Grid.Column="1" Text="All matches" Style="{StaticResource GhostButton}" Command="{Binding AllMatchesCommand}" MinimumHeightRequest="34" FontSize="13" />
+                    </Grid>
+                    <Grid ColumnDefinitions="80,*,110,90,90,100,130" ColumnSpacing="8" Padding="8,6">
+                        <Label Text="Date" Style="{StaticResource Overline}" />
+                        <Label Grid.Column="1" Text="Map" Style="{StaticResource Overline}" />
+                        <Label Grid.Column="2" Text="Score" Style="{StaticResource Overline}" />
+                        <Label Grid.Column="3" Text="Encounters" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="4" Text="Duels won" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="5" Text="First shot" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="6" Text="Main habit" Style="{StaticResource Overline}" />
+                    </Grid>
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Matches}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MatchRow">
+                                <VerticalStackLayout>
+                                    <BoxView Style="{StaticResource Divider}" />
+                                    <Grid ColumnDefinitions="80,*,110,90,90,100,130" ColumnSpacing="8" Padding="8,12">
+                                        <Grid.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding Open}" />
+                                        </Grid.GestureRecognizers>
+                                        <Label Text="{Binding Date}" TextColor="{StaticResource Text2}" />
+                                        <Label Grid.Column="1" Text="{Binding Map}" FontFamily="OpenSansSemibold" />
+                                        <HorizontalStackLayout Grid.Column="2" Spacing="8">
+                                            <Border BackgroundColor="{Binding ResultBackground}" StrokeThickness="0" StrokeShape="RoundRectangle 4" Padding="6,0">
+                                                <Label Text="{Binding Result}" TextColor="{Binding ResultForeground}" FontFamily="OpenSansSemibold" FontSize="12" />
+                                            </Border>
+                                            <Label Text="{Binding Score}" />
+                                        </HorizontalStackLayout>
+                                        <Label Grid.Column="3" Text="{Binding Encounters}" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="4" Text="{Binding Duels}" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="5" Text="{Binding FirstShot}" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="6" Text="{Binding Habit}" TextColor="#d6d7da" />
+                                    </Grid>
+                                </VerticalStackLayout>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

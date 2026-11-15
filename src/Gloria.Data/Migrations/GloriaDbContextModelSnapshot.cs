@@ -29,6 +29,10 @@ namespace Gloria.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TeamsByRound")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("DemoId", "SteamId");
 
                     b.HasIndex("SteamId");
@@ -45,6 +49,10 @@ namespace Gloria.Data.Migrations
                     b.Property<int>("AnalysisVersion")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("AnalysisVersionKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ContentHash")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -53,6 +61,12 @@ namespace Gloria.Data.Migrations
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("FilePath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTimeOffset>("ImportedAt")
                         .HasColumnType("TEXT");
@@ -67,12 +81,193 @@ namespace Gloria.Data.Migrations
                     b.Property<DateTimeOffset?>("PlayedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("TickRate")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ContentHash")
                         .IsUnique();
 
                     b.ToTable("Demos");
+                });
+
+            modelBuilder.Entity("Gloria.Data.Entities.EncounterRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<float>("AngularErrorAtFirstShot")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("AngularErrorAtStart")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("Approach")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ClassifierSource")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CorrectionCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DemoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<float>("DistanceAtFirstShot")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("EndTick")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("FiredFirst")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool?>("FirstShotHit")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FirstShotTick")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FirstShotWeapon")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Flags")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<float>("FlickDistanceDegrees")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("HastyProbability")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("MovingShotProbability")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("OpponentHealthAtStart")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("OpponentSteamId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OpponentWeapon")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Outcome")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<float>("OvershootProbability")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("PeakOvershootDegrees")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("PlayerHealthAtStart")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("PlayerSteamId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("PrimaryCategory")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RoundNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ShotCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ShotsWhileMoving")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<float>("SlowReactionProbability")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("SpeedAtFirstShot")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("SpeedRatioAtFirstShot")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("StartTick")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double?>("TimeToFirstShot")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("TimeToOnTarget")
+                        .HasColumnType("REAL");
+
+                    b.Property<byte[]>("Trace")
+                        .HasColumnType("BLOB");
+
+                    b.Property<float>("UndershootProbability")
+                        .HasColumnType("REAL");
+
+                    b.Property<bool?>("WonDuel")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DemoId");
+
+                    b.HasIndex("PlayerSteamId", "DemoId");
+
+                    b.ToTable("Encounters");
+                });
+
+            modelBuilder.Entity("Gloria.Data.Entities.ProfileRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<ulong>("SteamId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SteamId")
+                        .IsUnique();
+
+                    b.ToTable("Profiles");
+                });
+
+            modelBuilder.Entity("Gloria.Data.Entities.RoundRecord", b =>
+                {
+                    b.Property<int>("DemoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EndTick")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FreezeEndTick")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("StartTick")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Winner")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("DemoId", "Number");
+
+                    b.ToTable("Rounds");
                 });
 
             modelBuilder.Entity("Gloria.Data.Entities.DemoPlayerRecord", b =>
@@ -86,9 +281,35 @@ namespace Gloria.Data.Migrations
                     b.Navigation("Demo");
                 });
 
+            modelBuilder.Entity("Gloria.Data.Entities.EncounterRecord", b =>
+                {
+                    b.HasOne("Gloria.Data.Entities.DemoRecord", "Demo")
+                        .WithMany("Encounters")
+                        .HasForeignKey("DemoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Demo");
+                });
+
+            modelBuilder.Entity("Gloria.Data.Entities.RoundRecord", b =>
+                {
+                    b.HasOne("Gloria.Data.Entities.DemoRecord", "Demo")
+                        .WithMany("Rounds")
+                        .HasForeignKey("DemoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Demo");
+                });
+
             modelBuilder.Entity("Gloria.Data.Entities.DemoRecord", b =>
                 {
+                    b.Navigation("Encounters");
+
                     b.Navigation("Players");
+
+                    b.Navigation("Rounds");
                 });
 #pragma warning restore 612, 618
         }

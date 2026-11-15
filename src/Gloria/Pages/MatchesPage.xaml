@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Gloria.ViewModels"
+             xmlns:services="clr-namespace:Gloria.Services"
+             x:Class="Gloria.Pages.MatchesPage"
+             x:DataType="vm:MatchesViewModel"
+             Title="Matches">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="40,32,40,48" Spacing="20">
+            <Grid ColumnDefinitions="*,Auto">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Matches" Style="{StaticResource H1}" SemanticProperties.HeadingLevel="Level1" />
+                    <Label Text="{Binding Subtitle}" Style="{StaticResource Sub}" FontSize="15" />
+                </VerticalStackLayout>
+                <HorizontalStackLayout Grid.Column="1" Spacing="10" VerticalOptions="End">
+                    <Button Text="Add folder…" Style="{StaticResource GhostButton}" Command="{Binding AddFolderCommand}" />
+                    <Button Text="Import files…" Style="{StaticResource PrimaryButton}" Command="{Binding ImportFilesCommand}" />
+                </HorizontalStackLayout>
+            </Grid>
+
+            <Border Style="{StaticResource Card}" IsVisible="{Binding HasQueue}">
+                <VerticalStackLayout Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Import queue" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                            <Label Text="Runs in the background, one demo at a time." Style="{StaticResource Caption}" />
+                        </VerticalStackLayout>
+                        <Button Grid.Column="1" Text="Clear finished" Style="{StaticResource GhostButton}" Command="{Binding ClearFinishedCommand}" MinimumHeightRequest="34" FontSize="13" />
+                    </Grid>
+                    <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Queue}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="services:ImportItem">
+                                <Border Style="{StaticResource InnerCard}">
+                                    <Grid ColumnDefinitions="260,*" ColumnSpacing="20">
+                                        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                                            <Label Text="{Binding FileName}" FontFamily="OpenSansSemibold" LineBreakMode="MiddleTruncation" />
+                                            <Label Text="{Binding SizeText}" Style="{StaticResource Caption}" />
+                                        </VerticalStackLayout>
+                                        <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                                            <ProgressBar Progress="{Binding Progress}" />
+                                            <Label Text="{Binding Status}" FontSize="13" TextColor="{StaticResource Text2}" />
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="All matches" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                    <Grid ColumnDefinitions="80,*,110,60,90,90,100,130,110" ColumnSpacing="8" Padding="8,6">
+                        <Label Text="Date" Style="{StaticResource Overline}" />
+                        <Label Grid.Column="1" Text="Map" Style="{StaticResource Overline}" />
+                        <Label Grid.Column="2" Text="Score" Style="{StaticResource Overline}" />
+                        <Label Grid.Column="3" Text="Start" Style="{StaticResource Overline}" />
+                        <Label Grid.Column="4" Text="Encounters" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="5" Text="Duels won" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="6" Text="First shot" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="7" Text="Main habit" Style="{StaticResource Overline}" />
+                        <Label Grid.Column="8" Text="Analysis" Style="{StaticResource Overline}" />
+                    </Grid>
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Matches}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MatchRow">
+                                <VerticalStackLayout>
+                                    <BoxView Style="{StaticResource Divider}" />
+                                    <Grid ColumnDefinitions="80,*,110,60,90,90,100,130,110" ColumnSpacing="8" Padding="8,12">
+                                        <Grid.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding Open}" />
+                                        </Grid.GestureRecognizers>
+                                        <Label Text="{Binding Date}" TextColor="{StaticResource Text2}" />
+                                        <Label Grid.Column="1" Text="{Binding Map}" FontFamily="OpenSansSemibold" />
+                                        <HorizontalStackLayout Grid.Column="2" Spacing="8">
+                                            <Border BackgroundColor="{Binding ResultBackground}" StrokeThickness="0" StrokeShape="RoundRectangle 4" Padding="6,0">
+                                                <Label Text="{Binding Result}" TextColor="{Binding ResultForeground}" FontFamily="OpenSansSemibold" FontSize="12" />
+                                            </Border>
+                                            <Label Text="{Binding Score}" />
+                                        </HorizontalStackLayout>
+                                        <Label Grid.Column="3" Text="{Binding Side}" TextColor="{StaticResource Text2}" />
+                                        <Label Grid.Column="4" Text="{Binding Encounters}" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="5" Text="{Binding Duels}" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="6" Text="{Binding FirstShot}" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="7" Text="{Binding Habit}" TextColor="#d6d7da" />
+                                        <HorizontalStackLayout Grid.Column="8" Spacing="6">
+                                            <Ellipse WidthRequest="8" HeightRequest="8" Fill="{Binding StatusColor}" VerticalOptions="Center" />
+                                            <Label Text="{Binding Status}" FontSize="13" TextColor="#d6d7da" />
+                                        </HorizontalStackLayout>
+                                    </Grid>
+                                </VerticalStackLayout>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                    <Label Style="{StaticResource Caption}" Text="Dates come from the demo file's timestamp; the demo itself doesn't record when it was played. Score is counted from round winners." />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

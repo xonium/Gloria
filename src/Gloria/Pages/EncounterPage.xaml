@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Gloria.ViewModels"
+             x:Class="Gloria.Pages.EncounterPage"
+             x:DataType="vm:EncounterViewModel"
+             Title="Encounter">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="40,28,40,48" Spacing="18">
+            <HorizontalStackLayout Spacing="8">
+                <Label Text="Back" TextColor="{StaticResource AccentLight}" FontSize="13">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding BackCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
+                <Label Text="/" Style="{StaticResource Caption}" FontSize="13" />
+                <Label Text="{Binding Breadcrumb}" FontSize="13" TextColor="#d6d7da" />
+            </HorizontalStackLayout>
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                <VerticalStackLayout Spacing="8">
+                    <HorizontalStackLayout Spacing="12">
+                        <Label Text="{Binding Title}" Style="{StaticResource H1}" FontSize="28" SemanticProperties.HeadingLevel="Level1" VerticalOptions="Center" />
+                        <Border BackgroundColor="{StaticResource Panel2}" StrokeThickness="0" StrokeShape="RoundRectangle 5" Padding="9,3" VerticalOptions="Center">
+                            <HorizontalStackLayout Spacing="6">
+                                <Ellipse WidthRequest="8" HeightRequest="8" Fill="{Binding OutcomeColor}" VerticalOptions="Center" />
+                                <Label Text="{Binding Outcome}" FontFamily="OpenSansSemibold" FontSize="13" />
+                            </HorizontalStackLayout>
+                        </Border>
+                    </HorizontalStackLayout>
+                    <Label Text="{Binding Subtitle}" Style="{StaticResource Sub}" />
+                </VerticalStackLayout>
+                <HorizontalStackLayout Grid.Column="1" Spacing="10" VerticalOptions="End">
+                    <Button Text="Previous" Style="{StaticResource GhostButton}" Command="{Binding PreviousCommand}" />
+                    <Button Text="Next" Style="{StaticResource GhostButton}" Command="{Binding NextCommand}" />
+                </HorizontalStackLayout>
+            </Grid>
+
+            <Border Style="{StaticResource Card}" IsVisible="{Binding HasTrace}">
+                <VerticalStackLayout Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Replay" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                        <HorizontalStackLayout Grid.Column="1" Spacing="14" VerticalOptions="Center">
+                            <HorizontalStackLayout Spacing="6"><BoxView WidthRequest="16" HeightRequest="2" Color="{StaticResource Accent}" VerticalOptions="Center" /><Label Text="Crosshair path" Style="{StaticResource Sub}" FontSize="12" /></HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="6"><BoxView WidthRequest="9" HeightRequest="9" Color="#eb6834" Rotation="45" VerticalOptions="Center" /><Label Text="Shot, hit" Style="{StaticResource Sub}" FontSize="12" /></HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="6"><Border WidthRequest="9" HeightRequest="9" Stroke="#eb6834" StrokeThickness="2" Rotation="45" VerticalOptions="Center" /><Label Text="Shot, missed" Style="{StaticResource Sub}" FontSize="12" /></HorizontalStackLayout>
+                        </HorizontalStackLayout>
+                    </Grid>
+                    <Label Style="{StaticResource Caption}" FontSize="13"
+                           Text="Through your eyes, relative to the opponent: the body is drawn to scale at this distance and stays still while your crosshair moves. Shots are drawn where the crosshair was on the tick before; recoil isn't stored yet." />
+                    <Grid ColumnDefinitions="*,250" ColumnSpacing="20">
+                        <GraphicsView x:Name="ReplayView" Drawable="{Binding Replay}" HeightRequest="340" SemanticProperties.Description="Replay of the crosshair over the opponent" />
+                        <Grid Grid.Column="1" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="12" VerticalOptions="Start">
+                            <Label Text="Time" Style="{StaticResource Caption}" FontSize="13" />
+                            <Label Grid.Column="1" Text="{Binding TimeText}" FontFamily="OpenSansSemibold" />
+                            <Label Grid.Row="1" Text="Now" Style="{StaticResource Caption}" FontSize="13" />
+                            <Label Grid.Row="1" Grid.Column="1" Text="{Binding PhaseText}" />
+                            <Label Grid.Row="2" Text="Crosshair" Style="{StaticResource Caption}" FontSize="13" />
+                            <Label Grid.Row="2" Grid.Column="1" Text="{Binding CrosshairText}" />
+                            <Label Grid.Row="3" Text="Speed" Style="{StaticResource Caption}" FontSize="13" />
+                            <Label Grid.Row="3" Grid.Column="1" Text="{Binding SpeedText}" />
+                            <Label Grid.Row="4" Text="Shots" Style="{StaticResource Caption}" FontSize="13" />
+                            <Label Grid.Row="4" Grid.Column="1" Text="{Binding ShotsText}" />
+                        </Grid>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
+                        <Button Text="{Binding PlayText}" Style="{StaticResource PrimaryButton}" Command="{Binding PlayCommand}" WidthRequest="90" />
+                        <Button Grid.Column="1" Text="◀ tick" Style="{StaticResource GhostButton}" Command="{Binding StepBackCommand}" SemanticProperties.Description="Back one tick" />
+                        <Button Grid.Column="2" Text="tick ▶" Style="{StaticResource GhostButton}" Command="{Binding StepForwardCommand}" SemanticProperties.Description="Forward one tick" />
+                        <Slider Grid.Column="3" Minimum="0" Maximum="{Binding MaxPosition}" Value="{Binding Position}" VerticalOptions="Center" Margin="8,0" SemanticProperties.Description="Replay time" />
+                        <Border Grid.Column="4" BackgroundColor="#111316" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 9" Padding="3">
+                            <HorizontalStackLayout Spacing="2" BindableLayout.ItemsSource="{Binding Speeds}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:SpeedOption">
+                                        <Button Text="{Binding Label}" Command="{Binding SelectCommand}" BackgroundColor="{Binding Background}" TextColor="{Binding Foreground}" BorderWidth="0" MinimumHeightRequest="34" Padding="10,0" FontSize="13" />
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </HorizontalStackLayout>
+                        </Border>
+                    </Grid>
+                    <Label Text="{Binding Markers}" Style="{StaticResource Caption}" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Grid ColumnDefinitions="5*,3*" ColumnSpacing="16">
+                <VerticalStackLayout Spacing="16" IsVisible="{Binding HasTrace}">
+                    <Border Style="{StaticResource Card}">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="Crosshair distance from the body" Style="{StaticResource H3}" FontSize="17" SemanticProperties.HeadingLevel="Level2" />
+                            <Label Style="{StaticResource Caption}" FontSize="13" Text="Degrees between the crosshair and the nearest point of the body, from first sighting. Below zero means it has gone past the body." />
+                            <GraphicsView x:Name="ErrorView" Drawable="{Binding ErrorChart}" HeightRequest="240" SemanticProperties.Description="Crosshair error over time" />
+                        </VerticalStackLayout>
+                    </Border>
+                    <Border Style="{StaticResource Card}">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="Movement speed" Style="{StaticResource H3}" FontSize="17" SemanticProperties.HeadingLevel="Level2" />
+                            <Label Style="{StaticResource Caption}" FontSize="13" Text="Horizontal speed in units per second on the same time axis. Shots above the dashed line are inaccurate for this weapon." />
+                            <GraphicsView x:Name="SpeedView" Drawable="{Binding SpeedChart}" HeightRequest="180" SemanticProperties.Description="Movement speed over time" />
+                        </VerticalStackLayout>
+                    </Border>
+                    <Border Style="{StaticResource Card}">
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="Shots" Style="{StaticResource H3}" FontSize="17" SemanticProperties.HeadingLevel="Level2" />
+                            <Grid ColumnDefinitions="40,80,*,110,90,110" ColumnSpacing="8" Padding="4,6">
+                                <Label Text="#" Style="{StaticResource Overline}" />
+                                <Label Grid.Column="1" Text="At" Style="{StaticResource Overline}" />
+                                <Label Grid.Column="2" Text="Result" Style="{StaticResource Overline}" />
+                                <Label Grid.Column="3" Text="Off the body" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                                <Label Grid.Column="4" Text="Speed" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                                <Label Grid.Column="5" Text="Moving?" Style="{StaticResource Overline}" />
+                            </Grid>
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Shots}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ShotRow">
+                                        <VerticalStackLayout>
+                                            <BoxView Style="{StaticResource Divider}" />
+                                            <Grid ColumnDefinitions="40,80,*,110,90,110" ColumnSpacing="8" Padding="4,9">
+                                                <Label Text="{Binding Number}" />
+                                                <Label Grid.Column="1" Text="{Binding At}" />
+                                                <Label Grid.Column="2" Text="{Binding Result}" />
+                                                <Label Grid.Column="3" Text="{Binding Offset}" HorizontalTextAlignment="End" />
+                                                <Label Grid.Column="4" Text="{Binding Speed}" HorizontalTextAlignment="End" />
+                                                <Label Grid.Column="5" Text="{Binding Moving}" />
+                                            </Grid>
+                                        </VerticalStackLayout>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Grid.Column="1" Spacing="16">
+                    <Border Style="{StaticResource Card}">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="What happened" Style="{StaticResource H3}" FontSize="17" SemanticProperties.HeadingLevel="Level2" />
+                            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Verdicts}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:VerdictItem">
+                                        <VerticalStackLayout Spacing="6" Padding="0,12,0,4">
+                                            <BoxView Style="{StaticResource Divider}" Margin="0,0,0,8" />
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <Label Text="{Binding Question}" Style="{StaticResource Overline}" VerticalOptions="Center" />
+                                                <Border Grid.Column="1" Style="{StaticResource WarnChip}" IsVisible="{Binding Flagged}">
+                                                    <Label Text="{Binding Verdict}" TextColor="{StaticResource WarnText}" FontFamily="OpenSansSemibold" FontSize="12" />
+                                                </Border>
+                                                <Label Grid.Column="1" Text="{Binding Verdict}" TextColor="#a8dca8" FontFamily="OpenSansSemibold" FontSize="12" IsVisible="{Binding NotFlagged}" />
+                                            </Grid>
+                                            <Label Text="{Binding Text}" TextColor="#d6d7da" LineHeight="1.25" />
+                                        </VerticalStackLayout>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}">
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="Classifier" Style="{StaticResource H3}" FontSize="17" SemanticProperties.HeadingLevel="Level2" />
+                            <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Scores}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ScoreItem">
+                                        <Grid ColumnDefinitions="110,*,48" ColumnSpacing="10">
+                                            <Label Text="{Binding Name}" FontSize="13" VerticalOptions="Center" />
+                                            <AbsoluteLayout Grid.Column="1" HeightRequest="8" VerticalOptions="Center" BackgroundColor="#24272c">
+                                                <BoxView Color="{Binding Color}" AbsoluteLayout.LayoutFlags="All" AbsoluteLayout.LayoutBounds="{Binding Bar}" />
+                                            </AbsoluteLayout>
+                                            <Label Grid.Column="2" Text="{Binding Percent}" FontSize="13" HorizontalTextAlignment="End" VerticalOptions="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                            <Label Text="{Binding ModelNote}" Style="{StaticResource Caption}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="Does this look right?" Style="{StaticResource H3}" FontSize="17" SemanticProperties.HeadingLevel="Level2" />
+                            <Label Style="{StaticResource Caption}" FontSize="13" Text="Corrections are not in the spike yet. They will be stored per profile and count 5× when your own model is retrained." />
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+            </Grid>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

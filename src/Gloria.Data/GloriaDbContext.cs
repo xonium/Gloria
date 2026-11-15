@@ -9,6 +9,12 @@ public sealed class GloriaDbContext(DbContextOptions<GloriaDbContext> options) :
 
     public DbSet<DemoPlayerRecord> DemoPlayers => Set<DemoPlayerRecord>();
 
+    public DbSet<RoundRecord> Rounds => Set<RoundRecord>();
+
+    public DbSet<EncounterRecord> Encounters => Set<EncounterRecord>();
+
+    public DbSet<ProfileRecord> Profiles => Set<ProfileRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<DemoRecord>(demo =>
@@ -16,6 +22,8 @@ public sealed class GloriaDbContext(DbContextOptions<GloriaDbContext> options) :
             demo.HasIndex(d => d.ContentHash).IsUnique();
             demo.Property(d => d.ContentHash).HasMaxLength(64);
             demo.HasMany(d => d.Players).WithOne(p => p.Demo).HasForeignKey(p => p.DemoId);
+            demo.HasMany(d => d.Rounds).WithOne(r => r.Demo).HasForeignKey(r => r.DemoId);
+            demo.HasMany(d => d.Encounters).WithOne(e => e.Demo).HasForeignKey(e => e.DemoId);
         });
 
         modelBuilder.Entity<DemoPlayerRecord>(player =>
@@ -23,5 +31,11 @@ public sealed class GloriaDbContext(DbContextOptions<GloriaDbContext> options) :
             player.HasKey(p => new { p.DemoId, p.SteamId });
             player.HasIndex(p => p.SteamId);
         });
+
+        modelBuilder.Entity<RoundRecord>(round => round.HasKey(r => new { r.DemoId, r.Number }));
+
+        modelBuilder.Entity<EncounterRecord>(encounter => encounter.HasIndex(e => new { e.PlayerSteamId, e.DemoId }));
+
+        modelBuilder.Entity<ProfileRecord>(profile => profile.HasIndex(p => p.SteamId).IsUnique());
     }
 }

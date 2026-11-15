@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Gloria.ViewModels"
+             x:Class="Gloria.Pages.TrendsPage"
+             x:DataType="vm:TrendsViewModel"
+             Title="Progress">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="40,32,40,48" Spacing="20">
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Progress" Style="{StaticResource H1}" SemanticProperties.HeadingLevel="Level1" />
+                <Label Text="{Binding Subtitle}" Style="{StaticResource Sub}" FontSize="15" />
+            </VerticalStackLayout>
+            <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Charts}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="vm:TrendItem">
+                        <Border Style="{StaticResource Card}" Padding="18,16" FlexLayout.Basis="31%" FlexLayout.Grow="1" MinimumWidthRequest="320" Margin="0,0,16,16">
+                            <VerticalStackLayout Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="{Binding Title}" Style="{StaticResource H3}" />
+                                    <Label Grid.Column="1" Text="{Binding Now}" Style="{StaticResource BigNumber}" FontSize="22" />
+                                </Grid>
+                                <Label Text="{Binding Range}" Style="{StaticResource Caption}" />
+                                <GraphicsView Drawable="{Binding Chart}" HeightRequest="120" SemanticProperties.Description="{Binding Title}" />
+                                <Label Text="One point per demo, oldest to newest" Style="{StaticResource Caption}" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </FlexLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Gloria.ViewModels"
+             x:Class="Gloria.Pages.MatchPage"
+             x:DataType="vm:MatchViewModel"
+             Title="Match">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="40,28,40,48" Spacing="20">
+            <HorizontalStackLayout Spacing="8">
+                <Label Text="Matches" TextColor="{StaticResource AccentLight}" FontSize="13">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding BackCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
+                <Label Text="/" Style="{StaticResource Caption}" FontSize="13" />
+                <Label Text="{Binding Title}" FontSize="13" TextColor="#d6d7da" />
+            </HorizontalStackLayout>
+
+            <VerticalStackLayout Spacing="8">
+                <HorizontalStackLayout Spacing="14">
+                    <Label Text="{Binding Title}" Style="{StaticResource H1}" SemanticProperties.HeadingLevel="Level1" VerticalOptions="Center" />
+                    <Label Text="{Binding Score}" Style="{StaticResource H1}" FontSize="26" VerticalOptions="Center" />
+                    <Border BackgroundColor="{Binding ResultBackground}" StrokeThickness="0" StrokeShape="RoundRectangle 5" Padding="8,3" VerticalOptions="Center">
+                        <Label Text="{Binding Result}" TextColor="{Binding ResultForeground}" FontFamily="OpenSansSemibold" FontSize="13" />
+                    </Border>
+                </HorizontalStackLayout>
+                <Label Text="{Binding Subtitle}" Style="{StaticResource Sub}" />
+            </VerticalStackLayout>
+
+            <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Stats}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="vm:StatItem">
+                        <Border Style="{StaticResource Card}" Padding="16,14" FlexLayout.Basis="18%" FlexLayout.Grow="1" MinimumWidthRequest="170" Margin="0,0,12,12">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="{Binding Label}" Style="{StaticResource Sub}" FontSize="13" />
+                                <Label Text="{Binding Value}" Style="{StaticResource BigNumber}" FontSize="24" />
+                                <Label Text="{Binding Sub}" Style="{StaticResource Caption}" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </FlexLayout>
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="14">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Rounds" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                        <HorizontalStackLayout Grid.Column="1" Spacing="16" VerticalOptions="Center">
+                            <HorizontalStackLayout Spacing="6"><Ellipse WidthRequest="10" HeightRequest="10" Fill="{StaticResource Accent}" VerticalOptions="Center" /><Label Text="Kill" Style="{StaticResource Sub}" FontSize="13" /></HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="6"><Ellipse WidthRequest="10" HeightRequest="10" Fill="#d95926" VerticalOptions="Center" /><Label Text="Death" Style="{StaticResource Sub}" FontSize="13" /></HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="6"><Ellipse WidthRequest="8" HeightRequest="8" Stroke="{StaticResource Muted}" StrokeThickness="1.5" VerticalOptions="Center" /><Label Text="Disengaged" Style="{StaticResource Sub}" FontSize="13" /></HorizontalStackLayout>
+                            <Button Text="Show all encounters" Style="{StaticResource GhostButton}" Command="{Binding ShowAllCommand}" MinimumHeightRequest="32" FontSize="13" />
+                        </HorizontalStackLayout>
+                    </Grid>
+                    <ScrollView Orientation="Horizontal">
+                        <HorizontalStackLayout Spacing="4" BindableLayout.ItemsSource="{Binding Rounds}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RoundCell">
+                                    <Border BackgroundColor="{Binding Background}" Stroke="{Binding Stroke}" StrokeThickness="1" StrokeShape="RoundRectangle 8"
+                                            WidthRequest="46" MinimumHeightRequest="92" Padding="2,8" SemanticProperties.Description="{Binding Description}">
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding SelectCommand}" />
+                                        </Border.GestureRecognizers>
+                                        <VerticalStackLayout Spacing="3" HorizontalOptions="Center">
+                                            <Label Text="{Binding Number}" Style="{StaticResource Caption}" HorizontalTextAlignment="Center" />
+                                            <Label Text="{Binding Result}" TextColor="{Binding ResultColor}" FontFamily="OpenSansSemibold" FontSize="13" HorizontalTextAlignment="Center" />
+                                            <Label Text="{Binding Side}" Style="{StaticResource Caption}" FontSize="10" HorizontalTextAlignment="Center" />
+                                            <FlexLayout Wrap="Wrap" JustifyContent="Center" WidthRequest="40" BindableLayout.ItemsSource="{Binding Dots}">
+                                                <BindableLayout.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:DotItem">
+                                                        <Ellipse WidthRequest="{Binding Size}" HeightRequest="{Binding Size}" Fill="{Binding Fill}" Stroke="{Binding Stroke}" StrokeThickness="1.5" Margin="1.5" />
+                                                    </DataTemplate>
+                                                </BindableLayout.ItemTemplate>
+                                            </FlexLayout>
+                                        </VerticalStackLayout>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </HorizontalStackLayout>
+                    </ScrollView>
+                </VerticalStackLayout>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="{Binding RoundTitle}" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                    <Grid ColumnDefinitions="60,140,*,150,90,90,80,260" ColumnSpacing="8" Padding="8,6">
+                        <Label Text="At" Style="{StaticResource Overline}" />
+                        <Label Grid.Column="1" Text="Opponent" Style="{StaticResource Overline}" />
+                        <Label Grid.Column="2" Text="Weapons" Style="{StaticResource Overline}" />
+                        <Label Grid.Column="3" Text="Outcome" Style="{StaticResource Overline}" />
+                        <Label Grid.Column="4" Text="First shot" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="5" Text="Off target" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="6" Text="Speed" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="7" Text="Habits" Style="{StaticResource Overline}" />
+                    </Grid>
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Encounters}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:EncounterItem">
+                                <VerticalStackLayout>
+                                    <BoxView Style="{StaticResource Divider}" />
+                                    <Grid ColumnDefinitions="60,140,*,150,90,90,80,260" ColumnSpacing="8" Padding="8,10">
+                                        <Grid.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding Open}" />
+                                        </Grid.GestureRecognizers>
+                                        <Label Text="{Binding At}" TextColor="{StaticResource Text2}" VerticalOptions="Center" />
+                                        <Label Grid.Column="1" Text="{Binding Opponent}" FontFamily="OpenSansSemibold" VerticalOptions="Center" LineBreakMode="TailTruncation" />
+                                        <Label Grid.Column="2" Text="{Binding Weapons}" TextColor="{StaticResource Text2}" VerticalOptions="Center" />
+                                        <HorizontalStackLayout Grid.Column="3" Spacing="8" VerticalOptions="Center">
+                                            <Ellipse WidthRequest="9" HeightRequest="9" Fill="{Binding OutcomeColor}" VerticalOptions="Center" />
+                                            <Label Text="{Binding Outcome}" />
+                                        </HorizontalStackLayout>
+                                        <Label Grid.Column="4" Text="{Binding FirstShot}" HorizontalTextAlignment="End" VerticalOptions="Center" />
+                                        <Label Grid.Column="5" Text="{Binding Error}" HorizontalTextAlignment="End" VerticalOptions="Center" />
+                                        <Label Grid.Column="6" Text="{Binding Speed}" HorizontalTextAlignment="End" VerticalOptions="Center" />
+                                        <FlexLayout Grid.Column="7" Wrap="Wrap" BindableLayout.ItemsSource="{Binding Tags}">
+                                            <BindableLayout.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:TagItem">
+                                                    <Border BackgroundColor="{Binding Background}" StrokeThickness="0" StrokeShape="RoundRectangle 5" Padding="8,3" Margin="0,0,6,4">
+                                                        <HorizontalStackLayout Spacing="6">
+                                                            <Ellipse WidthRequest="6" HeightRequest="6" Fill="{Binding Dot}" VerticalOptions="Center" />
+                                                            <Label Text="{Binding Name}" TextColor="{Binding Foreground}" FontSize="12" FontFamily="OpenSansSemibold" />
+                                                        </HorizontalStackLayout>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </BindableLayout.ItemTemplate>
+                                        </FlexLayout>
+                                    </Grid>
+                                </VerticalStackLayout>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                    <Label Style="{StaticResource Caption}" Text="At: from the end of freeze time. First shot: from first sighting (±0.5 s, the spotted flag updates about twice a second). Off target: crosshair angle from the body just before the first shot. Speed: share of the weapon's accurate speed." />
+                </VerticalStackLayout>
+            </Border>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                <Border Style="{StaticResource Card}" VerticalOptions="Start">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Habits this match" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                        <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Habits}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="vm:CountItem">
+                                    <Grid ColumnDefinitions="112,*,72" ColumnSpacing="12">
+                                        <Label Text="{Binding Name}" VerticalOptions="Center" />
+                                        <AbsoluteLayout Grid.Column="1" HeightRequest="10" VerticalOptions="Center" BackgroundColor="#24272c">
+                                            <BoxView Color="{Binding Color}" AbsoluteLayout.LayoutFlags="All" AbsoluteLayout.LayoutBounds="{Binding Bar}" />
+                                        </AbsoluteLayout>
+                                        <Label Grid.Column="2" Text="{Binding Label}" FontSize="13" HorizontalTextAlignment="End" VerticalOptions="Center" />
+                                    </Grid>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource Card}" VerticalOptions="Start">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Opponents faced" Style="{StaticResource H2}" Margin="0,0,0,6" SemanticProperties.HeadingLevel="Level2" />
+                        <VerticalStackLayout BindableLayout.ItemsSource="{Binding Opponents}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="vm:OpponentItem">
+                                    <VerticalStackLayout>
+                                        <BoxView Style="{StaticResource Divider}" />
+                                        <Grid ColumnDefinitions="*,Auto" Padding="0,9">
+                                            <Label Text="{Binding Name}" FontFamily="OpenSansSemibold" />
+                                            <Label Grid.Column="1" Text="{Binding Line}" TextColor="{StaticResource Text2}" />
+                                        </Grid>
+                                    </VerticalStackLayout>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
