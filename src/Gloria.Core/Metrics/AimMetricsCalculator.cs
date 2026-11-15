@@ -7,8 +7,8 @@ namespace Gloria.Core.Metrics;
 
 public sealed record AimMetricsOptions
 {
-    /// <summary>The crosshair is on target when its error to the body axis is at most this.</summary>
-    public float OnTargetDegrees { get; init; } = 2f;
+    /// <summary>The crosshair is on target when its error to the body axis is at most this many body half-widths.</summary>
+    public float OnTargetBodyHalfWidths { get; init; } = 1f;
 
     /// <summary>Below this initial error there is no approach to overshoot or undershoot.</summary>
     public float MinApproachDegrees { get; init; } = 3f;
@@ -35,10 +35,12 @@ public sealed record AimMetricsOptions
     public float MovementEndDegreesPerSecond { get; init; } = 8f;
 
     /// <summary>
-    /// Where between the previous tick and the fire tick a shot is evaluated. CS2 uses sub-tick input,
-    /// so a shot recorded at tick t happened somewhere in (t−1, t].
+    /// Where between the previous tick (0) and the fire tick (1) a shot is evaluated. CS2 uses sub-tick
+    /// input, so a shot recorded at tick t happened somewhere in (t−1, t], and the view angles recorded
+    /// at t already include movement after the shot. On the real demos, the error at t−1 predicts hits
+    /// best (see the trainer report's sub-tick alignment section).
     /// </summary>
-    public float ShotSubTickFraction { get; init; } = 0.5f;
+    public float ShotSubTickFraction { get; init; } = 0f;
 }
 
 /// <summary>Scores one encounter from the analyzed player's view angles and movement relative to the opponent.</summary>
@@ -50,7 +52,7 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
     private readonly IWeaponData _weapons = weapons ?? StaticWeaponData.Instance;
     private readonly AimMetricsOptions _options = options ?? new AimMetricsOptions();
 
-    public int Version => 1;
+    public int Version => 3;
 
     public EncounterMetrics? Calculate(ParsedDemo demo, Encounter encounter)
     {
@@ -71,11 +73,8 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
         if (!TryGetAtShot(timeline, player, opponent, first.Tick, out var me, out var them))
             return null;
 
-        timeline.TryGet(player, first.Tick, out var meAtTick);
-        timeline.TryGet(opponent, first.Tick, out var themAtTick);
-        var errorBefore = timeline.TryGet(player, first.Tick - 1, out var meBefore) && timeline.TryGet(opponent, first.Tick - 1, out var themBefore)
-            ? BodyModel.AngularError(meBefore, themBefore)
-            : BodyModel.AngularError(meAtTick, themAtTick);
+        float ErrorAt(int tick) =>
+            timeline.TryGet(player, tick, out var p) && timeline.TryGet(opponent, tick, out var o) ? BodyModel.AngularError(p, o) : float.NaN;
 
         var speeds = new List<float>(shots.Count);
         var moving = 0;
@@ -118,8 +117,9 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
             FlickDistanceDegrees: AimMath.AngleBetween(meAtApproach.Yaw, meAtApproach.Pitch, me.Yaw, me.Pitch),
             me.HorizontalSpeed / AccurateSpeed(first.Weapon, me.IsScoped),
             BodyModel.Distance(me, them),
-            BodyModel.AngularError(meAtTick, themAtTick),
-            errorBefore,
+            ErrorAt(first.Tick),
+            ErrorAt(first.Tick - 1),
+            ErrorAt(first.Tick - 2),
             approachStart);
     }
 
@@ -154,6 +154,9 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
         return onset;
     }
 
+    private float OnTargetDegrees(in PlayerTickState me, in PlayerTickState them) =>
+        _options.OnTargetBodyHalfWidths * BodyModel.HalfWidthDegrees(BodyModel.Distance(me, them));
+
     private float AccurateSpeed(string weapon, bool scoped) =>
         _weapons.Find(weapon)?.AccurateSpeedThresholdWhen(scoped) ?? FallbackAccurateSpeed;
 
@@ -181,7 +184,7 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
         {
             if (timeline.TryGet(encounter.PlayerSteamId, tick, out var me)
                 && timeline.TryGet(encounter.OpponentSteamId, tick, out var them)
-                && BodyModel.AngularError(me, them) <= _options.OnTargetDegrees)
+                && BodyModel.AngularError(me, them) <= OnTargetDegrees(me, them))
             {
                 return (tick - encounter.StartTick) / (double)rate;
             }
@@ -199,6 +202,7 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
 
         var signed = new List<Vector2>();
         var errors = new List<float>();
+        var tolerances = new List<float>();
         var speeds = new List<float>();
         PlayerTickState? previous = null;
         var shotIndex = 0;
@@ -211,6 +215,7 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
 
             signed.Add(BodyModel.SignedError(me, them));
             errors.Add(BodyModel.AngularError(me, them));
+            tolerances.Add(OnTargetDegrees(me, them));
             speeds.Add(previous is { } p ? AimMath.AngleBetween(p.Yaw, p.Pitch, me.Yaw, me.Pitch) * rate : 0f);
             previous = me;
             if (tick <= firstShotTick)
@@ -220,7 +225,7 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
         if (signed.Count == 0)
             return (0f, 0);
 
-        return (PeakOvershoot(signed, shotIndex), Corrections(errors, speeds, shotIndex));
+        return (PeakOvershoot(signed, shotIndex), Corrections(errors, tolerances, speeds, shotIndex));
     }
 
     /// <summary>
@@ -263,22 +268,24 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
     /// View sub-movements before the first shot that reduced the error while it was still above the
     /// on-target tolerance, minus the initial flick.
     /// </summary>
-    private int Corrections(List<float> errors, List<float> speeds, int shotIndex)
+    private int Corrections(List<float> errors, List<float> tolerances, List<float> speeds, int shotIndex)
     {
         var movements = 0;
         var moving = false;
         var startError = 0f;
+        var startTolerance = 0f;
         for (var i = 0; i <= shotIndex; i++)
         {
             if (!moving && speeds[i] > _options.MovementStartDegreesPerSecond)
             {
                 moving = true;
                 startError = errors[Math.Max(0, i - 1)];
+                startTolerance = tolerances[Math.Max(0, i - 1)];
             }
             else if (moving && (speeds[i] < _options.MovementEndDegreesPerSecond || i == shotIndex))
             {
                 moving = false;
-                if (startError > _options.OnTargetDegrees && errors[i] < startError)
+                if (startError > startTolerance && errors[i] < startError)
                     movements++;
             }
         }

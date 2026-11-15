@@ -10,4 +10,7 @@
     <Project Path="tests/Gloria.Data.Tests/Gloria.Data.Tests.csproj" />
     <Project Path="tests/Gloria.Ml.Tests/Gloria.Ml.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Gloria.Trainer/Gloria.Trainer.csproj" />
+  </Folder>
 </Solution>

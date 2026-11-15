@@ -41,6 +41,34 @@ public class EncounterSegmenterTests
     }
 
     [Fact]
+    public void ShotsAtAnOpponentWhoWasNeverSeen_AreDroppedAsUnseen()
+    {
+        // B spots A, so the demo has spotted data and the view-cone fallback is not used.
+        var demo = Duel()
+            .AimPath(A, B, (0, 0))
+            .Spotted(A, by: B, 100, 130)
+            .Fire(110, A).Fire(120, A)
+            .Build(300);
+
+        var result = _segmenter.SegmentWithStats(demo, A);
+
+        Assert.Empty(result.Encounters);
+        Assert.Equal(1, result.DroppedUnseen);
+    }
+
+    [Fact]
+    public void SpottedShortlyAfterTheShot_StillCountsAsSeen()
+    {
+        // The spotted state updates every ~33 ticks, so it can turn on after the first shot.
+        var demo = Duel()
+            .Spotted(B, by: A, 140, 170)
+            .Fire(110, A)
+            .Build(300);
+
+        Assert.Single(_segmenter.Segment(demo, A));
+    }
+
+    [Fact]
     public void ContactGapLongerThanTheDisengageTime_SplitsTheEncounter()
     {
         var demo = Duel()

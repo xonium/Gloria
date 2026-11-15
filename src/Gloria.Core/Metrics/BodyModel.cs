@@ -15,6 +15,15 @@ public static class BodyModel
     /// <summary>The upper chest sits this far below the eye; used as the single reference point.</summary>
     public const float ChestBelowEye = 12f;
 
+    /// <summary>Half the width of a player model, in units.</summary>
+    public const float HalfWidth = 16f;
+
+    /// <summary>
+    /// Angle a body half-width spans at the given distance. Errors are measured to the body axis, so an
+    /// error below this means the crosshair was on the body; the tolerance shrinks with range.
+    /// </summary>
+    public static float HalfWidthDegrees(float distance) => float.RadiansToDegrees(MathF.Atan(HalfWidth / MathF.Max(distance, 1f)));
+
     public static Vector3 Bottom(in PlayerTickState target) => target.Position with { Z = target.Position.Z + HipHeight };
 
     public static Vector3 Top(in PlayerTickState target) => target.Position with { Z = target.Position.Z + target.EyeHeight + AboveEye };

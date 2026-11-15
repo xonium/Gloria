@@ -61,6 +61,16 @@ public class RuleBasedAimLabelerTests
         Assert.Equal([AimCategory.Hasty], RuleBasedAimLabeler.Label(features));
     }
 
+    [Theory]
+    [InlineData(300f, false)]
+    [InlineData(2000f, true)]
+    public void Hasty_ToleranceShrinksWithDistance(float distance, bool expected)
+    {
+        var features = Clean with { AngularErrorAtFirstShot = 1.5f, DistanceToEnemy = distance };
+
+        Assert.Equal(expected, RuleBasedAimLabeler.IsFlagged(features, AimCategory.Hasty));
+    }
+
     [Fact]
     public void SlowReaction_WhenFirstShotIsLate()
     {

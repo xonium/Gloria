@@ -10,24 +10,34 @@ public sealed record SegmenterOptions
 
     /// <summary>Encounters without a kill or death that last longer than this end as a timeout.</summary>
     public float MaxEncounterSeconds { get; init; } = 10f;
+
+    /// <summary>
+    /// Drop encounters where the player never saw the opponent (spam through smokes and walls). The spotted
+    /// state updates only every ~33 ticks, so visibility up to <see cref="VisibilityLagSeconds"/> after the
+    /// encounter still counts.
+    /// </summary>
+    public bool RequireVisibility { get; init; } = true;
+
+    public float VisibilityLagSeconds { get; init; } = 0.55f;
 }
 
 /// <summary>Encounters plus what was dropped, so the report can show the bias that dropping introduces.</summary>
 /// <param name="DroppedWithoutShots">Contact intervals where the player never fired at the opponent.</param>
 /// <param name="DroppedDeathsWithoutShots">Of those, how many ended with the player dying.</param>
-public sealed record SegmentationResult(IReadOnlyList<Encounter> Encounters, int DroppedWithoutShots, int DroppedDeathsWithoutShots);
+/// <param name="DroppedUnseen">Encounters with shots where the player never saw the opponent.</param>
+public sealed record SegmentationResult(IReadOnlyList<Encounter> Encounters, int DroppedWithoutShots, int DroppedDeathsWithoutShots, int DroppedUnseen);
 
 /// <summary>
 /// Splits each live round into encounters between the player and each opponent. Contact is the
 /// opponent being visible to the player, damage between the two, or a shot by the player aimed at
 /// the opponent. Contact closer together than <see cref="SegmenterOptions.DisengageSeconds"/> is one
-/// encounter. Only encounters where the player fired at the opponent are kept.
+/// encounter. Only encounters where the player saw and fired at the opponent are kept.
 /// </summary>
 public sealed class EncounterSegmenter(IVisibilitySource? visibility = null, SegmenterOptions? options = null) : IEncounterSegmenter
 {
     private readonly SegmenterOptions _options = options ?? new SegmenterOptions();
 
-    public int Version => 1;
+    public int Version => 2;
 
     public IReadOnlyList<Encounter> Segment(ParsedDemo demo, ulong playerSteamId) =>
         SegmentWithStats(demo, playerSteamId).Encounters;
@@ -36,16 +46,17 @@ public sealed class EncounterSegmenter(IVisibilitySource? visibility = null, Seg
     public SegmentationResult SegmentAll(ParsedDemo demo)
     {
         var encounters = new List<Encounter>();
-        int dropped = 0, droppedDeaths = 0;
+        int dropped = 0, droppedDeaths = 0, unseen = 0;
         foreach (var player in demo.Timeline.SteamIds)
         {
             var result = SegmentWithStats(demo, player);
             encounters.AddRange(result.Encounters);
             dropped += result.DroppedWithoutShots;
             droppedDeaths += result.DroppedDeathsWithoutShots;
+            unseen += result.DroppedUnseen;
         }
 
-        return new SegmentationResult(encounters, dropped, droppedDeaths);
+        return new SegmentationResult(encounters, dropped, droppedDeaths, unseen);
     }
 
     public SegmentationResult SegmentWithStats(ParsedDemo demo, ulong playerSteamId)
@@ -54,10 +65,11 @@ public sealed class EncounterSegmenter(IVisibilitySource? visibility = null, Seg
         var source = visibility ?? VisibilitySources.For(demo);
         var gap = (int)MathF.Round(_options.DisengageSeconds * demo.TickRate);
         var maxTicks = (int)MathF.Round(_options.MaxEncounterSeconds * demo.TickRate);
+        var lag = (int)MathF.Round(_options.VisibilityLagSeconds * demo.TickRate);
         var shots = index.ShotsBy(playerSteamId);
 
         var encounters = new List<Encounter>();
-        int dropped = 0, droppedDeaths = 0;
+        int dropped = 0, droppedDeaths = 0, unseen = 0;
 
         foreach (var round in demo.Rounds)
         {
@@ -77,13 +89,19 @@ public sealed class EncounterSegmenter(IVisibilitySource? visibility = null, Seg
                         continue;
                     }
 
+                    if (_options.RequireVisibility && !Enumerable.Range(start, end + lag - start + 1).Any(t => source.CanSee(demo, t, playerSteamId, opponent)))
+                    {
+                        unseen++;
+                        continue;
+                    }
+
                     encounters.Add(new Encounter(round.Number, playerSteamId, opponent, start, end, outcome));
                 }
             }
         }
 
         encounters.Sort((a, b) => a.StartTick.CompareTo(b.StartTick));
-        return new SegmentationResult(encounters, dropped, droppedDeaths);
+        return new SegmentationResult(encounters, dropped, droppedDeaths, unseen);
     }
 
     private static IEnumerable<ulong> OpponentsIn(ParsedDemo demo, ulong player, RoundInfo round)

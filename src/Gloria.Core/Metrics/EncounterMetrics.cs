@@ -21,6 +21,7 @@ public enum AimApproach
 /// <param name="SpeedRatioAtFirstShot">Speed at the first shot over the weapon's accurate-speed threshold.</param>
 /// <param name="AngularErrorAtFirstShotTick">Error at the recorded tick of the first shot, without sub-tick interpolation.</param>
 /// <param name="AngularErrorAtTickBeforeFirstShot">Error one tick before the first shot.</param>
+/// <param name="AngularErrorTwoTicksBeforeFirstShot">Error two ticks before the first shot.</param>
 /// <param name="ApproachStartTick">Where the view movement leading to the first shot began.</param>
 public sealed record EncounterMetrics(
     Encounter Encounter,
@@ -41,6 +42,7 @@ public sealed record EncounterMetrics(
     float DistanceAtFirstShot,
     float AngularErrorAtFirstShotTick,
     float AngularErrorAtTickBeforeFirstShot,
+    float AngularErrorTwoTicksBeforeFirstShot,
     int ApproachStartTick);
 
 public interface IAimMetricsCalculator
