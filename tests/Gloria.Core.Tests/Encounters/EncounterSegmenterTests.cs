@@ -142,6 +142,35 @@ public class EncounterSegmenterTests
         Assert.Equal(106, shot.HitTick);
     }
 
+    [Theory]
+    [InlineData("weapon_m4a1_silencer", "m4a1")]
+    [InlineData("weapon_usp_silencer", "hkp2000")]
+    [InlineData("weapon_m4a1_silencer_off", "m4a1")]
+    public void HurtNamingTheBaseItem_IsAHitWithTheSilencedVariant(string fired, string hurt)
+    {
+        var demo = Duel()
+            .Fire(105, A, fired).Hurt(105, B, A, hurt)
+            .Build(200);
+
+        var shot = Assert.Single(DemoIndex.For(demo).ShotsBy(A));
+
+        Assert.Equal(105, shot.HitTick);
+    }
+
+    [Fact]
+    public void BulletThatHitTwoOpponents_IsAHitOnBoth()
+    {
+        var demo = Duel()
+            .Player(C, Team.CounterTerrorist, new Vector3(1200, 0, 0))
+            .Fire(105, A).Hurt(105, B, A).Hurt(105, C, A)
+            .Build(200);
+
+        var shots = DemoIndex.For(demo).ShotsBy(A);
+
+        Assert.Equal([B, C], shots.Select(s => s.Target!.Value).Order());
+        Assert.All(shots, s => Assert.Equal(105, s.HitTick));
+    }
+
     [Fact]
     public void KnifeAndGrenadeThrows_AreNotShots()
     {

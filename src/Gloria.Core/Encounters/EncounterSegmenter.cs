@@ -37,7 +37,7 @@ public sealed class EncounterSegmenter(IVisibilitySource? visibility = null, Seg
 {
     private readonly SegmenterOptions _options = options ?? new SegmenterOptions();
 
-    public int Version => 2;
+    public int Version => 3;
 
     public IReadOnlyList<Encounter> Segment(ParsedDemo demo, ulong playerSteamId) =>
         SegmentWithStats(demo, playerSteamId).Encounters;

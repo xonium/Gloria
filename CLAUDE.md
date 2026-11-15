@@ -140,6 +140,7 @@ Keep these layers separate. Parsing is slow, and analysis heuristics will change
   - **Weapon names:**
     - Fire events and item names carry the `weapon_` prefix; hurt and death events don't.
     - Normalize with `StaticWeaponData.Normalize`.
+    - `player_hurt` names the base item, not the variant: an M4A1-S hit says `m4a1` and a USP-S hit `hkp2000`, while `weapon_fire` and `player_death` say `m4a1_silencer` / `usp_silencer`. Match fires to hurts with `StaticWeaponData.SameGun`. Before segmenter version 3 every M4A1-S and USP-S hit counted as a miss.
   - **API pitfall:** `parser.GameRules` throws until the game rules entity exists.
   - **First round:**
     - These demos start recording inside the first live round's freeze time, with no `round_start` for it.

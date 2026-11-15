@@ -19,8 +19,29 @@ public sealed class StaticWeaponData : IWeaponData
     public WeaponClass Classify(string weapon) => Find(weapon)?.Class ?? WeaponClass.Other;
 
     /// <summary>Strips the <c>weapon_</c> prefix that entity item names carry and game events omit.</summary>
-    public static string Normalize(string weapon) =>
-        weapon.StartsWith("weapon_", StringComparison.OrdinalIgnoreCase) ? weapon["weapon_".Length..] : weapon;
+    public static string Normalize(string weapon)
+    {
+        var name = weapon.StartsWith("weapon_", StringComparison.OrdinalIgnoreCase) ? weapon["weapon_".Length..] : weapon;
+        // A silencer taken off doesn't make it another gun.
+        return name.EndsWith("_off", StringComparison.OrdinalIgnoreCase) ? name[..^"_off".Length] : name;
+    }
+
+    /// <summary>
+    /// The name <c>player_hurt</c> uses for a gun. Hurt events carry the base item, so an M4A1-S hit reads
+    /// <c>m4a1</c> and a USP-S hit <c>hkp2000</c>, while <c>weapon_fire</c> and <c>player_death</c> name the variant.
+    /// </summary>
+    public static string HurtName(string weapon) => Normalize(weapon).ToLowerInvariant() switch
+    {
+        "m4a1_silencer" => "m4a1",
+        "usp_silencer" => "hkp2000",
+        "revolver" => "deagle",
+        "cz75a" => "p250",
+        "mp5sd" => "mp7",
+        var name => name,
+    };
+
+    /// <summary>Whether a fire event and a hurt event name the same gun.</summary>
+    public static bool SameGun(string fireWeapon, string hurtWeapon) => HurtName(fireWeapon) == HurtName(hurtWeapon);
 
     private static IEnumerable<WeaponMovementData> Table()
     {

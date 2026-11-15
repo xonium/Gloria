@@ -11,8 +11,9 @@ public readonly record struct AttributedShot(int Tick, string Weapon, ulong? Tar
 
 /// <summary>
 /// Decides which opponent each shot was aimed at. A shot that damaged an opponent within
-/// <see cref="HitWindowTicks"/> belongs to that opponent; otherwise it belongs to the alive opponent
-/// nearest the crosshair, if within <see cref="MaxAttributionDegrees"/>.
+/// <see cref="HitWindowTicks"/> belongs to that opponent (once per victim when it hit several); otherwise it
+/// belongs to the alive opponent nearest the crosshair, if within <see cref="MaxAttributionDegrees"/>.
+/// Hurt events name a gun's base item (<see cref="StaticWeaponData.HurtName"/>), not the variant fired.
 /// </summary>
 public static class ShotAttribution
 {
@@ -37,16 +38,23 @@ public static class ShotAttribution
                 continue;
             }
 
-            var hit = hurts.FirstOrDefault(h =>
-                h.Tick >= fire.Tick && h.Tick <= fire.Tick + HitWindowTicks
-                && !usedHurts.Contains(h)
-                && string.Equals(StaticWeaponData.Normalize(h.Weapon), weapon, StringComparison.OrdinalIgnoreCase)
-                && IsOpponent(demo, me, h.VictimSteamId, fire.Tick));
-            if (hit is not null)
+            var hits = hurts.Where(h =>
+                    h.Tick >= fire.Tick && h.Tick <= fire.Tick + HitWindowTicks
+                    && !usedHurts.Contains(h)
+                    && StaticWeaponData.SameGun(weapon, h.Weapon)
+                    && IsOpponent(demo, me, h.VictimSteamId, fire.Tick))
+                .ToList();
+            if (hits.Count > 0)
             {
-                // Shotguns fire one event that deals several hurts; only the first claims it.
-                usedHurts.Add(hit);
-                shots.Add(new AttributedShot(fire.Tick, weapon, hit.VictimSteamId, hit.Tick));
+                // One shot per victim: a bullet that goes through one opponent into another hit both.
+                // Shotgun pellets that hit the same victim belong to the same shot.
+                foreach (var victim in hits.GroupBy(h => h.VictimSteamId))
+                {
+                    var first = victim.First();
+                    usedHurts.UnionWith(victim.Where(h => h.Tick == first.Tick));
+                    shots.Add(new AttributedShot(fire.Tick, weapon, victim.Key, first.Tick));
+                }
+
                 continue;
             }
 
