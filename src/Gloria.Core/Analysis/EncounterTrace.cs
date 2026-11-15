@@ -4,9 +4,16 @@ using Gloria.Core.Metrics;
 
 namespace Gloria.Core.Analysis;
 
-/// <summary>A shot inside a trace. Its crosshair position is the sample one tick before <see cref="Tick"/>.</summary>
+/// <summary>
+/// A shot inside a trace. Its crosshair and bullet positions are the samples one tick before <see cref="Tick"/>,
+/// which match where the shot went best.
+/// </summary>
 /// <param name="HitGroup">The game's hit group of the damage it dealt, or null for a miss.</param>
-public readonly record struct TraceShot(int Tick, bool Hit, int? HitGroup);
+/// <param name="BulletBodyError">
+/// Angle from the bullet direction (crosshair plus recoil) to the nearest point of the body, 0 when on it.
+/// Null for traces stored before recoil was parsed.
+/// </param>
+public readonly record struct TraceShot(int Tick, bool Hit, int? HitGroup, float? BulletBodyError = null);
 
 /// <summary>
 /// Per-tick samples of one encounter, for charts and the replay. Starts <see cref="EncounterTraceBuilder.LeadSeconds"/>
@@ -20,6 +27,11 @@ public readonly record struct TraceShot(int Tick, bool Hit, int? HitGroup);
 /// </param>
 /// <param name="Speed">The player's horizontal speed in units per second.</param>
 /// <param name="Distance">Eye-to-chest distance in units, for drawing the body to scale.</param>
+/// <param name="BulletX">
+/// Bullet direction (crosshair plus recoil, see <see cref="Recoil"/>) in the same space as <paramref name="ErrorX"/>.
+/// Null for traces stored before recoil was parsed.
+/// </param>
+/// <param name="BulletY">Bullet direction in the same space as <paramref name="ErrorY"/>, or null.</param>
 public sealed record EncounterTrace(
     int StartTick,
     int TickRate,
@@ -28,9 +40,13 @@ public sealed record EncounterTrace(
     float[] BodyError,
     float[] Speed,
     float[] Distance,
-    IReadOnlyList<TraceShot> Shots)
+    IReadOnlyList<TraceShot> Shots,
+    float[]? BulletX = null,
+    float[]? BulletY = null)
 {
     public int Count => ErrorX.Length;
+
+    public bool HasBullets => BulletX is not null && BulletY is not null;
 
     /// <summary>Seconds of sample <paramref name="index"/> relative to <paramref name="encounterStartTick"/>.</summary>
     public float SecondsAt(int index, int encounterStartTick) => (StartTick + index - encounterStartTick) / (float)TickRate;
@@ -57,6 +73,8 @@ public static class EncounterTraceBuilder
         var body = new float[count];
         var speed = new float[count];
         var distance = new float[count];
+        var bulletX = new float[count];
+        var bulletY = new float[count];
         var reference = System.Numerics.Vector2.Zero;
         var any = false;
 
@@ -74,6 +92,8 @@ public static class EncounterTraceBuilder
                     body[i] = body[i - 1];
                     speed[i] = speed[i - 1];
                     distance[i] = distance[i - 1];
+                    bulletX[i] = bulletX[i - 1];
+                    bulletY[i] = bulletY[i - 1];
                 }
 
                 continue;
@@ -92,6 +112,9 @@ public static class EncounterTraceBuilder
             body[i] = passed ? -error : error;
             speed[i] = me.HorizontalSpeed;
             distance[i] = BodyModel.Distance(me, them);
+            var bullet = BodyModel.SignedError(Recoil.BulletView(me), them);
+            bulletX[i] = -bullet.X;
+            bulletY[i] = -bullet.Y;
         }
 
         if (!any)
@@ -100,11 +123,20 @@ public static class EncounterTraceBuilder
         var index = DemoIndex.For(demo);
         var shots = index.ShotsBy(encounter.PlayerSteamId)
             .Where(s => s.Target == encounter.OpponentSteamId && s.Tick >= encounter.StartTick && s.Tick <= encounter.EndTick)
-            .Select(s => new TraceShot(s.Tick, s.HitTick is not null, s.HitTick is { } hitTick ? HitGroupOf(index, encounter, hitTick) : null))
+            .Select(s => new TraceShot(
+                s.Tick,
+                s.HitTick is not null,
+                s.HitTick is { } hitTick ? HitGroupOf(index, encounter, hitTick) : null,
+                BulletBodyError(timeline, encounter, s.Tick - 1)))
             .ToList();
 
-        return new EncounterTrace(start, demo.TickRate, x, y, body, speed, distance, shots);
+        return new EncounterTrace(start, demo.TickRate, x, y, body, speed, distance, shots, bulletX, bulletY);
     }
+
+    private static float? BulletBodyError(PlayerTimeline timeline, Encounter encounter, int tick) =>
+        timeline.TryGet(encounter.PlayerSteamId, tick, out var me) && timeline.TryGet(encounter.OpponentSteamId, tick, out var them)
+            ? BodyModel.AngularError(Recoil.BulletView(me), them)
+            : null;
 
     private static int? HitGroupOf(DemoIndex index, Encounter encounter, int hitTick) =>
         index.HurtsBy(encounter.PlayerSteamId)

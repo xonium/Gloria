@@ -39,7 +39,8 @@ public sealed class DemoImporter(
 {
     private readonly DemoAnalyzer _analyzer = analyzer ?? new DemoAnalyzer();
 
-    public string AnalysisVersionKey => _analyzer.VersionKey;
+    /// <summary>Parser and analysis versions of what this importer stores; demos stored under another key are older.</summary>
+    public string AnalysisVersionKey => _analyzer.VersionKeyFor(parser);
 
     public async Task<ImportResult> ImportAsync(string path, IProgress<ImportProgress>? progress = null, CancellationToken cancellationToken = default)
     {
@@ -106,7 +107,7 @@ public sealed class DemoImporter(
     {
         await using var db = dbFactory.CreateDbContext();
         var outdated = await db.Demos
-            .Where(d => d.AnalysisVersionKey != _analyzer.VersionKey && d.FilePath != null)
+            .Where(d => d.AnalysisVersionKey != AnalysisVersionKey && d.FilePath != null)
             .ToListAsync(cancellationToken);
         var available = outdated.Where(d => File.Exists(d.FilePath)).ToList();
         db.Demos.RemoveRange(available);
@@ -128,7 +129,7 @@ public sealed class DemoImporter(
             ImportedAt = DateTimeOffset.UtcNow,
             TickRate = demo.TickRate,
             ParserVersion = parser.Version,
-            AnalysisVersionKey = _analyzer.VersionKey,
+            AnalysisVersionKey = AnalysisVersionKey,
         };
 
         foreach (var player in demo.Players.DistinctBy(p => p.SteamId))

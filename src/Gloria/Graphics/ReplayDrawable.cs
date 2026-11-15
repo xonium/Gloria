@@ -6,7 +6,8 @@ namespace Gloria.Graphics;
 /// <summary>
 /// The encounter seen through the player's eyes, relative to the opponent: a body drawn to scale at the
 /// encounter's distance stays still and the crosshair path moves over it, in degrees of view angle.
-/// Without recoil in the stored data, a shot is drawn where the crosshair was on the tick before it.
+/// Each shot shows a ring where the crosshair was on the tick before it and a diamond where the bullet went
+/// (crosshair plus recoil), joined by a dashed line. Traces stored without bullet data draw the diamond at the crosshair.
 /// </summary>
 public sealed class ReplayDrawable : IDrawable
 {
@@ -17,6 +18,8 @@ public sealed class ReplayDrawable : IDrawable
 	private const float Hips = -32;
 	private const float Feet = -52;
 	private const float TorsoHalfWidth = 10;
+
+	private static readonly Color CrosshairColor = Color.FromArgb("#e3eefc");
 
 	public EncounterTrace? Trace { get; set; }
 
@@ -49,6 +52,18 @@ public sealed class ReplayDrawable : IDrawable
 			maxX = Math.Max(maxX, trace.ErrorX[i]);
 			minY = Math.Min(minY, trace.ErrorY[i]);
 			maxY = Math.Max(maxY, trace.ErrorY[i]);
+		}
+
+		if (trace is { BulletX: { } bulletX, BulletY: { } bulletY })
+		{
+			foreach (var shot in trace.Shots)
+			{
+				var i = trace.IndexOf(shot.Tick - 1);
+				minX = Math.Min(minX, bulletX[i]);
+				maxX = Math.Max(maxX, bulletX[i]);
+				minY = Math.Min(minY, bulletY[i]);
+				maxY = Math.Max(maxY, bulletY[i]);
+			}
 		}
 
 		var spanX = Math.Max(maxX - minX, 4f) * 1.25f;
@@ -103,6 +118,21 @@ public sealed class ReplayDrawable : IDrawable
 				continue;
 
 			var p = P(trace.ErrorX[index], trace.ErrorY[index]);
+			if (trace is { BulletX: { } bx, BulletY: { } by })
+			{
+				// Ring where the crosshair aimed, a dashed line to where recoil sent the bullet.
+				var aimed = p;
+				p = P(bx[index], by[index]);
+				canvas.StrokeColor = Display.Bullet.WithAlpha(0.7f);
+				canvas.StrokeSize = 1.5f;
+				canvas.StrokeDashPattern = [4, 3];
+				canvas.DrawLine(aimed, p);
+				canvas.StrokeDashPattern = null;
+				canvas.StrokeColor = CrosshairColor;
+				canvas.DrawCircle(aimed, 6);
+			}
+
+			canvas.StrokeSize = 2;
 			var diamond = new PathF(p.X, p.Y - 8);
 			diamond.LineTo(p.X + 8, p.Y);
 			diamond.LineTo(p.X, p.Y + 8);
@@ -115,7 +145,7 @@ public sealed class ReplayDrawable : IDrawable
 		}
 
 		var crosshair = P(trace.ErrorX[current], trace.ErrorY[current]);
-		canvas.StrokeColor = Color.FromArgb("#e3eefc");
+		canvas.StrokeColor = CrosshairColor;
 		canvas.StrokeSize = 1.5f;
 		canvas.DrawCircle(crosshair, 11);
 		canvas.DrawLine(crosshair.X - 20, crosshair.Y, crosshair.X - 7, crosshair.Y);

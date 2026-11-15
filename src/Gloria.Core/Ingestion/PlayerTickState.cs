@@ -7,6 +7,11 @@ namespace Gloria.Core.Ingestion;
 /// degrees (where the crosshair was), not the bullet direction, which recoil and aim punch offset.
 /// </summary>
 /// <param name="EyeHeight">Height of the eye above <see cref="Position"/> (lower while crouched).</param>
+/// <param name="AimPunchYaw">
+/// Aim punch in degrees at this tick (decays to zero within a second of the last shot). The bullet goes along the view angles plus
+/// <see cref="Metrics.Recoil.Scale"/> times this; see <see cref="Metrics.Recoil"/>.
+/// </param>
+/// <param name="AimPunchPitch">Aim punch pitch in degrees; negative kicks the bullet upwards.</param>
 public readonly record struct PlayerTickState(
     int Tick,
     ulong SteamId,
@@ -21,7 +26,9 @@ public readonly record struct PlayerTickState(
     bool IsScoped = false,
     bool IsOnGround = true,
     bool IsDucking = false,
-    int Health = 100)
+    int Health = 100,
+    float AimPunchYaw = 0,
+    float AimPunchPitch = 0)
 {
     public const float StandingEyeHeight = 64.06f;
     public const float CrouchingEyeHeight = 46.04f;

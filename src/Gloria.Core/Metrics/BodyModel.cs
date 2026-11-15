@@ -49,5 +49,7 @@ public static class BodyModel
         Yaw = AimMath.LerpYaw(from.Yaw, to.Yaw, amount),
         Pitch = float.Lerp(from.Pitch, to.Pitch, amount),
         EyeHeight = float.Lerp(from.EyeHeight, to.EyeHeight, amount),
+        AimPunchYaw = float.Lerp(from.AimPunchYaw, to.AimPunchYaw, amount),
+        AimPunchPitch = float.Lerp(from.AimPunchPitch, to.AimPunchPitch, amount),
     };
 }

@@ -43,12 +43,12 @@
                         <Label Text="Replay" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
                         <HorizontalStackLayout Grid.Column="1" Spacing="14" VerticalOptions="Center">
                             <HorizontalStackLayout Spacing="6"><BoxView WidthRequest="16" HeightRequest="2" Color="{StaticResource Accent}" VerticalOptions="Center" /><Label Text="Crosshair path" Style="{StaticResource Sub}" FontSize="12" /></HorizontalStackLayout>
-                            <HorizontalStackLayout Spacing="6"><BoxView WidthRequest="9" HeightRequest="9" Color="#eb6834" Rotation="45" VerticalOptions="Center" /><Label Text="Shot, hit" Style="{StaticResource Sub}" FontSize="12" /></HorizontalStackLayout>
-                            <HorizontalStackLayout Spacing="6"><Border WidthRequest="9" HeightRequest="9" Stroke="#eb6834" StrokeThickness="2" Rotation="45" VerticalOptions="Center" /><Label Text="Shot, missed" Style="{StaticResource Sub}" FontSize="12" /></HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="6" IsVisible="{Binding HasBullets}"><Ellipse WidthRequest="11" HeightRequest="11" Stroke="#e3eefc" StrokeThickness="1.5" VerticalOptions="Center" /><Label Text="Crosshair at the shot" Style="{StaticResource Sub}" FontSize="12" /></HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="6"><BoxView WidthRequest="9" HeightRequest="9" Color="#eb6834" Rotation="45" VerticalOptions="Center" /><Label Text="{Binding HitLegend}" Style="{StaticResource Sub}" FontSize="12" /></HorizontalStackLayout>
+                            <HorizontalStackLayout Spacing="6"><Border WidthRequest="9" HeightRequest="9" Stroke="#eb6834" StrokeThickness="2" Rotation="45" VerticalOptions="Center" /><Label Text="{Binding MissLegend}" Style="{StaticResource Sub}" FontSize="12" /></HorizontalStackLayout>
                         </HorizontalStackLayout>
                     </Grid>
-                    <Label Style="{StaticResource Caption}" FontSize="13"
-                           Text="Through your eyes, relative to the opponent: the body is drawn to scale at this distance and stays still while your crosshair moves. Shots are drawn where the crosshair was on the tick before; recoil isn't stored yet." />
+                    <Label Style="{StaticResource Caption}" FontSize="13" Text="{Binding ReplayCaption}" />
                     <Grid ColumnDefinitions="*,250" ColumnSpacing="20">
                         <GraphicsView x:Name="ReplayView" Drawable="{Binding Replay}" HeightRequest="340" SemanticProperties.Description="Replay of the crosshair over the opponent" />
                         <Grid Grid.Column="1" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="12" VerticalOptions="Start">
@@ -102,26 +102,28 @@
                     <Border Style="{StaticResource Card}">
                         <VerticalStackLayout Spacing="6">
                             <Label Text="Shots" Style="{StaticResource H3}" FontSize="17" SemanticProperties.HeadingLevel="Level2" />
-                            <Grid ColumnDefinitions="40,80,*,110,90,110" ColumnSpacing="8" Padding="4,6">
+                            <Grid ColumnDefinitions="36,64,*,100,84,76,92" ColumnSpacing="8" Padding="4,6">
                                 <Label Text="#" Style="{StaticResource Overline}" />
                                 <Label Grid.Column="1" Text="At" Style="{StaticResource Overline}" />
                                 <Label Grid.Column="2" Text="Result" Style="{StaticResource Overline}" />
-                                <Label Grid.Column="3" Text="Off the body" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
-                                <Label Grid.Column="4" Text="Speed" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
-                                <Label Grid.Column="5" Text="Moving?" Style="{StaticResource Overline}" />
+                                <Label Grid.Column="3" Text="Crosshair off" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                                <Label Grid.Column="4" Text="Bullet off" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                                <Label Grid.Column="5" Text="Speed" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                                <Label Grid.Column="6" Text="Moving?" Style="{StaticResource Overline}" />
                             </Grid>
                             <VerticalStackLayout BindableLayout.ItemsSource="{Binding Shots}">
                                 <BindableLayout.ItemTemplate>
                                     <DataTemplate x:DataType="vm:ShotRow">
                                         <VerticalStackLayout>
                                             <BoxView Style="{StaticResource Divider}" />
-                                            <Grid ColumnDefinitions="40,80,*,110,90,110" ColumnSpacing="8" Padding="4,9">
+                                            <Grid ColumnDefinitions="36,64,*,100,84,76,92" ColumnSpacing="8" Padding="4,9">
                                                 <Label Text="{Binding Number}" />
                                                 <Label Grid.Column="1" Text="{Binding At}" />
                                                 <Label Grid.Column="2" Text="{Binding Result}" />
                                                 <Label Grid.Column="3" Text="{Binding Offset}" HorizontalTextAlignment="End" />
-                                                <Label Grid.Column="4" Text="{Binding Speed}" HorizontalTextAlignment="End" />
-                                                <Label Grid.Column="5" Text="{Binding Moving}" />
+                                                <Label Grid.Column="4" Text="{Binding BulletOffset}" HorizontalTextAlignment="End" />
+                                                <Label Grid.Column="5" Text="{Binding Speed}" HorizontalTextAlignment="End" />
+                                                <Label Grid.Column="6" Text="{Binding Moving}" />
                                             </Grid>
                                         </VerticalStackLayout>
                                     </DataTemplate>

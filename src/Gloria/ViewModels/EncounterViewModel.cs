@@ -20,7 +20,7 @@ public sealed record VerdictItem(string Question, string Verdict, bool Flagged, 
 
 public sealed record ScoreItem(string Name, string Percent, Rect Bar, Color Color, bool Flagged);
 
-public sealed record ShotRow(string Number, string At, string Result, string Offset, string Speed, string Moving);
+public sealed record ShotRow(string Number, string At, string Result, string Offset, string BulletOffset, string Speed, string Moving);
 
 public sealed class SpeedOption(double value, Action<SpeedOption> select) : ObservableObject
 {
@@ -77,6 +77,7 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 	private string _markers = "";
 	private string _modelNote = "";
 	private bool _hasTrace;
+	private bool _hasBullets;
 
 	public EncounterViewModel(GloriaReadModel readModel)
 	{
@@ -145,6 +146,30 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 
 	public bool HasTrace { get => _hasTrace; private set => Set(ref _hasTrace, value); }
 
+	/// <summary>The trace has bullet directions (crosshair plus recoil); older traces only have the crosshair.</summary>
+	public bool HasBullets
+	{
+		get => _hasBullets;
+		private set
+		{
+			if (Set(ref _hasBullets, value))
+			{
+				OnPropertyChanged(nameof(ReplayCaption));
+				OnPropertyChanged(nameof(HitLegend));
+				OnPropertyChanged(nameof(MissLegend));
+			}
+		}
+	}
+
+	public string ReplayCaption => "Through your eyes, relative to the opponent: the body is drawn to scale at this distance and stays still while your crosshair moves. "
+		+ (HasBullets
+			? "At each shot, the ring is where your crosshair was and the diamond is where the bullet went: the crosshair plus recoil. Random spread isn't in the demo, so the real bullet can land a little off that point."
+			: "Shots are drawn where the crosshair was on the tick before. This demo was analyzed before recoil was stored; re-analyze it to see where the bullets went.");
+
+	public string HitLegend => HasBullets ? "Bullet, hit" : "Shot, hit";
+
+	public string MissLegend => HasBullets ? "Bullet, missed" : "Shot, missed";
+
 	public double MaxPosition { get => _maxPosition; private set => Set(ref _maxPosition, value); }
 
 	public bool IsPlaying
@@ -209,6 +234,7 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 	{
 		_trace = d.Trace;
 		HasTrace = _trace is { Count: > 1 };
+		HasBullets = _trace?.HasBullets ?? false;
 		Shots.Clear();
 		if (_trace is not { Count: > 1 } trace)
 			return;
@@ -248,6 +274,7 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 				$"{trace.SecondsAt(trace.IndexOf(shot.Tick), e.StartTick):0.00} s",
 				shot.Hit ? $"Hit · {HitGroup(shot.HitGroup)}" : "Missed",
 				Math.Abs(offset) < 0.05f ? "on" : $"{Math.Abs(offset):0.0}°{(offset < 0 ? " past" : "")}",
+				shot.BulletBodyError switch { null => "—", < 0.05f => "on", { } b => $"{b:0.0}°" },
 				$"{speed:0} u/s",
 				_accurateSpeed > 0 && speed > _accurateSpeed ? $"Yes, {speed / _accurateSpeed:0.00}×" : "No"));
 		}

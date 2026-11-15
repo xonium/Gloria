@@ -46,7 +46,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<DemoImporter>();
 		builder.Services.AddSingleton(services => new GloriaReadModel(
 			services.GetRequiredService<IDbContextFactory<GloriaDbContext>>(),
-			services.GetRequiredService<DemoAnalyzer>().VersionKey));
+			services.GetRequiredService<DemoImporter>().AnalysisVersionKey));
 		builder.Services.AddSingleton<ImportQueue>();
 		builder.Services.AddSingleton<ProfileState>();
 		builder.Services.AddSingleton<UpdateService>();

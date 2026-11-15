@@ -25,7 +25,7 @@ public sealed record TrainerOptions(
     public string BaseModelDirectory => Path.Combine(RepoRoot, "src", "Gloria", "models", "base");
 
     /// <summary>Cache key of the analysis code; a demo is re-extracted when any stage's version changes.</summary>
-    public static string AnalysisVersion { get; } = $"p{new DemoFileDemoParser().Version}-{new DemoAnalyzer().VersionKey}";
+    public static string AnalysisVersion { get; } = new DemoAnalyzer().VersionKeyFor(new DemoFileDemoParser());
 
     public static TrainerOptions? Parse(string[] args)
     {

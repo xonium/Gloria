@@ -12,7 +12,7 @@ The projects, the Velopack startup hook, update source, database location and mi
 - outcome labels
 - ML training via `tools/Gloria.Trainer`
 
-A base model is shipped in `src/Gloria/models/base/`. A first UI slice runs on real data: import, profiles, Overview, Matches, Match, Encounter (with replay) and Progress. Findings and the gaps against the design are in `docs/ui-spike.md`. Still to do: user corrections, recoil in the replay, the rest of Progress, and filters.
+A base model is shipped in `src/Gloria/models/base/`. A first UI slice runs on real data: import, profiles, Overview, Matches, Match, Encounter (with replay) and Progress. Findings and the gaps against the design are in `docs/ui-spike.md`. The replay shows where each bullet went (crosshair plus recoil). Still to do: user corrections, the rest of Progress, and filters.
 
 ## Commands
 
@@ -137,3 +137,11 @@ Keep these layers separate. Parsing is slow, and analysis heuristics will change
     - Fire events and item names carry the `weapon_` prefix; hurt and death events don't.
     - Normalize with `StaticWeaponData.Normalize`.
   - **API pitfall:** `parser.GameRules` throws until the game rules entity exists.
+  - **Aim punch (recoil):**
+    - Read `pawn.AimPunchServices.PredictableBaseAngle` and `PredictableBaseAngleVel`. They are networked only when a shot changes them, stamped at `PredictableBaseTick + PredictableBaseTickInterpAmount` in half ticks (divide by 128 for seconds; `CurrentGameTick` divides by 64).
+    - Evolve them to the sample time with the game's decay (`Recoil.Evolve`: exponential 8, linear 18°/s, velocity 4.5). `DemoFileDemoParser` stores the evolved punch per tick.
+    - **DemoFile.Net 0.45 decodes these `QAngle`s as 32-bit quantized angles**, so they read around 90° or 270°. They hold plain floats: recover them from the bits (`DemoFileDemoParser.FloatField`). `RecoilDemoTests` fails if a parser update changes this.
+    - Bullet direction = view angles on the tick before the fire tick + 2 × punch (`Recoil.Scale`, CS2's weapon_recoil_scale). The fit on 1,923 hits in 5 demos gives k = 1.9 overall, and 1.75–2.15 at every position in a burst.
+    - With recoil, the median error from the bullet to the victim's body falls from 0.77° to 0.47°, and hits on the body rise from 64% to 79%. For shots 6–9 of a spray the error falls from 3.60° to 0.54°.
+    - Not the aim punch: `CameraServices.CsViewPunchAngle` is the camera kick. The scale it would need grows from 0 at the second shot to over 3 in long sprays. `UnpredictableBaseAngle` (probably punch from taking damage) made the fit worse and is ignored.
+    - Random spread isn't in the demo, so the bullet direction is crosshair plus recoil only.

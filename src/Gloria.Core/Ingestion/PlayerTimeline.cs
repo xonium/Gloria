@@ -4,7 +4,7 @@ namespace Gloria.Core.Ingestion;
 
 /// <summary>
 /// Per-tick state of every tracked player, stored column-wise so a 40-minute demo stays
-/// around 75 MB. Lookups by tick are O(1): a tick that was not recorded resolves to the
+/// around 85 MB. Lookups by tick are O(1): a tick that was not recorded resolves to the
 /// latest recorded tick before it.
 /// </summary>
 public sealed class PlayerTimeline
@@ -121,7 +121,9 @@ public sealed class PlayerTimeline
             flags.HasFlag(StateFlags.Scoped),
             flags.HasFlag(StateFlags.OnGround),
             flags.HasFlag(StateFlags.Ducking),
-            c.Health[row]);
+            c.Health[row],
+            c.PunchYaw[row],
+            c.PunchPitch[row]);
     }
 
     internal sealed class PlayerColumns(int capacity)
@@ -135,6 +137,8 @@ public sealed class PlayerTimeline
         public float[] Yaw = new float[capacity];
         public float[] Pitch = new float[capacity];
         public float[] EyeHeight = new float[capacity];
+        public float[] PunchYaw = new float[capacity];
+        public float[] PunchPitch = new float[capacity];
         public ushort[] Weapon = new ushort[capacity];
         public StateFlags[] Flags = new StateFlags[capacity];
         public byte[] Team = new byte[capacity];
@@ -152,6 +156,8 @@ public sealed class PlayerTimeline
             Array.Resize(ref Yaw, size);
             Array.Resize(ref Pitch, size);
             Array.Resize(ref EyeHeight, size);
+            Array.Resize(ref PunchYaw, size);
+            Array.Resize(ref PunchPitch, size);
             Array.Resize(ref Weapon, size);
             Array.Resize(ref Flags, size);
             Array.Resize(ref Team, size);
@@ -226,6 +232,8 @@ public sealed class PlayerTimelineBuilder
         c.Yaw[row] = state.Yaw;
         c.Pitch[row] = state.Pitch;
         c.EyeHeight[row] = state.EyeHeight;
+        c.PunchYaw[row] = state.AimPunchYaw;
+        c.PunchPitch[row] = state.AimPunchPitch;
         c.Weapon[row] = WeaponId(state.ActiveWeapon);
         c.Team[row] = (byte)state.Team;
         c.Health[row] = (byte)Math.Clamp(state.Health, 0, 255);

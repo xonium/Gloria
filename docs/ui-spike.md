@@ -59,10 +59,10 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
 
 ## Not done, or different from the design
 
-- **Recoil:** the parser doesn't read aim punch. The replay draws each shot where the crosshair was on the tick before it fired, not where the bullet went. To fix this:
-  - Read the pawn's aim punch angle per tick.
-  - Add it to `PlayerTickState` and the trace.
-  - Bump the `TraceCodec` format.
+- **Recoil:** done since the spike.
+  - The replay draws a ring where the crosshair was on the tick before each shot, and a diamond where the bullet went (crosshair plus recoil), joined by a dashed line. The shots table gives both offsets from the body.
+  - Random spread isn't in the demo, so it isn't modeled, and the screen says so.
+  - Traces stored before this (`TraceCodec` format 1) keep the old drawing until the demo is re-analyzed. Format 2 adds the bullet direction, about 14 bytes a tick instead of 10.
 - **Corrections** aren't stored. The encounter screen only explains them.
 - **Outcome model:** "What cost the duel" isn't shown, because `MlOutcomePredictor` isn't registered.
 - **Progress:** plain lines only. Rolling medians, the weapon-class table and duel costs are still to come.
@@ -75,7 +75,6 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
 ## Suggested next steps
 
 1. Move preferences into the database and decide on number formatting.
-2. Parse aim punch and draw real bullet directions in the replay.
-3. Store corrections per profile and wire them into retraining.
-4. Finish Progress, and the Overview and Matches filters.
-5. Click-test import on a clean machine, including an installed (Velopack) build.
+2. Store corrections per profile and wire them into retraining.
+3. Finish Progress, and the Overview and Matches filters.
+4. Click-test import on a clean machine, including an installed (Velopack) build.

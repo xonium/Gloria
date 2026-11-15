@@ -1,5 +1,6 @@
 using System.Numerics;
 using Gloria.Core.Ingestion;
+using Gloria.Core.Metrics;
 using Gloria.Core.Visibility;
 using Gloria.Core.Tests.Fixtures;
 using static Gloria.Core.Tests.Fixtures.Scenarios;
@@ -27,6 +28,26 @@ public class PlayerTimelineTests
         Assert.False(timeline.TryGet(A, 9, out _));
         Assert.False(timeline.TryGet(A, 13, out _));
         Assert.Equal("weapon_ak47", state.ActiveWeapon);
+    }
+
+    [Fact]
+    public void AimPunch_RoundTripsAndInterpolates()
+    {
+        var builder = new PlayerTimelineBuilder();
+        builder.BeginTick(0);
+        builder.Set(State(0, A, 0));
+        builder.BeginTick(1);
+        builder.Set(State(1, A, 0) with { AimPunchYaw = 0.4f, AimPunchPitch = -1.2f });
+        var timeline = builder.Build();
+
+        Assert.True(timeline.TryGet(A, 0, out var before));
+        Assert.True(timeline.TryGet(A, 1, out var after));
+        Assert.Equal(0.4f, after.AimPunchYaw);
+        Assert.Equal(-1.2f, after.AimPunchPitch);
+
+        var half = BodyModel.Lerp(before, after, 0.5f);
+        Assert.Equal(0.2f, half.AimPunchYaw, 1e-5f);
+        Assert.Equal(-0.6f, half.AimPunchPitch, 1e-5f);
     }
 
     [Fact]

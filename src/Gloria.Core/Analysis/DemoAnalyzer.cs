@@ -30,6 +30,9 @@ public sealed class DemoAnalyzer(
     public string VersionKey =>
         $"s{_segmenter.Version}-m{_metrics.Version}-f{EncounterFeatures.SchemaVersion}-l{_labeler.Version}";
 
+    /// <summary><see cref="VersionKey"/> with the parser's version in front, for results that also depend on what was parsed.</summary>
+    public string VersionKeyFor(IDemoParser parser) => $"p{parser.Version}-{VersionKey}";
+
     public DemoAnalysis Analyze(ParsedDemo demo)
     {
         var segmentation = _segmenter.SegmentAll(demo);

@@ -30,7 +30,7 @@ public sealed class DemoRecord
     /// <summary>Metric code version of the stored analysis; re-analyze when it is behind.</summary>
     public int AnalysisVersion { get; set; }
 
-    /// <summary><c>DemoAnalyzer.VersionKey</c> of the stored encounters, e.g. "s2-m5-f2-l1".</summary>
+    /// <summary><c>DemoImporter.AnalysisVersionKey</c> of the stored encounters, e.g. "p4-s2-m5-f2-l1".</summary>
     public string AnalysisVersionKey { get; set; } = "";
 
     public List<DemoPlayerRecord> Players { get; set; } = [];

@@ -1,6 +1,7 @@
 using System.Numerics;
 using DemoFile;
 using DemoFile.Game.Cs;
+using Gloria.Core.Metrics;
 
 namespace Gloria.Core.Ingestion;
 
@@ -10,7 +11,7 @@ public sealed class DemoFileDemoParser : IDemoParser
     // Entity flag set while the player stands on the ground (FL_ONGROUND).
     private const uint OnGroundFlag = 1;
 
-    public int Version => 3;
+    public int Version => 4;
 
     public async Task<ParsedDemo> ParseAsync(Stream demo, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
     {
@@ -151,19 +152,22 @@ public sealed class DemoFileDemoParser : IDemoParser
         }
 
         timeline.BeginTick(tick);
+        var seconds = parser.CurrentGameTick.Value / (float)CsDemoParser.TickRate;
         foreach (var (controller, pawn, index) in tracked)
         {
-            timeline.Set(index, ReadState(controller, pawn, tick), SpottedBy(pawn, localBySlot));
+            timeline.Set(index, ReadState(controller, pawn, tick, seconds), SpottedBy(pawn, localBySlot));
         }
     }
 
-    private static PlayerTickState ReadState(CCSPlayerController controller, CCSPlayerPawn pawn, int tick)
+    /// <param name="seconds">Game time of the sample, in seconds.</param>
+    private static PlayerTickState ReadState(CCSPlayerController controller, CCSPlayerPawn pawn, int tick, float seconds)
     {
         var origin = pawn.Origin;
         var velocity = pawn.Velocity;
         var angles = pawn.EyeAngles;
         var duck = pawn.MovementServices?.DuckAmount ?? 0f;
         var viewOffset = pawn.ViewOffset.Z;
+        var punch = AimPunchAt(pawn, seconds);
         var eyeHeight = viewOffset > 0
             ? viewOffset
             : PlayerTickState.StandingEyeHeight - duck * (PlayerTickState.StandingEyeHeight - PlayerTickState.CrouchingEyeHeight);
@@ -182,8 +186,36 @@ public sealed class DemoFileDemoParser : IDemoParser
             pawn.IsScoped,
             (pawn.Flags & OnGroundFlag) != 0,
             duck > 0.5f,
-            pawn.Health);
+            pawn.Health,
+            punch.Y,
+            punch.X);
     }
+
+    /// <summary>
+    /// Aim punch (pitch, yaw) at the given game time. The pawn networks the punch and its velocity only when a shot
+    /// changes them (the "predictable base", stamped in half ticks); the game evolves them from there, so do the same.
+    /// </summary>
+    private static Vector2 AimPunchAt(CCSPlayerPawn pawn, float seconds)
+    {
+        if (pawn.AimPunchServices is not { } punch)
+        {
+            return Vector2.Zero;
+        }
+
+        var baseSeconds = (punch.PredictableBaseTick.Value + punch.PredictableBaseTickInterpAmount) / (2f * CsDemoParser.TickRate);
+        return Recoil.Evolve(
+            new Vector2(FloatField(punch.PredictableBaseAngle.Pitch), FloatField(punch.PredictableBaseAngle.Yaw)),
+            new Vector2(FloatField(punch.PredictableBaseAngleVel.Pitch), FloatField(punch.PredictableBaseAngleVel.Yaw)),
+            seconds - baseSeconds);
+    }
+
+    /// <summary>
+    /// DemoFile.Net 0.45 decodes the aim punch angles as 32-bit quantized angles (raw / 2^32 * 360), but they hold plain
+    /// floats. This recovers the float from its bits, to about 15 bits of mantissa. RecoilDemoTests fails if a newer
+    /// parser version decodes them properly and this becomes wrong.
+    /// </summary>
+    private static float FloatField(float decoded) =>
+        BitConverter.UInt32BitsToSingle((uint)((long)Math.Round(decoded / 360.0 * 4294967296.0) & 0xFFFFFFFF));
 
     /// <summary>
     /// The target pawn's spotted mask has bit <c>slot</c> set for each observer that spots it,

@@ -35,7 +35,9 @@ public sealed class ImportTests : IDisposable
             [1.2f, -0.1f],
             [210f, 12f],
             [1420f, 1418f],
-            [new TraceShot(1001, true, 2), new TraceShot(1001, false, null)]);
+            [new TraceShot(1001, true, 2, 0f), new TraceShot(1001, false, null, 1.5f), new TraceShot(1001, false, null)],
+            [2.5f, -1.25f],
+            [3f, 0.75f]);
 
         var decoded = TraceCodec.Decode(TraceCodec.Encode(trace));
 
@@ -45,7 +47,40 @@ public sealed class ImportTests : IDisposable
         Assert.Equal(trace.ErrorX, decoded.ErrorX);
         Assert.Equal(trace.Speed, decoded.Speed);
         Assert.Equal(trace.Shots, decoded.Shots);
+        Assert.True(decoded.HasBullets);
+        Assert.Equal(trace.BulletX, decoded.BulletX);
+        Assert.Equal(trace.BulletY, decoded.BulletY);
     }
+
+    [Fact]
+    public void TraceCodec_DecodesFormat1WithoutBullets()
+    {
+        using var buffer = new MemoryStream();
+        using (var writer = new BinaryWriter(buffer))
+        {
+            writer.Write((byte)1);
+            writer.Write(500);
+            writer.Write((short)64);
+            writer.Write(2);
+            foreach (var value in new[] { 1f, 2f, 0.5f, 0f, 0.25f, 0.5f, 200f, 100f, 900f, 905f })
+                writer.Write((Half)value);
+            writer.Write((short)1);
+            writer.Write(501);
+            writer.Write(true);
+            writer.Write((short)1);
+        }
+
+        var decoded = TraceCodec.Decode(buffer.ToArray());
+
+        Assert.NotNull(decoded);
+        Assert.False(decoded.HasBullets);
+        Assert.Equal([1f, 2f], decoded.ErrorX);
+        Assert.Equal([900f, 905f], decoded.Distance);
+        Assert.Equal([new TraceShot(501, true, 1)], decoded.Shots);
+    }
+
+    [Fact]
+    public void TraceCodec_RefusesUnknownFormats() => Assert.Null(TraceCodec.Decode([99, 0, 0, 0]));
 
     [Fact]
     public async Task Matches_CountRoundsFromThePlayersSide()
