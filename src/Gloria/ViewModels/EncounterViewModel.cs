@@ -164,6 +164,7 @@ public sealed class SpeedOption(double value, Action<SpeedOption> select) : Obse
 public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 {
 	private readonly GloriaReadModel _readModel;
+	private readonly GameArt _art;
 	private readonly DuelOutcomes _outcomes;
 	private readonly CorrectionStore _corrections;
 	private readonly Stopwatch _clock = new();
@@ -198,9 +199,10 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 	private bool _hasTrace;
 	private bool _hasBullets;
 
-	public EncounterViewModel(GloriaReadModel readModel, DuelOutcomes outcomes, CorrectionStore corrections, UserModelTraining training)
+	public EncounterViewModel(GloriaReadModel readModel, DuelOutcomes outcomes, CorrectionStore corrections, UserModelTraining training, GameArt art)
 	{
 		_readModel = readModel;
+		_art = art;
 		_outcomes = outcomes;
 		_corrections = corrections;
 		Training = training;
@@ -218,6 +220,8 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 	public event EventHandler? Redraw;
 
 	public ReplayDrawable Replay { get; } = new();
+
+	public MapDrawable Map { get; } = new();
 
 	public TraceChartDrawable ErrorChart { get; } = new() { FormatY = v => $"{Math.Round(v, 1) + 0:0.#}°" };
 
@@ -389,6 +393,8 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 		BuildScores(e);
 		BuildOutlook(e);
 		await BuildCorrectionsAsync(e);
+		Map.Art = await _art.MapAsync(d.MapName);
+		Map.MapName = d.MapName;
 		LoadTrace(d);
 	}
 
@@ -409,6 +415,9 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 		Replay.Trace = trace;
 		Replay.StartIndex = _startIndex;
 		Replay.OpponentLabel = $"{d.OpponentName} · {trace.Distance[_startIndex]:N0} u";
+		Map.Trace = trace;
+		Map.StartIndex = _startIndex;
+		Map.OpponentLabel = d.OpponentName;
 
 		ErrorChart.Seconds = seconds;
 		ErrorChart.Values = trace.BodyError;
@@ -490,6 +499,7 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 
 		var i = Math.Clamp((int)Position, 0, trace.Count - 1);
 		Replay.Position = (float)Position;
+		Map.Position = (float)Position;
 		ErrorChart.Playhead = (float)Position;
 		SpeedChart.Playhead = (float)Position;
 

@@ -34,3 +34,31 @@ if ($Weapons) {
     }
     Write-Host "$($icons.Count) weapon icons in $target"
 }
+
+if ($Maps) {
+    # Radars (1024 px, about 110 kB each) and their world-to-image transform, from MurkyYT/cs2-map-icons, which
+    # follows CS2 updates. Maps with a lower level get <map>_lower.png and the altitude below which it applies.
+    $target = Join-Path $root 'src/Gloria/Resources/Raw/maps'
+    New-Item -ItemType Directory -Force $target | Out-Null
+    $base = 'https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/images/radars'
+    $available = (Invoke-RestMethod 'https://raw.githubusercontent.com/MurkyYT/cs2-map-icons/main/data/available.json').maps
+    $index = [ordered]@{}
+    foreach ($map in $available.PSObject.Properties | Where-Object { $_.Name -match '^(de|cs)_' } | Sort-Object Name) {
+        $name = $map.Name
+        $info = $map.Value.radar_info
+        if ($null -eq $info -or $null -eq $info.scale -or "$base/${name}_radar_psd.png" -notin $map.Value.radar_paths) { continue }
+
+        Invoke-WebRequest "$base/${name}_radar_psd.png" -OutFile (Join-Path $target "$name.png")
+        $entry = [ordered]@{ posX = $info.pos_x; posY = $info.pos_y; scale = $info.scale }
+        $lower = $info.verticalsections.lower
+        if ($null -ne $lower -and "$base/${name}_lower_radar_psd.png" -in $map.Value.radar_paths) {
+            Invoke-WebRequest "$base/${name}_lower_radar_psd.png" -OutFile (Join-Path $target "${name}_lower.png")
+            $entry.lowerBelow = $lower.AltitudeMax
+        }
+
+        $index[$name] = $entry
+    }
+
+    $index | ConvertTo-Json | Set-Content (Join-Path $target 'maps.json') -Encoding utf8NoBOM
+    Write-Host "$($index.Count) maps in $target"
+}

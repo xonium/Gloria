@@ -49,9 +49,10 @@
                         </HorizontalStackLayout>
                     </Grid>
                     <Label Style="{StaticResource Caption}" FontSize="13" Text="{Binding ReplayCaption}" />
-                    <Grid ColumnDefinitions="*,290" ColumnSpacing="20">
-                        <GraphicsView x:Name="ReplayView" Drawable="{Binding Replay}" HeightRequest="400" SemanticProperties.Description="Replay of the crosshair over the opponent" />
-                        <Grid Grid.Column="1" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="11" VerticalOptions="Start">
+                    <Grid ColumnDefinitions="360,*,280" ColumnSpacing="20">
+                        <GraphicsView x:Name="MapView" Drawable="{Binding Map}" HeightRequest="400" SemanticProperties.Description="Map of where the encounter happened" />
+                        <GraphicsView x:Name="ReplayView" Grid.Column="1" Drawable="{Binding Replay}" HeightRequest="400" SemanticProperties.Description="Replay of the crosshair over the opponent" />
+                        <Grid Grid.Column="2" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="11" VerticalOptions="Start">
                             <Label Text="Time" Style="{StaticResource Caption}" FontSize="13" />
                             <Label Grid.Column="1" Text="{Binding TimeText}" FontFamily="OpenSansSemibold" />
                             <Label Grid.Row="1" Text="Now" Style="{StaticResource Caption}" FontSize="13" />

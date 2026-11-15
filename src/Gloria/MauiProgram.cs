@@ -76,6 +76,7 @@ public static class MauiProgram
 			services.GetRequiredService<DemoImporter>().AnalysisVersionKey));
 		builder.Services.AddSingleton<ImportQueue>();
 		builder.Services.AddSingleton<ProfileState>();
+		builder.Services.AddSingleton<GameArt>();
 		builder.Services.AddSingleton<UpdateService>();
 		builder.Services.AddSingleton<UpdateNotifier>();
 

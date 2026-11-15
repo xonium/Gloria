@@ -13,6 +13,7 @@ public partial class EncounterPage : ContentPage
 		BindingContext = viewModel;
 		viewModel.Redraw += (_, _) =>
 		{
+			MapView.Invalidate();
 			ReplayView.Invalidate();
 			ErrorView.Invalidate();
 			SpeedView.Invalidate();
