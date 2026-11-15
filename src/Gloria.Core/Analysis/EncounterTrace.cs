@@ -1,6 +1,7 @@
 using Gloria.Core.Encounters;
 using Gloria.Core.Ingestion;
 using Gloria.Core.Metrics;
+using Gloria.Core.Weapons;
 
 namespace Gloria.Core.Analysis;
 
@@ -13,7 +14,64 @@ namespace Gloria.Core.Analysis;
 /// Angle from the bullet direction (crosshair plus recoil) to the nearest point of the body, 0 when on it.
 /// Null for traces stored before recoil was parsed.
 /// </param>
-public readonly record struct TraceShot(int Tick, bool Hit, int? HitGroup, float? BulletBodyError = null);
+/// <param name="Weapon">Normalized weapon name, or null for traces stored before format 3.</param>
+/// <param name="Damage">Health the hit took (all pellets of a shotgun shot), or null for a miss or an older trace.</param>
+public readonly record struct TraceShot(
+    int Tick,
+    bool Hit,
+    int? HitGroup,
+    float? BulletBodyError = null,
+    string? Weapon = null,
+    int? Damage = null);
+
+/// <summary>The weapon a player held from <paramref name="Tick"/> on (normalized name, empty for none).</summary>
+public readonly record struct TraceWeapon(int Tick, string Weapon);
+
+/// <summary>Damage between the two players: shots, utility, the knife.</summary>
+/// <param name="ByPlayer">True when the player hurt the opponent, false when the opponent hurt the player.</param>
+public readonly record struct TraceDamage(int Tick, bool ByPlayer, string Weapon, int Damage, int HitGroup);
+
+/// <summary>The death that ended the encounter, when one of the two killed the other.</summary>
+public readonly record struct TraceDeath(int Tick, bool ByPlayer, string Weapon, bool Headshot);
+
+/// <summary>
+/// What happened in the world during an encounter, for the map, the agent model and the stats: positions, yaw,
+/// health, weapons, damage and the deciding death. Series are per tick, aligned with the trace samples.
+/// </summary>
+/// <param name="OpponentTeam">Picks the agent model.</param>
+/// <param name="PlayerYaw">The player's view yaw in degrees, as the game stores it (counter-clockwise from +X).</param>
+public sealed record TraceScene(
+    Team OpponentTeam,
+    float[] PlayerX,
+    float[] PlayerY,
+    float[] PlayerZ,
+    float[] PlayerYaw,
+    byte[] PlayerHealth,
+    float[] OpponentX,
+    float[] OpponentY,
+    float[] OpponentZ,
+    float[] OpponentYaw,
+    byte[] OpponentHealth,
+    bool[] OpponentDucking,
+    IReadOnlyList<TraceWeapon> PlayerWeapons,
+    IReadOnlyList<TraceWeapon> OpponentWeapons,
+    IReadOnlyList<TraceDamage> Damage,
+    TraceDeath? Death)
+{
+    /// <summary>The weapon held at <paramref name="tick"/>, or null before the first entry or when unarmed.</summary>
+    public static string? WeaponAt(IReadOnlyList<TraceWeapon> weapons, int tick)
+    {
+        string? weapon = null;
+        foreach (var change in weapons)
+        {
+            if (change.Tick > tick)
+                break;
+            weapon = change.Weapon;
+        }
+
+        return string.IsNullOrEmpty(weapon) ? null : weapon;
+    }
+}
 
 /// <summary>
 /// Per-tick samples of one encounter, for charts and the replay. Starts <see cref="EncounterTraceBuilder.LeadSeconds"/>
@@ -32,6 +90,7 @@ public readonly record struct TraceShot(int Tick, bool Hit, int? HitGroup, float
 /// Null for traces stored before recoil was parsed.
 /// </param>
 /// <param name="BulletY">Bullet direction in the same space as <paramref name="ErrorY"/>, or null.</param>
+/// <param name="Scene">Positions, health, weapons and damage; null for traces stored before format 3.</param>
 public sealed record EncounterTrace(
     int StartTick,
     int TickRate,
@@ -42,7 +101,8 @@ public sealed record EncounterTrace(
     float[] Distance,
     IReadOnlyList<TraceShot> Shots,
     float[]? BulletX = null,
-    float[]? BulletY = null)
+    float[]? BulletY = null,
+    TraceScene? Scene = null)
 {
     public int Count => ErrorX.Length;
 
@@ -75,6 +135,20 @@ public static class EncounterTraceBuilder
         var distance = new float[count];
         var bulletX = new float[count];
         var bulletY = new float[count];
+        var playerX = new float[count];
+        var playerY = new float[count];
+        var playerZ = new float[count];
+        var playerYaw = new float[count];
+        var playerHealth = new byte[count];
+        var opponentX = new float[count];
+        var opponentY = new float[count];
+        var opponentZ = new float[count];
+        var opponentYaw = new float[count];
+        var opponentHealth = new byte[count];
+        var ducking = new bool[count];
+        var playerWeapons = new List<TraceWeapon>();
+        var opponentWeapons = new List<TraceWeapon>();
+        var opponentTeam = Team.None;
         var reference = System.Numerics.Vector2.Zero;
         var any = false;
 
@@ -94,6 +168,17 @@ public static class EncounterTraceBuilder
                     distance[i] = distance[i - 1];
                     bulletX[i] = bulletX[i - 1];
                     bulletY[i] = bulletY[i - 1];
+                    playerX[i] = playerX[i - 1];
+                    playerY[i] = playerY[i - 1];
+                    playerZ[i] = playerZ[i - 1];
+                    playerYaw[i] = playerYaw[i - 1];
+                    playerHealth[i] = playerHealth[i - 1];
+                    opponentX[i] = opponentX[i - 1];
+                    opponentY[i] = opponentY[i - 1];
+                    opponentZ[i] = opponentZ[i - 1];
+                    opponentYaw[i] = opponentYaw[i - 1];
+                    opponentHealth[i] = opponentHealth[i - 1];
+                    ducking[i] = ducking[i - 1];
                 }
 
                 continue;
@@ -115,6 +200,17 @@ public static class EncounterTraceBuilder
             var bullet = BodyModel.SignedError(Recoil.BulletView(me), them);
             bulletX[i] = -bullet.X;
             bulletY[i] = -bullet.Y;
+
+            (playerX[i], playerY[i], playerZ[i]) = (me.Position.X, me.Position.Y, me.Position.Z);
+            playerYaw[i] = me.Yaw;
+            playerHealth[i] = (byte)Math.Clamp(me.Health, 0, 255);
+            (opponentX[i], opponentY[i], opponentZ[i]) = (them.Position.X, them.Position.Y, them.Position.Z);
+            opponentYaw[i] = them.Yaw;
+            opponentHealth[i] = (byte)Math.Clamp(them.Health, 0, 255);
+            ducking[i] = them.IsDucking;
+            opponentTeam = them.Team;
+            Track(playerWeapons, tick, me.ActiveWeapon);
+            Track(opponentWeapons, tick, them.ActiveWeapon);
         }
 
         if (!any)
@@ -123,14 +219,50 @@ public static class EncounterTraceBuilder
         var index = DemoIndex.For(demo);
         var shots = index.ShotsBy(encounter.PlayerSteamId)
             .Where(s => s.Target == encounter.OpponentSteamId && s.Tick >= encounter.StartTick && s.Tick <= encounter.EndTick)
-            .Select(s => new TraceShot(
-                s.Tick,
-                s.HitTick is not null,
-                s.HitTick is { } hitTick ? HitGroupOf(index, encounter, hitTick) : null,
-                BulletBodyError(timeline, encounter, s.Tick - 1)))
+            .Select(s =>
+            {
+                var hurts = s.HitTick is { } hitTick ? HurtsOf(index, encounter, hitTick, s.Weapon) : [];
+                return new TraceShot(
+                    s.Tick,
+                    s.HitTick is not null,
+                    hurts.Count > 0 ? hurts[0].HitGroup : null,
+                    BulletBodyError(timeline, encounter, s.Tick - 1),
+                    s.Weapon,
+                    hurts.Count > 0 ? hurts.Sum(h => h.DamageHealth) : null);
+            })
             .ToList();
 
-        return new EncounterTrace(start, demo.TickRate, x, y, body, speed, distance, shots, bulletX, bulletY);
+        var end = encounter.EndTick;
+        var damage = index.HurtsBy(encounter.PlayerSteamId)
+            .Where(h => h.VictimSteamId == encounter.OpponentSteamId)
+            .Select(h => (Hurt: h, ByPlayer: true))
+            .Concat(index.HurtsBy(encounter.OpponentSteamId)
+                .Where(h => h.VictimSteamId == encounter.PlayerSteamId)
+                .Select(h => (Hurt: h, ByPlayer: false)))
+            .Where(d => d.Hurt.Tick >= start && d.Hurt.Tick <= end)
+            .OrderBy(d => d.Hurt.Tick)
+            .Select(d => new TraceDamage(d.Hurt.Tick, d.ByPlayer, StaticWeaponData.Normalize(d.Hurt.Weapon), d.Hurt.DamageHealth, d.Hurt.HitGroup))
+            .ToList();
+        TraceDeath? death =
+            index.DeathOf(encounter.OpponentSteamId, start, end) is { } kill && kill.AttackerSteamId == encounter.PlayerSteamId
+                ? new TraceDeath(kill.Tick, true, StaticWeaponData.Normalize(kill.Weapon), kill.Headshot)
+            : index.DeathOf(encounter.PlayerSteamId, start, end) is { } died && died.AttackerSteamId == encounter.OpponentSteamId
+                ? new TraceDeath(died.Tick, false, StaticWeaponData.Normalize(died.Weapon), died.Headshot)
+            : null;
+
+        var scene = new TraceScene(
+            opponentTeam,
+            playerX, playerY, playerZ, playerYaw, playerHealth,
+            opponentX, opponentY, opponentZ, opponentYaw, opponentHealth, ducking,
+            playerWeapons, opponentWeapons, damage, death);
+        return new EncounterTrace(start, demo.TickRate, x, y, body, speed, distance, shots, bulletX, bulletY, scene);
+    }
+
+    private static void Track(List<TraceWeapon> weapons, int tick, string? weapon)
+    {
+        var name = StaticWeaponData.Normalize(weapon ?? "");
+        if (weapons.Count == 0 || weapons[^1].Weapon != name)
+            weapons.Add(new TraceWeapon(tick, name));
     }
 
     private static float? BulletBodyError(PlayerTimeline timeline, Encounter encounter, int tick) =>
@@ -138,7 +270,9 @@ public static class EncounterTraceBuilder
             ? BodyModel.AngularError(Recoil.BulletView(me), them)
             : null;
 
-    private static int? HitGroupOf(DemoIndex index, Encounter encounter, int hitTick) =>
+    /// <summary>The hurts a hit dealt: one for a bullet, several for shotgun pellets.</summary>
+    private static List<PlayerHurtEvent> HurtsOf(DemoIndex index, Encounter encounter, int hitTick, string weapon) =>
         index.HurtsBy(encounter.PlayerSteamId)
-            .FirstOrDefault(h => h.Tick == hitTick && h.VictimSteamId == encounter.OpponentSteamId)?.HitGroup;
+            .Where(h => h.Tick == hitTick && h.VictimSteamId == encounter.OpponentSteamId && StaticWeaponData.SameGun(weapon, h.Weapon))
+            .ToList();
 }

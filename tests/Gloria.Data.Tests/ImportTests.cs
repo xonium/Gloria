@@ -53,6 +53,66 @@ public sealed class ImportTests : IDisposable
     }
 
     [Fact]
+    public void TraceCodec_RoundTripsTheScene()
+    {
+        var scene = new TraceScene(
+            Team.CounterTerrorist,
+            [-1200.4f, -1190f], [350f, 352.6f], [11800f, 11801f], [90f, 91.5f], [100, 100],
+            [-600f, -605f], [400f, 401f], [-64f, -64f], [-178f, -177.5f], [100, 62], [false, true],
+            [new TraceWeapon(1000, "ak47")],
+            [new TraceWeapon(1000, "m4a1_silencer"), new TraceWeapon(1001, "")],
+            [new TraceDamage(1001, true, "ak47", 38, 2), new TraceDamage(1001, false, "hegrenade", 40, 0)],
+            new TraceDeath(1001, true, "ak47", true));
+        var trace = new EncounterTrace(
+            1000, 64, [1f, 2f], [0f, 0f], [1f, 0f], [200f, 0f], [600f, 600f],
+            [new TraceShot(1001, true, 2, 0f, "ak47", 38), new TraceShot(1001, false, null, 1.5f, "ak47")],
+            [1f, 2f], [0f, 0f], scene);
+
+        var decoded = TraceCodec.Decode(TraceCodec.Encode(trace))!;
+
+        Assert.Equal(trace.Shots, decoded.Shots);
+        var s = decoded.Scene!;
+        Assert.Equal(Team.CounterTerrorist, s.OpponentTeam);
+        Assert.Equal([-1200f, -1190f], s.PlayerX);
+        Assert.Equal([11800f, 11801f], s.PlayerZ);
+        Assert.Equal(scene.OpponentYaw, s.OpponentYaw);
+        Assert.Equal(scene.OpponentHealth, s.OpponentHealth);
+        Assert.Equal(scene.OpponentDucking, s.OpponentDucking);
+        Assert.Equal(scene.PlayerWeapons, s.PlayerWeapons);
+        Assert.Equal(scene.OpponentWeapons, s.OpponentWeapons);
+        Assert.Equal(scene.Damage, s.Damage);
+        Assert.Equal(scene.Death, s.Death);
+        Assert.Null(TraceScene.WeaponAt(s.OpponentWeapons, 1001));
+        Assert.Equal("m4a1_silencer", TraceScene.WeaponAt(s.OpponentWeapons, 1000));
+    }
+
+    [Fact]
+    public void TraceCodec_DecodesFormat2WithoutTheScene()
+    {
+        using var buffer = new MemoryStream();
+        using (var writer = new BinaryWriter(buffer))
+        {
+            writer.Write((byte)2);
+            writer.Write(500);
+            writer.Write((short)64);
+            writer.Write(1);
+            foreach (var value in new[] { 1f, 0.5f, 0.25f, 200f, 900f, 1.5f, 0.75f })
+                writer.Write((Half)value);
+            writer.Write((short)1);
+            writer.Write(500);
+            writer.Write(true);
+            writer.Write((short)1);
+            writer.Write((Half)0f);
+        }
+
+        var decoded = TraceCodec.Decode(buffer.ToArray())!;
+
+        Assert.Null(decoded.Scene);
+        Assert.Equal([1.5f], decoded.BulletX);
+        Assert.Equal([new TraceShot(500, true, 1, 0f)], decoded.Shots);
+    }
+
+    [Fact]
     public void TraceCodec_DecodesFormat1WithoutBullets()
     {
         using var buffer = new MemoryStream();
