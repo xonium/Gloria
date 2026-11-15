@@ -1,0 +1,68 @@
+# Builds Gloria and publishes a Velopack release to this repo's GitHub Releases.
+# The installed app reads those releases for updates (src/Gloria/Updates/UpdateSourceFactory.cs).
+# Start a release by pushing a version tag: git tag v0.2.0 && git push origin v0.2.0
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+      REPO_URL: https://github.com/${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Install the MAUI Windows workload
+        run: dotnet workload install maui-windows
+
+      - name: Read the version from the tag
+        id: version
+        run: |
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          if ($version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
+            throw "Tag '$env:GITHUB_REF_NAME' is not v<major>.<minor>.<patch>[-prerelease]"
+          }
+          "value=$version" >> $env:GITHUB_OUTPUT
+          "prerelease=$($version.Contains('-').ToString().ToLower())" >> $env:GITHUB_OUTPUT
+
+      - name: Test
+        run: dotnet test -- --filter-not-trait "Category=Demo"
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      # vpk pack builds a delta update from the previous release it finds in releases/.
+      # The first release has nothing to download, and a missing delta only means a larger download.
+      - name: Download the previous release
+        run: |
+          dotnet vpk download github --repoUrl $env:REPO_URL --token $env:GITHUB_TOKEN -o releases
+          if ($LASTEXITCODE) { Write-Warning 'No previous release downloaded; packing without a delta.' }
+          exit 0
+
+      - name: Publish and pack
+        run: ./build/pack.ps1 -Version ${{ steps.version.outputs.value }}
+
+      - name: Upload to GitHub Releases
+        run: |
+          $version = '${{ steps.version.outputs.value }}'
+          $extra = if ('${{ steps.version.outputs.prerelease }}' -eq 'true') { @('--pre') } else { @() }
+          dotnet vpk upload github -o releases --repoUrl $env:REPO_URL --token $env:GITHUB_TOKEN `
+            --publish --tag "v$version" --releaseName "Gloria $version" @extra
+          if ($LASTEXITCODE) { throw 'vpk upload failed' }
