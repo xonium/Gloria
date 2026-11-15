@@ -84,7 +84,7 @@ public sealed class ShellViewModel : ObservableObject
 		OpenQueueCommand = Go("//import");
 
 		_profiles.Profiles.CollectionChanged += (_, _) => RefreshProfiles();
-		_profiles.CurrentChanged += (_, _) => RefreshProfiles();
+		_profiles.CurrentChanged += (_, _) => SyncSelection();
 		_queue.Changed += (_, _) => RefreshImport();
 	}
 
@@ -112,11 +112,16 @@ public sealed class ShellViewModel : ObservableObject
 		get => _selectedProfileIndex;
 		set
 		{
-			if (!Set(ref _selectedProfileIndex, value))
+			if (!Set(ref _selectedProfileIndex, value) || value < 0)
 				return;
-			if (value >= 0 && value < _profiles.Profiles.Count)
-				_profiles.Current = _profiles.Profiles[value];
-			OnPropertyChanged(nameof(ProfileDetail));
+
+			// The Picker's dropdown is still closing here. Switching fans out into every page's refresh,
+			// so let the dropdown finish first, or it stays stuck open.
+			MainThread.BeginInvokeOnMainThread(() =>
+			{
+				if (value == _selectedProfileIndex && value < _profiles.Profiles.Count)
+					_profiles.Current = _profiles.Profiles[value];
+			});
 		}
 	}
 
@@ -171,11 +176,28 @@ public sealed class ShellViewModel : ObservableObject
 
 	private void RefreshProfiles()
 	{
-		ProfileNames.Clear();
-		foreach (var p in _profiles.Profiles)
-			ProfileNames.Add(p.Name);
-		_selectedProfileIndex = _profiles.Current is null ? -1 : _profiles.Profiles.IndexOf(_profiles.Current);
-		OnPropertyChanged(nameof(SelectedProfileIndex));
+		// Rebuilding the Picker's items resets its selection, so only do it when the names changed.
+		if (!ProfileNames.SequenceEqual(_profiles.Profiles.Select(p => p.Name)))
+		{
+			ProfileNames.Clear();
+			foreach (var p in _profiles.Profiles)
+				ProfileNames.Add(p.Name);
+			_selectedProfileIndex = -1;
+		}
+
+		SyncSelection();
+	}
+
+	private void SyncSelection()
+	{
+		var index = _profiles.Current is null ? -1 : _profiles.Profiles.IndexOf(_profiles.Current);
+		// A switch made in the Picker already shows; writing it back would touch the control again.
+		if (index != _selectedProfileIndex)
+		{
+			_selectedProfileIndex = index;
+			OnPropertyChanged(nameof(SelectedProfileIndex));
+		}
+
 		OnPropertyChanged(nameof(ProfileDetail));
 	}
 
