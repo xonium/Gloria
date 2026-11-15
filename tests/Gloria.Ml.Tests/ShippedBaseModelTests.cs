@@ -44,4 +44,27 @@ public class ShippedBaseModelTests
 
         Assert.All(predictions, p => Assert.Equal(Enum.GetValues<OutcomeTarget>().Length, p.Count));
     }
+
+    [Fact]
+    public void OutcomeModel_IsPickedByTheFactory()
+    {
+        var directory = BaseModelDirectory();
+        Assert.SkipUnless(OutcomeModelStore.Exists(Path.Combine(directory, OutcomeModelStore.SubfolderName)), "No base outcome model has been published yet.");
+        var rejections = new List<string>();
+
+        var predictor = OutcomePredictorFactory.Create(Path.Combine(directory, "no-user-model"), directory, rejections.Add);
+
+        Assert.Empty(rejections);
+        Assert.NotNull(predictor);
+        var prediction = Assert.Single(predictor.Predict(SyntheticEncounters.Features(1, seed: 3)));
+        Assert.All(prediction, p => Assert.InRange(p.Probability, 0f, 1f));
+    }
+
+    [Fact]
+    public void OutcomeFactory_ReturnsNullWithoutModels()
+    {
+        var missing = Path.Combine(Path.GetTempPath(), "gloria-no-models-" + Guid.NewGuid().ToString("N"));
+
+        Assert.Null(OutcomePredictorFactory.Create(Path.Combine(missing, "user"), Path.Combine(missing, "base")));
+    }
 }

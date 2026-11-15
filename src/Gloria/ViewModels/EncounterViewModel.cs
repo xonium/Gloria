@@ -6,9 +6,11 @@ using Gloria.Core.Classification;
 using Gloria.Core.Encounters;
 using Gloria.Core.Metrics;
 using Gloria.Core.Weapons;
+using Gloria.Data.Corrections;
 using Gloria.Data.Entities;
 using Gloria.Data.Queries;
 using Gloria.Graphics;
+using Gloria.Ml;
 using Gloria.Services;
 
 namespace Gloria.ViewModels;
@@ -20,7 +22,64 @@ public sealed record VerdictItem(string Question, string Verdict, bool Flagged, 
 
 public sealed record ScoreItem(string Name, string Percent, Rect Bar, Color Color, bool Flagged);
 
+/// <param name="Tag">"Aim" or "Situation": situation factors are context, not mistakes.</param>
+public sealed record CostItem(string Text, string Tag, Rect Bar, Color Color);
+
 public sealed record ShotRow(string Number, string At, string Result, string Offset, string BulletOffset, string Speed, string Moving);
+
+/// <summary>One aim category on the correction card: what the model said, and the user's verdict if any.</summary>
+public sealed class CorrectionItem : ObservableObject
+{
+	private readonly Func<CorrectionItem, bool?, Task> _set;
+	private bool? _userValue;
+
+	public CorrectionItem(AimCategory category, float probability, bool? userValue, Func<CorrectionItem, bool?, Task> set)
+	{
+		Category = category;
+		_userValue = userValue;
+		_set = set;
+		var flagged = probability >= 0.5f;
+		ModelText = $"Model: {(flagged ? "yes" : "no")}, {probability:P0}";
+		// Pressing the chosen answer again clears it, back to the model's verdict.
+		YesCommand = new Command(async () => await _set(this, UserValue == true ? null : true));
+		NoCommand = new Command(async () => await _set(this, UserValue == false ? null : false));
+	}
+
+	public AimCategory Category { get; }
+
+	public string Name => Display.Habit(Category);
+
+	public string Description => Display.HabitDescription(Category);
+
+	public string ModelText { get; }
+
+	public Command YesCommand { get; }
+
+	public Command NoCommand { get; }
+
+	public bool? UserValue
+	{
+		get => _userValue;
+		set
+		{
+			if (Set(ref _userValue, value))
+			{
+				OnPropertyChanged(nameof(YesBackground));
+				OnPropertyChanged(nameof(YesForeground));
+				OnPropertyChanged(nameof(NoBackground));
+				OnPropertyChanged(nameof(NoForeground));
+			}
+		}
+	}
+
+	public Color YesBackground => UserValue == true ? Display.AccentSoft : Colors.Transparent;
+
+	public Color YesForeground => UserValue == true ? Display.AccentLight : Display.Text2;
+
+	public Color NoBackground => UserValue == false ? Display.AccentSoft : Colors.Transparent;
+
+	public Color NoForeground => UserValue == false ? Display.AccentLight : Display.Text2;
+}
 
 public sealed class SpeedOption(double value, Action<SpeedOption> select) : ObservableObject
 {
@@ -54,6 +113,8 @@ public sealed class SpeedOption(double value, Action<SpeedOption> select) : Obse
 public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 {
 	private readonly GloriaReadModel _readModel;
+	private readonly DuelOutcomes _outcomes;
+	private readonly CorrectionStore _corrections;
 	private readonly Stopwatch _clock = new();
 	private IDispatcherTimer? _timer;
 	private EncounterDetail? _detail;
@@ -76,12 +137,22 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 	private string _shotsText = "";
 	private string _markers = "";
 	private string _modelNote = "";
+	private string _outlookTitle = "";
+	private string _winChance = "";
+	private string _hitChance = "";
+	private string _outlookNote = "";
+	private bool _hasWinChance;
+	private bool _hasCosts;
 	private bool _hasTrace;
 	private bool _hasBullets;
 
-	public EncounterViewModel(GloriaReadModel readModel)
+	public EncounterViewModel(GloriaReadModel readModel, DuelOutcomes outcomes, CorrectionStore corrections, UserModelTraining training)
 	{
 		_readModel = readModel;
+		_outcomes = outcomes;
+		_corrections = corrections;
+		Training = training;
+		RetrainCommand = new Command(async () => await Training.RetrainAsync());
 		PlayCommand = new Command(TogglePlay);
 		StepBackCommand = new Command(() => Step(-1));
 		StepForwardCommand = new Command(() => Step(1));
@@ -96,7 +167,7 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 
 	public ReplayDrawable Replay { get; } = new();
 
-	public TraceChartDrawable ErrorChart { get; } = new() { FormatY = v => $"{v:0.#}°" };
+	public TraceChartDrawable ErrorChart { get; } = new() { FormatY = v => $"{Math.Round(v, 1) + 0:0.#}°" };
 
 	public TraceChartDrawable SpeedChart { get; } = new() { MinY = 0, MaxY = 260 };
 
@@ -107,6 +178,19 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 	public ObservableCollection<ScoreItem> Scores { get; } = [];
 
 	public ObservableCollection<ShotRow> Shots { get; } = [];
+
+	public ObservableCollection<CostItem> Costs { get; } = [];
+
+	public ObservableCollection<CorrectionItem> CorrectionItems { get; } = [];
+
+	/// <summary>Correction counts and retraining state, bound directly by the card.</summary>
+	public UserModelTraining Training { get; }
+
+	public ICommand RetrainCommand { get; }
+
+	public string CorrectionHint =>
+		$"Your answers override the model here and count {new AimTrainingOptions().CorrectionWeight:0}× when your model is retrained,"
+		+ $" which happens on its own after {UserModelTraining.RetrainAfter} new answers.";
 
 	public ICommand PlayCommand { get; }
 
@@ -145,6 +229,20 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 	public string ModelNote { get => _modelNote; private set => Set(ref _modelNote, value); }
 
 	public bool HasTrace { get => _hasTrace; private set => Set(ref _hasTrace, value); }
+
+	public bool HasOutlook => _outcomes.IsAvailable;
+
+	public string OutlookTitle { get => _outlookTitle; private set => Set(ref _outlookTitle, value); }
+
+	public string WinChance { get => _winChance; private set => Set(ref _winChance, value); }
+
+	public bool HasWinChance { get => _hasWinChance; private set => Set(ref _hasWinChance, value); }
+
+	public string HitChance { get => _hitChance; private set => Set(ref _hitChance, value); }
+
+	public bool HasCosts { get => _hasCosts; private set => Set(ref _hasCosts, value); }
+
+	public string OutlookNote { get => _outlookNote; private set => Set(ref _outlookNote, value); }
 
 	/// <summary>The trace has bullet directions (crosshair plus recoil); older traces only have the crosshair.</summary>
 	public bool HasBullets
@@ -227,6 +325,8 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 		_accurateSpeed = StaticWeaponData.Instance.Find(e.FirstShotWeapon)?.AccurateSpeedThreshold ?? 0;
 		BuildVerdicts(e);
 		BuildScores(e);
+		BuildOutlook(e);
+		await BuildCorrectionsAsync(e);
 		LoadTrace(d);
 	}
 
@@ -386,7 +486,12 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 			AimApproach.OnTarget => $"You moved {e.FlickDistanceDegrees:0.0}° onto the body without passing it.",
 			_ => "There was too little crosshair movement before the shot to tell.",
 		};
-		Verdicts.Add(new VerdictItem("Overshoot or undershoot", e.Approach == AimApproach.OnTarget ? "On target" : e.Approach.ToString(), e.Approach is AimApproach.Overshoot or AimApproach.Undershoot, approach));
+		// The chip follows the flags (the classifier, or the user's correction); the text describes the measured path.
+		var approachVerdict = e.Has(AimCategory.Overshoot) ? "Overshoot"
+			: e.Has(AimCategory.Undershoot) ? "Undershoot"
+			: e.Approach == AimApproach.Unknown ? "Unclear"
+			: "On target";
+		Verdicts.Add(new VerdictItem("Overshoot or undershoot", approachVerdict, e.Has(AimCategory.Overshoot) || e.Has(AimCategory.Undershoot), approach));
 
 		var weapon = Display.Weapon(e.FirstShotWeapon);
 		var moving = e.Has(AimCategory.MovingShot);
@@ -415,12 +520,69 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 		foreach (var c in Enum.GetValues<AimCategory>().OrderByDescending(e.Probability))
 		{
 			var p = e.Probability(c);
-			Scores.Add(new ScoreItem(Display.Habit(c), $"{p:P0}", new Rect(0, 0, p, 1), e.Has(c) ? Display.Accent : Display.LineStrong, e.Has(c)));
+			// The model's own view; corrections are shown on their own card.
+			Scores.Add(new ScoreItem(Display.Habit(c), $"{p:P0}", new Rect(0, 0, p, 1), e.ModelFlagged(c) ? Display.Accent : Display.LineStrong, e.ModelFlagged(c)));
 		}
 
 		ModelNote = e.ClassifierSource == "rules"
 			? "From the rules: no trained model was available, so scores are 0% or 100%."
 			: $"{e.ClassifierSource} · flags at 50%.";
+	}
+
+	private async Task BuildCorrectionsAsync(EncounterRecord e)
+	{
+		var verdicts = await _corrections.ForEncounterAsync(e.Id);
+		CorrectionItems.Clear();
+		foreach (var category in Enum.GetValues<AimCategory>())
+			CorrectionItems.Add(new CorrectionItem(category, e.Probability(category), verdicts.TryGetValue(category, out var v) ? v : null, SetCorrectionAsync));
+		await Training.RefreshCountsAsync();
+	}
+
+	private async Task SetCorrectionAsync(CorrectionItem item, bool? value)
+	{
+		if (_detail is not { } d)
+			return;
+
+		var e = d.Record;
+		if (await _corrections.SetAsync(e.Id, item.Category, value) is not { } result)
+			return;
+
+		item.UserValue = value;
+		e.Flags = result.Flags;
+		e.PrimaryCategory = result.Primary;
+		BuildVerdicts(e);
+		await Training.OnCorrectedAsync();
+	}
+
+	private void BuildOutlook(EncounterRecord e)
+	{
+		Costs.Clear();
+		if (_outcomes.Explain(e) is not { } outlook)
+			return;
+
+		OutlookTitle = e.Outcome switch
+		{
+			EncounterOutcome.Death => "What cost the duel",
+			EncounterOutcome.Kill => "What made the duel harder",
+			_ => "What lowered the first shot's chance",
+		};
+		HasWinChance = outlook.WinChance is not null;
+		WinChance = outlook.WinChance is { } win ? $"{win:P0}" : "—";
+		HitChance = outlook.FirstShotHitChance is { } hit ? $"{hit:P0}" : "—";
+		foreach (var cost in outlook.Costs)
+		{
+			Costs.Add(new CostItem(
+				cost.Text,
+				cost.IsSituation ? "Situation" : "Aim",
+				new Rect(0, 0, Math.Max(cost.Weight, 0.04), 1),
+				cost.IsSituation ? Display.LineStrong : Display.Loss));
+		}
+
+		HasCosts = Costs.Count > 0;
+		OutlookNote = (HasCosts
+				? "What lowered the predicted chance, largest first. Situation factors are context, not mistakes. "
+				: "Nothing in this encounter lowered the predicted chance. ")
+			+ $"The model learned what usually decides duels like this one; it can't say what decided this one. Outcome model {outlook.ModelVersion}.";
 	}
 
 	private static string Corrections(int count) => count == 1 ? "1 correction" : $"{count} corrections";

@@ -95,7 +95,7 @@
                             </DataTemplate>
                         </BindableLayout.ItemTemplate>
                     </VerticalStackLayout>
-                    <Label Style="{StaticResource Caption}" Text="Dates come from the demo file's timestamp; the demo itself doesn't record when it was played. Score is counted from round winners." />
+                    <Label Style="{StaticResource Caption}" Text="The demo itself doesn't record when it was played. Dates come from the .dem.info file that Valve matchmaking downloads include, or else from the file's timestamps. Score is counted from round winners." />
                 </VerticalStackLayout>
             </Border>
         </VerticalStackLayout>

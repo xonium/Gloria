@@ -44,8 +44,8 @@ Storing every player's encounters and traces is cheap, so the "analyze once, no 
 4. **SQLite can't `ORDER BY` a `DateTimeOffset` in SQL.** Order on the client, or by `Id`.
 5. **Unhandled UI exceptions crash with `0xc000027b` and no managed details.** `Platforms/Windows/App.xaml.cs` now writes them to `crash.log` in the data folder.
 6. **Desktop screenshot tools capture WinUI content as solid black** (`PrintWindow`, `CopyFromScreen`). Use the in-app capture in `Services/DevHooks.cs` instead (below).
-7. **Numbers follow the Windows locale.** On sv-SE they show as "63 %" and "0,19 s". Decide whether to keep that or format invariantly.
-8. **`Preferences` (current profile, saved folders) live in MAUI's per-app store, not next to the database.** `GLORIA_DATA_DIR` doesn't isolate them. Move them into a settings table.
+7. **Numbers follow the Windows locale by default.** On sv-SE they showed as "63 %" and "0,19 s". The UI is in English, so `Display.UseCulture()` now sets an invariant culture with "63%" for every thread at startup.
+8. **MAUI `Preferences` live in a per-app store, not next to the database,** so `GLORIA_DATA_DIR` didn't isolate them. Saved folders and the current profile are now in the `Settings` table (`AppSettings`). `LegacyPreferences` moves old values over once, for the default data folder only.
 
 ## Running against scratch data
 
@@ -54,6 +54,7 @@ $env:GLORIA_DATA_DIR = "C:\temp\gloria-scratch"     # own database, crash.log
 $env:GLORIA_START_ROUTE = "encounter?id=6092"       # optional: open a screen directly
 $env:GLORIA_CAPTURE = "C:\temp\encounter.png"       # optional: save a PNG once it has rendered
 $env:GLORIA_CAPTURE_SHELL = "1"                     # optional: include the sidebar
+$env:GLORIA_CAPTURE_SCROLL = "700"                  # optional: scroll the page down first, in pixels
 src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
 ```
 
@@ -63,18 +64,25 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
   - The replay draws a ring where the crosshair was on the tick before each shot, and a diamond where the bullet went (crosshair plus recoil), joined by a dashed line. The shots table gives both offsets from the body.
   - Random spread isn't in the demo, so it isn't modeled, and the screen says so.
   - Traces stored before this (`TraceCodec` format 1) keep the old drawing until the demo is re-analyzed. Format 2 adds the bullet direction, about 14 bytes a tick instead of 10.
-- **Corrections** aren't stored. The encounter screen only explains them.
-- **Outcome model:** "What cost the duel" isn't shown, because `MlOutcomePredictor` isn't registered.
+- **Corrections:** done since the spike.
+  - The encounter screen has Yes/No per category. Answers override the model in every screen and feed the user's model, which retrains after 10 new answers or on "Retrain now".
+  - See `docs/ml-classification.md`, "Feedback loop".
+  - The "What happened" chips now follow the flags for all three questions. Before, the overshoot/undershoot chip followed the measured path, so it could disagree with the flags.
+- **Outcome model:** done since the spike. The encounter screen has a "What cost the duel" card.
+  - It shows the chance to win and the chance the first shot hits, with the factors that lowered them. Each factor is tagged as aim or situation.
+  - `DuelOutcomes` runs the model on the stored metrics (`EncounterRecord.ToFeatures`), so nothing is re-parsed.
+  - Some factors read oddly, e.g. "reached the body 0.00 s after sighting" listed as a cost. They are what the trees learned, not a display bug.
 - **Progress:** plain lines only. Rolling medians, the weapon-class table and duel costs are still to come.
 - **Overview and Matches:** the period selector and the match filters are missing.
 - **Profile switcher:** a plain picker rather than the designed menu.
 - **Folder watching:** startup rescan only; there's no file system watcher.
 - **Not exercised by script:** the folder and file pickers, drag and drop, and the CS2 replays lookup. These need a manual click-through.
-- **Played-at date:** taken from the file's modified time, so demos copied together all show the same date.
+- **Played-at date:** the demo records no wall-clock time.
+  - `DemoDate` reads `matchtime` from the `.dem.info` file that Valve matchmaking downloads include.
+  - Otherwise it takes the earlier of the file's creation and modified times. Demos downloaded together still share a date, and the match screen marks it "(file date)".
+  - Editing the date by hand would be the next step.
 
 ## Suggested next steps
 
-1. Move preferences into the database and decide on number formatting.
-2. Store corrections per profile and wire them into retraining.
-3. Finish Progress, and the Overview and Matches filters.
-4. Click-test import on a clean machine, including an installed (Velopack) build.
+1. Finish Progress, and the Overview and Matches filters.
+2. Click-test import on a clean machine, including an installed (Velopack) build.

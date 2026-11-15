@@ -27,6 +27,27 @@ public static class Display
 	public static readonly Color Text2 = Color.FromArgb("#b9bbc0");
 	public static readonly Color Muted = Color.FromArgb("#8b8f97");
 
+	/// <summary>
+	/// The UI is in English, so numbers are too, whatever the Windows locale: "63%", "0.19 s", "1,420".
+	/// The invariant culture would write "63 %", so its percent pattern is changed.
+	/// </summary>
+	public static CultureInfo Culture { get; } = CreateCulture();
+
+	/// <summary>Makes every thread format with <see cref="Culture"/>. Call before any UI is created.</summary>
+	public static void UseCulture()
+	{
+		CultureInfo.DefaultThreadCurrentCulture = Culture;
+		CultureInfo.CurrentCulture = Culture;
+	}
+
+	private static CultureInfo CreateCulture()
+	{
+		var culture = (CultureInfo)CultureInfo.InvariantCulture.Clone();
+		culture.NumberFormat.PercentPositivePattern = 1;
+		culture.NumberFormat.PercentNegativePattern = 1;
+		return CultureInfo.ReadOnly(culture);
+	}
+
 	public static string Habit(AimCategory category) => category switch
 	{
 		AimCategory.Overshoot => "Overshoot",
@@ -66,10 +87,10 @@ public static class Display
 	};
 
 	public static string Date(DateTimeOffset? date) =>
-		date?.ToLocalTime().ToString("d MMM yyyy", CultureInfo.InvariantCulture) ?? "—";
+		date?.ToLocalTime().ToString("d MMM yyyy", Culture) ?? "—";
 
 	public static string ShortDate(DateTimeOffset? date) =>
-		date?.ToLocalTime().ToString("d MMM", CultureInfo.InvariantCulture) ?? "—";
+		date?.ToLocalTime().ToString("d MMM", Culture) ?? "—";
 
 	public static string Percent(int part, int whole) => whole == 0 ? "—" : $"{100.0 * part / whole:0}%";
 

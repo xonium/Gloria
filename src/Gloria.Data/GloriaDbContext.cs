@@ -15,6 +15,10 @@ public sealed class GloriaDbContext(DbContextOptions<GloriaDbContext> options) :
 
     public DbSet<ProfileRecord> Profiles => Set<ProfileRecord>();
 
+    public DbSet<SettingRecord> Settings => Set<SettingRecord>();
+
+    public DbSet<CorrectionRecord> Corrections => Set<CorrectionRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<DemoRecord>(demo =>
@@ -37,5 +41,13 @@ public sealed class GloriaDbContext(DbContextOptions<GloriaDbContext> options) :
         modelBuilder.Entity<EncounterRecord>(encounter => encounter.HasIndex(e => new { e.PlayerSteamId, e.DemoId }));
 
         modelBuilder.Entity<ProfileRecord>(profile => profile.HasIndex(p => p.SteamId).IsUnique());
+
+        modelBuilder.Entity<SettingRecord>(setting => setting.HasKey(s => s.Key));
+
+        modelBuilder.Entity<CorrectionRecord>(correction =>
+        {
+            correction.Property(c => c.DemoHash).HasMaxLength(64);
+            correction.HasIndex(c => new { c.DemoHash, c.PlayerSteamId, c.OpponentSteamId, c.RoundNumber, c.FirstShotTick, c.Category }).IsUnique();
+        });
     }
 }

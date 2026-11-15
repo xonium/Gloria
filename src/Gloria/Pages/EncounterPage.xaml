@@ -177,10 +177,79 @@
                         </VerticalStackLayout>
                     </Border>
 
+                    <Border Style="{StaticResource Card}" IsVisible="{Binding HasOutlook}">
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="{Binding OutlookTitle}" Style="{StaticResource H3}" FontSize="17" SemanticProperties.HeadingLevel="Level2" />
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                                <VerticalStackLayout Spacing="2" IsVisible="{Binding HasWinChance}">
+                                    <Label Text="Chance to win" Style="{StaticResource Overline}" />
+                                    <Label Text="{Binding WinChance}" FontFamily="OpenSansSemibold" FontSize="22" />
+                                </VerticalStackLayout>
+                                <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                    <Label Text="First shot hits" Style="{StaticResource Overline}" />
+                                    <Label Text="{Binding HitChance}" FontFamily="OpenSansSemibold" FontSize="22" />
+                                </VerticalStackLayout>
+                            </Grid>
+                            <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding Costs}" IsVisible="{Binding HasCosts}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CostItem">
+                                        <VerticalStackLayout Spacing="5">
+                                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                <Label Text="{Binding Text}" FontSize="13" TextColor="#d6d7da" LineBreakMode="WordWrap" />
+                                                <Label Grid.Column="1" Text="{Binding Tag}" Style="{StaticResource Caption}" FontSize="12" VerticalOptions="Start" />
+                                            </Grid>
+                                            <AbsoluteLayout HeightRequest="6" BackgroundColor="#24272c">
+                                                <BoxView Color="{Binding Color}" AbsoluteLayout.LayoutFlags="All" AbsoluteLayout.LayoutBounds="{Binding Bar}" />
+                                            </AbsoluteLayout>
+                                        </VerticalStackLayout>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                            <Label Text="{Binding OutlookNote}" Style="{StaticResource Caption}" />
+                        </VerticalStackLayout>
+                    </Border>
+
                     <Border Style="{StaticResource Card}">
-                        <VerticalStackLayout Spacing="8">
+                        <VerticalStackLayout Spacing="12">
                             <Label Text="Does this look right?" Style="{StaticResource H3}" FontSize="17" SemanticProperties.HeadingLevel="Level2" />
-                            <Label Style="{StaticResource Caption}" FontSize="13" Text="Corrections are not in the spike yet. They will be stored per profile and count 5× when your own model is retrained." />
+                            <Label Style="{StaticResource Caption}" FontSize="13" Text="{Binding CorrectionHint}" />
+                            <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding CorrectionItems}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CorrectionItem">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                            <VerticalStackLayout Spacing="1" VerticalOptions="Center">
+                                                <Label Text="{Binding Name}" FontSize="13" FontFamily="OpenSansSemibold" />
+                                                <Label Text="{Binding ModelText}" Style="{StaticResource Caption}" FontSize="12" />
+                                            </VerticalStackLayout>
+                                            <Border Grid.Column="1" BackgroundColor="#111316" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 8" Padding="3" VerticalOptions="Center">
+                                                <HorizontalStackLayout Spacing="2">
+                                                    <Button Text="Yes" Command="{Binding YesCommand}" BackgroundColor="{Binding YesBackground}" TextColor="{Binding YesForeground}" BorderWidth="0" MinimumHeightRequest="30" Padding="12,0" FontSize="13" SemanticProperties.Description="{Binding Name, StringFormat='{0}: yes'}" />
+                                                    <Button Text="No" Command="{Binding NoCommand}" BackgroundColor="{Binding NoBackground}" TextColor="{Binding NoForeground}" BorderWidth="0" MinimumHeightRequest="30" Padding="12,0" FontSize="13" SemanticProperties.Description="{Binding Name, StringFormat='{0}: no'}" />
+                                                </HorizontalStackLayout>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </VerticalStackLayout>
+                            <BoxView Style="{StaticResource Divider}" />
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                                    <Label FontSize="13">
+                                        <Label.FormattedText>
+                                            <FormattedString>
+                                                <Span Text="{Binding Training.Corrections}" FontFamily="OpenSansSemibold" />
+                                                <Span Text=" answers · " />
+                                                <Span Text="{Binding Training.NewCorrections}" FontFamily="OpenSansSemibold" />
+                                                <Span Text=" new since the last retrain" />
+                                            </FormattedString>
+                                        </Label.FormattedText>
+                                    </Label>
+                                    <Label Text="{Binding Training.ClassifierLabel}" Style="{StaticResource Caption}" FontSize="12" />
+                                </VerticalStackLayout>
+                                <Button Grid.Column="1" Text="Retrain now" Style="{StaticResource GhostButton}" Command="{Binding RetrainCommand}" VerticalOptions="Center" />
+                            </Grid>
+                            <ActivityIndicator IsRunning="{Binding Training.IsTraining}" IsVisible="{Binding Training.IsTraining}" HeightRequest="20" HorizontalOptions="Start" />
+                            <Label Text="{Binding Training.Status}" IsVisible="{Binding Training.HasStatus}" Style="{StaticResource Caption}" FontSize="12" />
                         </VerticalStackLayout>
                     </Border>
                 </VerticalStackLayout>

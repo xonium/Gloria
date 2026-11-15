@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Gloria.Core.Analysis;
 using Gloria.Core.Classification;
 using Gloria.Core.Ingestion;
+using Gloria.Data.Corrections;
 using Gloria.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -52,6 +53,7 @@ public sealed class DemoImporter(
             await using (var stream = File.OpenRead(path))
                 hash = await DemoHasher.ComputeSha256Async(stream, cancellationToken);
 
+            CorrectionLookup corrections;
             await using (var db = dbFactory.CreateDbContext())
             {
                 var existing = await db.Demos
@@ -60,6 +62,9 @@ public sealed class DemoImporter(
                     .FirstOrDefaultAsync(cancellationToken);
                 if (existing is not null)
                     return new ImportResult(ImportStage.Skipped, existing.Id, $"Already imported as {existing.FileName}.", 0, 0, stopwatch.Elapsed);
+
+                // A demo imported again after re-analysis keeps the user's corrections.
+                corrections = new CorrectionLookup(await db.Corrections.AsNoTracking().Where(c => c.DemoHash == hash).ToListAsync(cancellationToken));
             }
 
             progress?.Report(new ImportProgress(ImportStage.Parsing, 0));
@@ -74,10 +79,11 @@ public sealed class DemoImporter(
 
             progress?.Report(new ImportProgress(ImportStage.Analyzing, 0));
             var analysis = _analyzer.Analyze(demo);
+            var source = classifier.Source;
             var classifications = analysis.Encounters.Count > 0
                 ? classifier.Classify(analysis.Encounters.Select(e => e.Features).ToList())
                 : [];
-            var record = BuildRecord(path, hash, demo, analysis, classifications);
+            var record = BuildRecord(path, hash, demo, analysis, classifications, source, corrections);
 
             progress?.Report(new ImportProgress(ImportStage.Saving, 0));
             await using (var db = dbFactory.CreateDbContext())
@@ -115,9 +121,17 @@ public sealed class DemoImporter(
         return available.Select(d => d.FilePath!).ToList();
     }
 
-    private DemoRecord BuildRecord(string path, string hash, ParsedDemo demo, DemoAnalysis analysis, IReadOnlyList<AimClassification> classifications)
+    private DemoRecord BuildRecord(
+        string path,
+        string hash,
+        ParsedDemo demo,
+        DemoAnalysis analysis,
+        IReadOnlyList<AimClassification> classifications,
+        string source,
+        CorrectionLookup corrections)
     {
         var file = new FileInfo(path);
+        var (playedAt, playedAtSource) = DemoDate.Find(path);
         var record = new DemoRecord
         {
             ContentHash = hash,
@@ -125,7 +139,8 @@ public sealed class DemoImporter(
             FilePath = file.FullName,
             FileSize = file.Length,
             MapName = demo.MapName,
-            PlayedAt = file.LastWriteTimeUtc,
+            PlayedAt = playedAt,
+            PlayedAtSource = playedAtSource,
             ImportedAt = DateTimeOffset.UtcNow,
             TickRate = demo.TickRate,
             ParserVersion = parser.Version,
@@ -188,16 +203,9 @@ public sealed class DemoImporter(
                 FiredFirst = m.FiredFirst,
                 FirstShotHit = labels.FirstShotHit,
                 WonDuel = labels.WonDuel,
-                Flags = classification.Scores.Where(s => s.Flagged).Aggregate(0, (flags, s) => flags | 1 << (int)s.Category),
-                PrimaryCategory = classification.Primary,
-                ClassifierSource = classifier.Source,
-                OvershootProbability = classification[AimCategory.Overshoot].Probability,
-                UndershootProbability = classification[AimCategory.Undershoot].Probability,
-                MovingShotProbability = classification[AimCategory.MovingShot].Probability,
-                HastyProbability = classification[AimCategory.Hasty].Probability,
-                SlowReactionProbability = classification[AimCategory.SlowReaction].Probability,
                 Trace = trace is null ? null : TraceCodec.Encode(trace),
             });
+            record.Encounters[^1].ApplyClassification(classification, source, corrections.For(record.Encounters[^1]));
         }
 
         return record;

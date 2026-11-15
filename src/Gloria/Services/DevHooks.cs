@@ -6,6 +6,7 @@ namespace Gloria.Services;
 /// <item>GLORIA_START_ROUTE opens a screen at startup, e.g. <c>encounter?id=12</c> or <c>//matches</c>.</item>
 /// <item>GLORIA_CAPTURE saves a PNG of that screen after it has rendered; GLORIA_CAPTURE_SHELL=1 includes the sidebar.
 /// Desktop screenshot tools see WinUI content as black, so this is how to check the UI from a script.</item>
+/// <item>GLORIA_CAPTURE_SCROLL scrolls the page down by that many pixels before the capture, to check what is below the fold.</item>
 /// </list>
 /// Combine with GLORIA_DATA_DIR to run against a scratch database.
 /// </summary>
@@ -26,6 +27,13 @@ public static class DevHooks
 		}
 
 		await Task.Delay(4000);
+		if (int.TryParse(Environment.GetEnvironmentVariable("GLORIA_CAPTURE_SCROLL"), out var scroll)
+			&& shell.CurrentPage is ContentPage { Content: ScrollView scrollView })
+		{
+			await scrollView.ScrollToAsync(0, scroll, animated: false);
+			await Task.Delay(500);
+		}
+
 		VisualElement target = Environment.GetEnvironmentVariable("GLORIA_CAPTURE_SHELL") is { Length: > 0 } || shell.CurrentPage is null
 			? shell
 			: shell.CurrentPage;

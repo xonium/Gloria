@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using Gloria.Data;
 using Gloria.Data.Queries;
 using Gloria.Services;
 
@@ -12,7 +13,7 @@ public sealed class MatchesViewModel : ObservableObject
 	private readonly ImportQueue _queue;
 	private string _subtitle = "";
 
-	public MatchesViewModel(GloriaReadModel readModel, ProfileState profiles, ImportQueue queue)
+	public MatchesViewModel(GloriaReadModel readModel, ProfileState profiles, ImportQueue queue, AppSettings settings)
 	{
 		_readModel = readModel;
 		_profiles = profiles;
@@ -21,7 +22,7 @@ public sealed class MatchesViewModel : ObservableObject
 		{
 			if (await DemoSources.PickFolderAsync() is { } folder)
 			{
-				ShellViewModel.SaveFolder(folder);
+				settings.AddDemoFolder(folder);
 				await _queue.EnqueueFolderAsync(folder);
 			}
 		});

@@ -12,7 +12,7 @@ The projects, the Velopack startup hook, update source, database location and mi
 - outcome labels
 - ML training via `tools/Gloria.Trainer`
 
-A base model is shipped in `src/Gloria/models/base/`. A first UI slice runs on real data: import, profiles, Overview, Matches, Match, Encounter (with replay) and Progress. Findings and the gaps against the design are in `docs/ui-spike.md`. The replay shows where each bullet went (crosshair plus recoil). Still to do: user corrections, the rest of Progress, and filters.
+A base model is shipped in `src/Gloria/models/base/`. A first UI slice runs on real data: import, profiles, Overview, Matches, Match, Encounter (with replay) and Progress. Findings and the gaps against the design are in `docs/ui-spike.md`. The replay shows where each bullet went (crosshair plus recoil). User corrections work and retrain the user's model in the background. Still to do: the rest of Progress, and filters.
 
 ## Commands
 
@@ -27,7 +27,7 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
 - Train on `_demos/`: `dotnet run --project tools/Gloria.Trainer -c Release -- all` (extract, train, report into `artifacts/training/`), then `-- publish` to copy the bundle into `src/Gloria/models/base/` and commit it. Re-run after changing the analysis; bump the stage's `Version` so cached features are re-extracted.
 - Package: `./build/pack.ps1 -Version 0.1.0`. This publishes to `artifacts/publish/` and runs `vpk pack` into `releases/`, producing `Gloria-win-Setup.exe`. Keep the `Velopack` NuGet version equal to the `vpk` version in `.config/dotnet-tools.json`.
 - Test in-app updates: install with Setup.exe, then pack a higher version and copy `releases/` to `%LocalAppData%\Gloria.Releases`, or set `GLORIA_UPDATE_DIR` to point at it.
-- Run the app against a scratch database: set `GLORIA_DATA_DIR`. To check a screen from a script, also set `GLORIA_START_ROUTE` (e.g. `encounter?id=12`) and `GLORIA_CAPTURE` (a .png path); see `Services/DevHooks.cs`. Desktop screenshot tools capture WinUI content as black, so use this instead.
+- Run the app against a scratch database: set `GLORIA_DATA_DIR`. Settings (saved folders, current profile) live in the database, so a scratch folder starts clean. To check a screen from a script, also set `GLORIA_START_ROUTE` (e.g. `encounter?id=12`) and `GLORIA_CAPTURE` (a .png path); `GLORIA_CAPTURE_SCROLL` scrolls down first. See `Services/DevHooks.cs`. Desktop screenshot tools capture WinUI content as black, so use this instead.
 
 ## Solution layout (actual)
 
@@ -43,13 +43,15 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
 - `src/Gloria.Data`: EF Core SQLite: `GloriaDbContext`, `Migrations/`, `DatabaseLocation` (`%LocalAppData%\Gloria.Data\gloria.db`, or `GLORIA_DATA_DIR`), and `DatabaseInitializer.Migrate`, which runs at startup.
   - `Import`: `DemoImporter` analyzes a demo once, for every player in it, and stores rounds, encounters, classifications and a compact per-tick trace (`TraceCodec`). No parse cache: the `.dem` isn't needed afterwards.
   - `Queries`: `GloriaReadModel`, the UI's read side. Every query takes the viewed profile's SteamID.
+  - `AppSettings`: key-value settings in the `Settings` table. Don't use MAUI `Preferences`.
+  - `Corrections`: `CorrectionStore` stores the user's verdicts, keyed so they survive re-analysis. It also applies them to `EncounterRecord.Flags`, builds the training set, and reclassifies stored encounters.
   - Profiles: one SteamID each (`ProfileRecord`). Demos are shared between profiles; switching profile only changes the SteamID filter.
 - `src/Gloria.Core/Classification`: aim categories (`AimCategory`), `EncounterFeatures`, `RuleBasedAimLabeler`, and `IAimClassifier` with its rule-based fallback. It has no ML.NET reference.
 - `src/Gloria.Ml`: ML.NET. See `docs/ml-classification.md`.
   - `AimModelTrainer` trains one FastTree binary model per category.
   - `AimModelStore` saves and loads bundle folders.
   - `MlAimClassifier` predicts in batches.
-  - `AimClassifierFactory` picks the user model, then the base model, then the rules.
+  - `AimClassifierFactory` picks the user model, then the base model, then the rules. `SwitchableAimClassifier` lets a retrained model replace it while the app runs. `UserModelFolder` keeps user models in versioned folders behind a `current` file.
   - `OutcomeModelTrainer` and `MlOutcomePredictor` handle FirstShotHit and WonDuel, labeled from the demos.
   - `CrossValidation` evaluates leave-one-demo-out.
   - `FeatureBinReport` produces the trainer report's statistics.
@@ -57,7 +59,7 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
 - `src/Gloria`: the MAUI app (exe `Gloria.exe`, Velopack packId `Gloria`). `Platforms/Windows/Program.cs` holds the custom `Main` with the Velopack hook. `Updates/UpdateSourceFactory` is the single switch point for the update source.
   - Native XAML, dark theme in `Resources/Styles/Theme.xaml`. `AppShell` has a custom sidebar; detail routes (`match`, `encounter`) are created through DI by `ServiceRouteFactory`.
   - `Pages/` and `ViewModels/` (plain `ObservableObject`, no MVVM package). `Graphics/` holds the `GraphicsView` drawables: sparklines, trace charts and the replay.
-  - `Services/`: `ImportQueue` (background import), `ProfileState` (current profile), `DemoSources` (pickers, drag and drop, CS2 replays folder), `Display` (wording and colors).
+  - `Services/`: `ImportQueue` (background import), `ProfileState` (current profile), `DemoSources` (pickers, drag and drop, CS2 replays folder), `DuelOutcomes` (the outcome model on a stored encounter), `UserModelTraining` (background retraining and promotion), `Display` (wording, colors, and the number culture).
   - Unhandled exceptions are written to `crash.log` in the data folder.
   - MAUI pitfalls hit so far: see `docs/ui-spike.md`. The main one: use `Grid` columns, not `FlexLayout` with a percentage basis, for cards with long text.
 - `tests/Gloria.Core.Tests`, `tests/Gloria.Data.Tests`, `tests/Gloria.Ml.Tests`: xUnit v3. ML tests train on seeded synthetic features (`SyntheticEncounters`). Data tests use in-memory SQLite. `Fixtures/DemoFiles` finds `_demos/` and skips tests when it is empty.

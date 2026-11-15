@@ -1,6 +1,7 @@
 using Gloria.Core.Classification;
 using Gloria.Core.Encounters;
 using Gloria.Core.Metrics;
+using Gloria.Core.Weapons;
 
 namespace Gloria.Data.Entities;
 
@@ -92,6 +93,70 @@ public sealed class EncounterRecord
     public DemoRecord? Demo { get; set; }
 
     public bool Has(AimCategory category) => (Flags & (1 << (int)category)) != 0;
+
+    /// <summary>Whether the classifier flagged the category, before any correction.</summary>
+    public bool ModelFlagged(AimCategory category) => Probability(category) >= 0.5f;
+
+    /// <summary>Stores the classifier's scores, then the flags with <paramref name="corrections"/> applied.</summary>
+    public void ApplyClassification(AimClassification classification, string source, IReadOnlyDictionary<AimCategory, bool>? corrections = null)
+    {
+        ClassifierSource = source;
+        OvershootProbability = classification[AimCategory.Overshoot].Probability;
+        UndershootProbability = classification[AimCategory.Undershoot].Probability;
+        MovingShotProbability = classification[AimCategory.MovingShot].Probability;
+        HastyProbability = classification[AimCategory.Hasty].Probability;
+        SlowReactionProbability = classification[AimCategory.SlowReaction].Probability;
+        ApplyCorrections(corrections);
+    }
+
+    /// <summary>
+    /// Sets <see cref="Flags"/> and <see cref="PrimaryCategory"/> from the classifier's scores, with the user's
+    /// verdicts taking precedence.
+    /// </summary>
+    public void ApplyCorrections(IReadOnlyDictionary<AimCategory, bool>? corrections)
+    {
+        var flags = 0;
+        foreach (var category in Enum.GetValues<AimCategory>())
+        {
+            var flagged = corrections is not null && corrections.TryGetValue(category, out var corrected) ? corrected : ModelFlagged(category);
+            if (flagged)
+                flags |= 1 << (int)category;
+        }
+
+        Flags = flags;
+        PrimaryCategory = Enum.GetValues<AimCategory>()
+            .Where(Has)
+            .OrderByDescending(Probability)
+            .Select(c => (AimCategory?)c)
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// The features this encounter was classified from, rebuilt from the stored metrics, so models can be run
+    /// on it without the demo. Matches <see cref="EncounterFeatureExtractor"/>, except that the moving-shot ratio
+    /// counts every attributed shot rather than only those with a recorded speed.
+    /// </summary>
+    public EncounterFeatures ToFeatures(IWeaponData? weapons = null)
+    {
+        weapons ??= StaticWeaponData.Instance;
+        return new EncounterFeatures(
+            TimeToFirstShot: (float)(TimeToFirstShot ?? 0),
+            TimeToOnTarget: TimeToOnTarget is { } t ? (float)t : null,
+            AngularErrorAtFirstVisible: AngularErrorAtStart,
+            AngularErrorAtFirstShot: AngularErrorAtFirstShot,
+            PeakOvershootDegrees: PeakOvershootDegrees,
+            CorrectionCount: CorrectionCount,
+            FlickDistanceDegrees: FlickDistanceDegrees,
+            SpeedRatioAtFirstShot: SpeedRatioAtFirstShot,
+            ShotsWhileMovingRatio: ShotCount > 0 ? ShotsWhileMoving / (float)ShotCount : 0f,
+            DistanceToEnemy: DistanceAtFirstShot,
+            WeaponClass: weapons.Classify(FirstShotWeapon),
+            IsKill: Outcome == EncounterOutcome.Kill,
+            PlayerHealth: PlayerHealthAtStart,
+            OpponentHealth: OpponentHealthAtStart,
+            OpponentWeaponClass: weapons.Classify(OpponentWeapon),
+            FiredFirst: FiredFirst);
+    }
 
     public float Probability(AimCategory category) => category switch
     {

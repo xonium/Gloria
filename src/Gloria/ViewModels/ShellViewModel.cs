@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Windows.Input;
-using Gloria.Core.Classification;
+using Gloria.Data;
 using Gloria.Data.Import;
 using Gloria.Data.Queries;
 using Gloria.Services;
@@ -41,20 +41,26 @@ public sealed class NavItem(string title, string route, ICommand open) : Observa
 
 public sealed class ShellViewModel : ObservableObject
 {
-	public const string FoldersKey = "demo-folders";
-
 	private readonly ProfileState _profiles;
 	private readonly ImportQueue _queue;
 	private readonly GloriaReadModel _readModel;
+	private readonly AppSettings _settings;
+	private readonly UserModelTraining _training;
 	private int _selectedProfileIndex = -1;
 
-	public ShellViewModel(ProfileState profiles, ImportQueue queue, GloriaReadModel readModel, DemoImporter importer, IAimClassifier classifier)
+	public ShellViewModel(ProfileState profiles, ImportQueue queue, GloriaReadModel readModel, AppSettings settings, DemoImporter importer, UserModelTraining training)
 	{
 		_profiles = profiles;
+		_settings = settings;
+		_training = training;
 		_queue = queue;
 		_readModel = readModel;
 		AnalysisLabel = $"Analysis {importer.AnalysisVersionKey}";
-		ClassifierLabel = $"Classifier: {classifier.Source}";
+		_training.PropertyChanged += (_, e) =>
+		{
+			if (e.PropertyName == nameof(UserModelTraining.ClassifierLabel))
+				OnPropertyChanged(nameof(ClassifierLabel));
+		};
 		NavItems =
 		[
 			new NavItem("Overview", "overview", Go("//overview")),
@@ -80,7 +86,7 @@ public sealed class ShellViewModel : ObservableObject
 
 	public string AnalysisLabel { get; }
 
-	public string ClassifierLabel { get; }
+	public string ClassifierLabel => _training.ClassifierLabel;
 
 	public int SelectedProfileIndex
 	{
@@ -106,9 +112,10 @@ public sealed class ShellViewModel : ObservableObject
 	/// <summary>Loads profiles, rescans the saved folders and opens the right first screen.</summary>
 	public async Task StartAsync()
 	{
+		LegacyPreferences.MoveInto(_settings);
 		await _profiles.LoadAsync();
 		RefreshProfiles();
-		foreach (var folder in SavedFolders())
+		foreach (var folder in _settings.DemoFolders)
 			await _queue.EnqueueFolderAsync(folder);
 
 		if (_profiles.Current is not null)
@@ -117,27 +124,15 @@ public sealed class ShellViewModel : ObservableObject
 			await Shell.Current.GoToAsync("//setup");
 		else
 			await Shell.Current.GoToAsync("//welcome");
+
+		// Encounters classified by another model (an update shipped a new base model, or a retrain was interrupted).
+		await _training.CatchUpAsync();
 	}
 
 	public void OnNavigated(string location)
 	{
 		foreach (var item in NavItems)
 			item.Active = location.Contains($"//{item.Route}", StringComparison.Ordinal);
-	}
-
-	public static IReadOnlyList<string> SavedFolders() =>
-		Preferences.Default.Get(FoldersKey, "").Split('|', StringSplitOptions.RemoveEmptyEntries);
-
-	public static void SaveFolder(string folder)
-	{
-		var folders = SavedFolders().Append(folder).Distinct(StringComparer.OrdinalIgnoreCase);
-		Preferences.Default.Set(FoldersKey, string.Join('|', folders));
-	}
-
-	public static void RemoveFolder(string folder)
-	{
-		var folders = SavedFolders().Where(f => !string.Equals(f, folder, StringComparison.OrdinalIgnoreCase));
-		Preferences.Default.Set(FoldersKey, string.Join('|', folders));
 	}
 
 	private void RefreshProfiles()

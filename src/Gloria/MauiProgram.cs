@@ -3,6 +3,7 @@ using Gloria.Core.Classification;
 using Gloria.Core.Ingestion;
 using Gloria.Core.Weapons;
 using Gloria.Data;
+using Gloria.Data.Corrections;
 using Gloria.Data.Import;
 using Gloria.Data.Queries;
 using Gloria.Ml;
@@ -19,6 +20,7 @@ public static class MauiProgram
 {
 	public static MauiApp CreateMauiApp()
 	{
+		Display.UseCulture();
 		var builder = MauiApp.CreateBuilder();
 		builder
 			.UseMauiApp<App>()
@@ -33,15 +35,39 @@ public static class MauiProgram
 #endif
 
 		var databasePath = DatabaseLocation.EnsureDefaultPath();
+		var userModels = Path.Combine(DatabaseLocation.DataDirectory, "models", "user");
+		var baseModels = Path.Combine(AppContext.BaseDirectory, "models", "base");
 		builder.Services.AddDbContextFactory<GloriaDbContext>(options =>
 			options.UseSqlite(DatabaseLocation.ConnectionString(databasePath)));
 		builder.Services.AddSingleton<IDemoParser, DemoFileDemoParser>();
 		builder.Services.AddSingleton<IWeaponData, StaticWeaponData>();
 		// Retrained models live next to the database; the base model ships with the app.
-		builder.Services.AddSingleton<IAimClassifier>(services => AimClassifierFactory.Create(
-			Path.Combine(DatabaseLocation.DataDirectory, "models", "user"),
-			Path.Combine(AppContext.BaseDirectory, "models", "base"),
-			reason => services.GetRequiredService<ILogger<IAimClassifier>>().LogWarning("Aim model not used: {Reason}", reason)));
+		// One switchable classifier, so a retrained user model replaces it everywhere at once.
+		var startedWithUserModel = false;
+		builder.Services.AddSingleton(services => new SwitchableAimClassifier(AimClassifierFactory.Create(
+			userModels,
+			baseModels,
+			reason => services.GetRequiredService<ILogger<IAimClassifier>>().LogWarning("Aim model not used: {Reason}", reason),
+			directory => startedWithUserModel = directory != baseModels)));
+		builder.Services.AddSingleton<IAimClassifier>(services => services.GetRequiredService<SwitchableAimClassifier>());
+		builder.Services.AddSingleton<CorrectionStore>();
+		builder.Services.AddSingleton(services =>
+		{
+			// Resolving the classifier first sets startedWithUserModel.
+			var classifier = services.GetRequiredService<SwitchableAimClassifier>();
+			return new UserModelTraining(
+				services.GetRequiredService<CorrectionStore>(),
+				classifier,
+				services.GetRequiredService<AppSettings>(),
+				userModels,
+				startedWithUserModel,
+				services.GetRequiredService<ILogger<UserModelTraining>>());
+		});
+		builder.Services.AddSingleton(services => new DuelOutcomes(OutcomePredictorFactory.Create(
+			userModels,
+			baseModels,
+			reason => services.GetRequiredService<ILogger<DuelOutcomes>>().LogWarning("Outcome model not used: {Reason}", reason))));
+		builder.Services.AddSingleton<AppSettings>();
 		builder.Services.AddSingleton<DemoAnalyzer>();
 		builder.Services.AddSingleton<DemoImporter>();
 		builder.Services.AddSingleton(services => new GloriaReadModel(

@@ -17,6 +17,46 @@ namespace Gloria.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.15");
 
+            modelBuilder.Entity("Gloria.Data.Entities.CorrectionRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DemoHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("FirstShotTick")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("OpponentSteamId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("PlayerSteamId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RoundNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Value")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DemoHash", "PlayerSteamId", "OpponentSteamId", "RoundNumber", "FirstShotTick", "Category")
+                        .IsUnique();
+
+                    b.ToTable("Corrections");
+                });
+
             modelBuilder.Entity("Gloria.Data.Entities.DemoPlayerRecord", b =>
                 {
                     b.Property<int>("DemoId")
@@ -80,6 +120,9 @@ namespace Gloria.Data.Migrations
 
                     b.Property<DateTimeOffset?>("PlayedAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("PlayedAtSource")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("TickRate")
                         .HasColumnType("INTEGER");
@@ -268,6 +311,20 @@ namespace Gloria.Data.Migrations
                     b.HasKey("DemoId", "Number");
 
                     b.ToTable("Rounds");
+                });
+
+            modelBuilder.Entity("Gloria.Data.Entities.SettingRecord", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("Settings");
                 });
 
             modelBuilder.Entity("Gloria.Data.Entities.DemoPlayerRecord", b =>

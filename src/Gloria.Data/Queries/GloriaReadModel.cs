@@ -83,6 +83,7 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
         return data.Demos
             .Select(d => Summarize(d, data))
             .OrderByDescending(m => m.PlayedAt)
+            .ThenByDescending(m => m.DemoId)
             .ToList();
     }
 
@@ -159,7 +160,7 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
     {
         await using var db = dbFactory.CreateDbContext();
         var data = await LoadAsync(db, steamId, demoId: null, ct);
-        var newestFirst = data.Demos.OrderByDescending(d => d.PlayedAt).ToList();
+        var newestFirst = data.Demos.OrderByDescending(d => d.PlayedAt).ThenByDescending(d => d.Id).ToList();
         var current = newestFirst.Where(d => d.AnalysisVersionKey == currentAnalysisVersion).ToList();
 
         DemoStats Stats(DemoInfo d)
@@ -218,6 +219,7 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
                 p.Demo!.MapName,
                 p.Demo.FileName,
                 p.Demo.PlayedAt,
+                p.Demo.PlayedAtSource,
                 p.Demo.TickRate,
                 p.Demo.AnalysisVersionKey,
                 p.Demo.ContentHash,
@@ -294,6 +296,7 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
             d.MapName,
             d.FileName,
             d.PlayedAt,
+            d.PlayedAtSource,
             won,
             lost,
             Side(d.Teams, 0),
@@ -348,6 +351,7 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
         string MapName,
         string FileName,
         DateTimeOffset? PlayedAt,
+        PlayedAtSource PlayedAtSource,
         int TickRate,
         string AnalysisVersionKey,
         string ContentHash,

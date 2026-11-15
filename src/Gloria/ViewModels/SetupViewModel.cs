@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
+using Gloria.Data;
 using Gloria.Data.Queries;
 using Gloria.Services;
 
@@ -60,15 +61,17 @@ public sealed partial class SetupViewModel : ObservableObject
 	private readonly GloriaReadModel _readModel;
 	private readonly ImportQueue _queue;
 	private readonly ProfileState _profiles;
+	private readonly AppSettings _settings;
 	private CandidateItem? _selected;
 	private string _manualSteamId = "";
 	private string _message = "";
 
-	public SetupViewModel(GloriaReadModel readModel, ImportQueue queue, ProfileState profiles)
+	public SetupViewModel(GloriaReadModel readModel, ImportQueue queue, ProfileState profiles, AppSettings settings)
 	{
 		_readModel = readModel;
 		_queue = queue;
 		_profiles = profiles;
+		_settings = settings;
 		AddFolderCommand = new Command(async () => await AddFolderAsync());
 		AddFilesCommand = new Command(async () => await AddFilesAsync());
 		StartCommand = new Command(async () => await StartAsync());
@@ -127,7 +130,7 @@ public sealed partial class SetupViewModel : ObservableObject
 	public async Task RefreshAsync()
 	{
 		Folders.Clear();
-		foreach (var folder in ShellViewModel.SavedFolders())
+		foreach (var folder in _settings.DemoFolders)
 			Folders.Add(new FolderItem(folder, RemoveFolder));
 
 		var demoCount = await _readModel.DemoCountAsync();
@@ -191,7 +194,7 @@ public sealed partial class SetupViewModel : ObservableObject
 		if (await DemoSources.PickFolderAsync() is not { } folder)
 			return;
 
-		ShellViewModel.SaveFolder(folder);
+		_settings.AddDemoFolder(folder);
 		await _queue.EnqueueFolderAsync(folder);
 		await RefreshAsync();
 	}
@@ -204,7 +207,7 @@ public sealed partial class SetupViewModel : ObservableObject
 
 	private void RemoveFolder(string folder)
 	{
-		ShellViewModel.RemoveFolder(folder);
+		_settings.RemoveDemoFolder(folder);
 		var item = Folders.FirstOrDefault(f => f.Path == folder);
 		if (item is not null)
 			Folders.Remove(item);

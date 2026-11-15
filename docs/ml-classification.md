@@ -122,26 +122,26 @@ Concatenate(MlEncounterRow.FeatureNames -> "Features")
 - The self-contained win-x64 publish includes `Microsoft.ML*.dll` (verified when the spike was added).
 - The base model is included in `Gloria.csproj` as `None` items with `CopyToPublishDirectory`, so it lands in `<publish>\models\base\`.
 
-## Not built yet
+## Feedback loop (built)
 
-### Feedback loop
+1. Import classifies every encounter and stores the scores with `ClassifierSource` (rules or a model version). `EncounterRecord.Flags` holds the effective flags: the model's (score ≥ 50%), overridden by the user's corrections.
+2. The encounter screen shows the model's scores, and a "Does this look right?" card with Yes/No per category. Pressing the chosen answer again clears it.
+3. Corrections are stored in `Corrections` (`CorrectionStore`). They are keyed by demo hash, player, opponent, round and first-shot tick, not by encounter id, with no foreign key: re-analysis deletes and re-creates encounters, and the importer re-applies the corrections (`CorrectionLookup`).
+4. `UserModelTraining` (in the app) retrains after 10 new corrections, on "Retrain now", or at startup if a retrain is still owed.
+   - It trains on every stored encounter of every player, using `EncounterRecord.ToFeatures`. Rule labels count 1 and corrections count 5 (`AimTrainingOptions.CorrectionWeight`). Nothing is re-parsed.
+   - With 23 demos, training and reclassifying take a few seconds.
+5. The new bundle is promoted only if it agrees with at least as many corrections as the current classifier (`Agreement`).
+   - `UserModelFolder.Promote` writes it to `models/user/<version>/`, then switches the `current` file, and keeps one previous version.
+   - `SwitchableAimClassifier` swaps it in for the whole app, and `CorrectionStore.ReclassifyAsync` reclassifies the stored encounters.
+6. At startup, encounters classified by another source are reclassified, e.g. after an update ships a new base model.
 
-1. Import a demo, extract features, classify, and store the labels with `Source` = rules or the model version.
-2. Show each encounter's categories and their top contributions in the UI.
-3. Let the user confirm or correct a category, and store it as a `User` label.
-4. After N new corrections, retrain in the background on all stored features: rule labels plus weighted corrections.
-5. Promote the new bundle only if it does at least as well as the current one on the corrected rows. Write it to a new folder, then switch, so a failed retrain never leaves a broken model.
+### Limits of the loop
 
-### Data schema (a future migration in `Gloria.Data`)
-
-- `EncounterRecord`: demo, round, opponent, start and end ticks, outcome.
-- `EncounterFeatureRecord`: `EncounterId`, `SchemaVersion`, and the feature columns. These are the cached training input, so retraining needs no re-parsing.
-- `EncounterLabelRecord`: `(EncounterId, Category, Source = Rule|User|Model, Value, Probability, ModelVersion)`.
-- Re-classification when the model changes ties into `DemoRecord.AnalysisVersion`.
-
-### Order of work
-
-Stored encounters, features and labels (the schema above) → correction UI → background retraining. The outcome predictor is not registered in `MauiProgram` yet.
+- **The promotion check is optimistic.** It scores the new model on the same corrected rows it was trained on, at 5× weight. FastTree memorizes them: one correction can move that encounter's score to 100%. The check catches a broken retrain, but not overfitting.
+  - A fairer check would hold out each correction in turn (leave-one-correction-out), or use k folds once there are enough corrections.
+- **One user model for the app,** trained on every profile's corrections. Profiles only filter what is shown.
+- **The retrained model generalizes from little data.** Ten corrections against ~6,400 rule labels mostly change the corrected encounters and their close neighbors. Whether it learns the user's judgment is untested; the hand-labeled sample in the next steps would show it.
+- **Retraining isn't serialized with imports.** A demo imported while a model is promoted can keep the old model's scores until the next startup catches it up.
 
 ## Training on the real demos
 

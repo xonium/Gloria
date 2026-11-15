@@ -1,6 +1,7 @@
 using Gloria.Core.Analysis;
 using Gloria.Core.Classification;
 using Gloria.Core.Encounters;
+using Gloria.Core.Ingestion;
 using Gloria.Data.Entities;
 
 namespace Gloria.Data.Queries;
@@ -18,6 +19,7 @@ public sealed record MatchSummary(
     string MapName,
     string FileName,
     DateTimeOffset? PlayedAt,
+    PlayedAtSource PlayedAtSource,
     int RoundsWon,
     int RoundsLost,
     char StartingSide,

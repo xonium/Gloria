@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Gloria.Core.Classification;
 using Gloria.Core.Encounters;
+using Gloria.Core.Ingestion;
 using Gloria.Data.Queries;
 using Gloria.Services;
 
@@ -105,7 +106,14 @@ public sealed class MatchViewModel(GloriaReadModel readModel, ProfileState profi
 			await LoadAsync(demoId);
 	}
 
-	private async Task LoadAsync(int demoId)
+	/// <summary>Loads the match again, keeping the selected round, e.g. after returning from a corrected encounter.</summary>
+	public async Task ReloadAsync()
+	{
+		if (_detail is { } d)
+			await LoadAsync(d.Summary.DemoId, _selected?.Round.Number);
+	}
+
+	private async Task LoadAsync(int demoId, int? round = null)
 	{
 		_detail = await readModel.MatchDetailAsync(demoId, profiles.SteamId);
 		if (_detail is not { } d)
@@ -118,7 +126,7 @@ public sealed class MatchViewModel(GloriaReadModel readModel, ProfileState profi
 		Result = row.Result switch { "W" => "WIN", "L" => "LOSS", _ => "DRAW" };
 		ResultBackground = row.ResultBackground;
 		ResultForeground = row.ResultForeground;
-		Subtitle = $"{profiles.Current?.Name} started {Display.Side(m.StartingSide)} · {d.Rounds.Count} rounds · {d.TickRate} tick · {m.FileName} · {Display.Date(m.PlayedAt)} (file date)";
+		Subtitle = $"{profiles.Current?.Name} started {Display.Side(m.StartingSide)} · {d.Rounds.Count} rounds · {d.TickRate} tick · {m.FileName} · {Display.Date(m.PlayedAt)}{(m.PlayedAtSource == PlayedAtSource.FileTime ? " (file date)" : "")}";
 
 		var times = d.Encounters.Where(e => e.TimeToFirstShot is not null).Select(e => e.TimeToFirstShot!.Value).Order().ToList();
 		var moving = d.Encounters.Count(e => e.SpeedRatio > 1);
@@ -148,7 +156,7 @@ public sealed class MatchViewModel(GloriaReadModel readModel, ProfileState profi
 		foreach (var o in d.Opponents)
 			Opponents.Add(new OpponentItem(o.Name, $"{o.Encounters} encounters · won {o.Won}, lost {o.Lost}"));
 
-		Select(Rounds.FirstOrDefault(r => r.Round.Outcomes.Count > 0));
+		Select(Rounds.FirstOrDefault(r => r.Round.Number == round) ?? Rounds.FirstOrDefault(r => r.Round.Outcomes.Count > 0));
 	}
 
 	private void Select(RoundCell? cell)

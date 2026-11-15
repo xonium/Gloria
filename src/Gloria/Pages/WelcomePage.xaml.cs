@@ -1,6 +1,6 @@
+using Gloria.Data;
 using Gloria.Services;
 using Gloria.Updates;
-using Gloria.ViewModels;
 
 namespace Gloria.Pages;
 
@@ -8,11 +8,13 @@ namespace Gloria.Pages;
 public partial class WelcomePage : ContentPage
 {
 	private readonly ImportQueue _queue;
+	private readonly AppSettings _settings;
 	private readonly UpdateService _updates;
 
-	public WelcomePage(ImportQueue queue, UpdateService updates)
+	public WelcomePage(ImportQueue queue, AppSettings settings, UpdateService updates)
 	{
 		_queue = queue;
+		_settings = settings;
 		_updates = updates;
 		InitializeComponent();
 		VersionLabel.Text = $"Gloria {_updates.CurrentVersion ?? "development build"}";
@@ -49,7 +51,7 @@ public partial class WelcomePage : ContentPage
 	{
 		foreach (var folder in folders)
 		{
-			ShellViewModel.SaveFolder(folder);
+			_settings.AddDemoFolder(folder);
 			await _queue.EnqueueFolderAsync(folder);
 		}
 

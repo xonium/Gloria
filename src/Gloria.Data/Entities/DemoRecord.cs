@@ -1,3 +1,5 @@
+using Gloria.Core.Ingestion;
+
 namespace Gloria.Data.Entities;
 
 /// <summary>An imported demo, keyed by the SHA-256 of its contents.</summary>
@@ -17,8 +19,13 @@ public sealed class DemoRecord
 
     public string MapName { get; set; } = "";
 
-    /// <summary>The demo doesn't record when it was played, so this is the file's last write time.</summary>
+    /// <summary>
+    /// The demo doesn't record when it was played, so this comes from Valve's .dem.info file if there is one,
+    /// else from the file's timestamps. See <see cref="DemoDate"/>.
+    /// </summary>
     public DateTimeOffset? PlayedAt { get; set; }
+
+    public PlayedAtSource PlayedAtSource { get; set; }
 
     public DateTimeOffset ImportedAt { get; set; }
 

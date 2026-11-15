@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Gloria.Data;
 using Gloria.Data.Entities;
 using Gloria.Data.Queries;
 using Gloria.ViewModels;
@@ -6,9 +7,8 @@ using Gloria.ViewModels;
 namespace Gloria.Services;
 
 /// <summary>The tracked players and which one is being viewed. Every screen shows only the current profile's data.</summary>
-public sealed class ProfileState(GloriaReadModel readModel) : ObservableObject
+public sealed class ProfileState(GloriaReadModel readModel, AppSettings settings) : ObservableObject
 {
-	private const string CurrentKey = "current-profile";
 	private ProfileRecord? _current;
 
 	public ObservableCollection<ProfileRecord> Profiles { get; } = [];
@@ -22,7 +22,7 @@ public sealed class ProfileState(GloriaReadModel readModel) : ObservableObject
 				return;
 
 			if (value is not null)
-				Preferences.Default.Set(CurrentKey, value.SteamId.ToString());
+				settings.CurrentProfile = value.SteamId;
 			CurrentChanged?.Invoke(this, EventArgs.Empty);
 		}
 	}
@@ -38,8 +38,8 @@ public sealed class ProfileState(GloriaReadModel readModel) : ObservableObject
 		foreach (var p in profiles)
 			Profiles.Add(p);
 
-		var saved = Preferences.Default.Get(CurrentKey, "");
-		Current = Profiles.FirstOrDefault(p => p.SteamId.ToString() == saved) ?? Profiles.FirstOrDefault();
+		var saved = settings.CurrentProfile;
+		Current = Profiles.FirstOrDefault(p => p.SteamId == saved) ?? Profiles.FirstOrDefault();
 	}
 
 	public async Task SelectOrAddAsync(ulong steamId, string name)
