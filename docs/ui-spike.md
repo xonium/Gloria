@@ -46,6 +46,7 @@ Storing every player's encounters and traces is cheap, so the "analyze once, no 
 6. **Desktop screenshot tools capture WinUI content as solid black** (`PrintWindow`, `CopyFromScreen`). Use the in-app capture in `Services/DevHooks.cs` instead (below).
 7. **Numbers follow the Windows locale by default.** On sv-SE they showed as "63 %" and "0,19 s". The UI is in English, so `Display.UseCulture()` now sets an invariant culture with "63%" for every thread at startup.
 8. **MAUI `Preferences` live in a per-app store, not next to the database,** so `GLORIA_DATA_DIR` didn't isolate them. Saved folders and the current profile are now in the `Settings` table (`AppSettings`). `LegacyPreferences` moves old values over once, for the default data folder only.
+9. **Unpackaged, MAUI's per-app storage is `%LocalAppData%\Gloria\Gloria`, inside the Velopack install folder.** `Setup.exe` cleared it on install, and uninstall deletes it. Don't use `Preferences` or `FileSystem.AppDataDirectory` for anything that must last; use the database or `DatabaseLocation.DataDirectory`.
 
 ## Running against scratch data
 
@@ -85,7 +86,12 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
   - Corrections are matched without the round number, so they survive the renumbering.
 - **Profile switcher:** a plain picker rather than the designed menu.
 - **Folder watching:** startup rescan only; there's no file system watcher.
-- **Not exercised by script:** the folder and file pickers, drag and drop, and the CS2 replays lookup. These need a manual click-through.
+- **Installed build, tested 2026-11-15:** `pack.ps1` 0.2.0, silent `Setup.exe`, then the Start-menu launcher.
+  - It imported all 23 demos in 50 s, classified with the shipped base model.
+  - It found 0.2.1 in a local release folder (`GLORIA_UPDATE_DIR`), downloaded the 226 kB delta, and restarted into it with the data intact.
+  - `Update.exe --uninstall` removed the install and its Start menu entry.
+- **Updates can only be checked from the Welcome screen,** which disappears once demos are imported, so an installed copy in normal use never offers updates. Check at startup and show it in the sidebar instead.
+- **Not exercised by script:** the folder and file pickers, drag and drop, and the CS2 replays lookup. The pickers open system dialogs that UI Automation can't drive from here, so these need a manual click-through.
 - **Played-at date:** the demo records no wall-clock time.
   - `DemoDate` reads `matchtime` from the `.dem.info` file that Valve matchmaking downloads include.
   - Otherwise it takes the earlier of the file's creation and modified times. Demos downloaded together still share a date, and the match screen marks it "(file date)".
@@ -93,4 +99,5 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
 
 ## Suggested next steps
 
-1. Click-test import on a clean machine, including an installed (Velopack) build.
+1. Check for updates at startup, not only on the Welcome screen.
+2. Click through the pickers, drag and drop and the CS2 replays lookup by hand, ideally on a clean machine.
