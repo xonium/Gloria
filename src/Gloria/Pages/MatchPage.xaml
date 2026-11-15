@@ -26,8 +26,25 @@
                         <Label Text="{Binding Result}" TextColor="{Binding ResultForeground}" FontFamily="OpenSansSemibold" FontSize="13" />
                     </Border>
                 </HorizontalStackLayout>
-                <Label Text="{Binding Subtitle}" Style="{StaticResource Sub}" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <Label Text="{Binding Subtitle}" Style="{StaticResource Sub}" VerticalOptions="Center" />
+                    <Button Grid.Column="1" Text="Change date" Style="{StaticResource GhostButton}" Command="{Binding EditDateCommand}" IsVisible="{Binding IsNotEditingDate}" MinimumHeightRequest="32" FontSize="13" />
+                </Grid>
             </VerticalStackLayout>
+
+            <Border Style="{StaticResource Card}" Padding="16,12" IsVisible="{Binding IsEditingDate}">
+                <VerticalStackLayout Spacing="10">
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="Played on" VerticalOptions="Center" />
+                        <DatePicker Date="{Binding EditDate}" Format="d MMM yyyy" VerticalOptions="Center" SemanticProperties.Description="Date played" />
+                        <TimePicker Time="{Binding EditTime}" Format="HH:mm" VerticalOptions="Center" SemanticProperties.Description="Time played" />
+                        <Button Text="Save" Style="{StaticResource PrimaryButton}" Command="{Binding SaveDateCommand}" MinimumHeightRequest="34" />
+                        <Button Text="Cancel" Style="{StaticResource GhostButton}" Command="{Binding CancelDateCommand}" MinimumHeightRequest="34" />
+                        <Button Text="Use the automatic date" Style="{StaticResource GhostButton}" Command="{Binding ResetDateCommand}" IsVisible="{Binding IsUserDate}" MinimumHeightRequest="34" />
+                    </HorizontalStackLayout>
+                    <Label Text="{Binding DateHint}" Style="{StaticResource Caption}" />
+                </VerticalStackLayout>
+            </Border>
 
             <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Stats}">
                 <BindableLayout.ItemTemplate>

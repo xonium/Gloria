@@ -3,6 +3,7 @@ using System.Windows.Input;
 using Gloria.Core.Classification;
 using Gloria.Core.Encounters;
 using Gloria.Core.Ingestion;
+using Gloria.Data;
 using Gloria.Data.Queries;
 using Gloria.Services;
 
@@ -60,9 +61,12 @@ public sealed record CountItem(string Name, string Label, Rect Bar, Color Color)
 
 public sealed record OpponentItem(string Name, string Line);
 
-public sealed class MatchViewModel(GloriaReadModel readModel, ProfileState profiles) : ObservableObject, IQueryAttributable
+public sealed class MatchViewModel(GloriaReadModel readModel, ProfileState profiles, DemoDates dates) : ObservableObject, IQueryAttributable
 {
 	private MatchDetail? _detail;
+	private bool _isEditingDate;
+	private DateTime? _editDate;
+	private TimeSpan? _editTime;
 	private RoundCell? _selected;
 	private string _title = "";
 	private string _score = "";
@@ -86,6 +90,40 @@ public sealed class MatchViewModel(GloriaReadModel readModel, ProfileState profi
 
 	public ICommand ShowAllCommand => new Command(() => Select(null));
 
+	public ICommand EditDateCommand => new Command(StartEditingDate);
+
+	public ICommand SaveDateCommand => new Command(async () => await SaveDateAsync());
+
+	public ICommand CancelDateCommand => new Command(() => IsEditingDate = false);
+
+	public ICommand ResetDateCommand => new Command(async () => await SetDateAsync(null));
+
+	public bool IsEditingDate
+	{
+		get => _isEditingDate;
+		private set
+		{
+			if (Set(ref _isEditingDate, value))
+				OnPropertyChanged(nameof(IsNotEditingDate));
+		}
+	}
+
+	public bool IsNotEditingDate => !IsEditingDate;
+
+	/// <summary>The date being edited, in local time.</summary>
+	public DateTime? EditDate { get => _editDate; set => Set(ref _editDate, value); }
+
+	public TimeSpan? EditTime { get => _editTime; set => Set(ref _editTime, value); }
+
+	public bool IsUserDate => _detail?.Summary.PlayedAtSource == PlayedAtSource.User;
+
+	public string DateHint => _detail?.Summary.PlayedAtSource switch
+	{
+		PlayedAtSource.User => "You set this date. It is kept when the demo is re-analyzed.",
+		PlayedAtSource.MatchInfo => "From the match info file Valve's download came with.",
+		_ => "From the file's timestamps, which can be the day it was downloaded. Set the real date so trends are in the right order.",
+	};
+
 	public string Title { get => _title; private set => Set(ref _title, value); }
 
 	public string Score { get => _score; private set => Set(ref _score, value); }
@@ -104,6 +142,33 @@ public sealed class MatchViewModel(GloriaReadModel readModel, ProfileState profi
 	{
 		if (query.TryGetValue("demo", out var value) && int.TryParse(value?.ToString(), out var demoId))
 			await LoadAsync(demoId);
+	}
+
+	private void StartEditingDate()
+	{
+		var local = (_detail?.Summary.PlayedAt ?? DateTimeOffset.Now).ToLocalTime();
+		EditDate = local.Date;
+		EditTime = new TimeSpan(local.Hour, local.Minute, 0);
+		IsEditingDate = true;
+	}
+
+	private async Task SaveDateAsync()
+	{
+		if (EditDate is not { } date)
+			return;
+
+		var local = date.Date + (EditTime ?? TimeSpan.Zero);
+		await SetDateAsync(new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)));
+	}
+
+	private async Task SetDateAsync(DateTimeOffset? playedAt)
+	{
+		if (_detail is not { } d)
+			return;
+
+		await dates.SetAsync(d.Summary.DemoId, playedAt);
+		IsEditingDate = false;
+		await ReloadAsync();
 	}
 
 	/// <summary>Loads the match again, keeping the selected round, e.g. after returning from a corrected encounter.</summary>
@@ -126,7 +191,9 @@ public sealed class MatchViewModel(GloriaReadModel readModel, ProfileState profi
 		Result = row.Result switch { "W" => "WIN", "L" => "LOSS", _ => "DRAW" };
 		ResultBackground = row.ResultBackground;
 		ResultForeground = row.ResultForeground;
-		Subtitle = $"{profiles.Current?.Name} started {Display.Side(m.StartingSide)} · {d.Rounds.Count} rounds · {d.TickRate} tick · {m.FileName} · {Display.Date(m.PlayedAt)}{(m.PlayedAtSource == PlayedAtSource.FileTime ? " (file date)" : "")}";
+		Subtitle = $"{profiles.Current?.Name} started {Display.Side(m.StartingSide)} · {d.Rounds.Count} rounds · {d.TickRate} tick · {m.FileName} · {Display.Date(m.PlayedAt)}{m.PlayedAtSource switch { PlayedAtSource.FileTime => " (file date)", PlayedAtSource.User => " (set by you)", _ => "" }}";
+		OnPropertyChanged(nameof(IsUserDate));
+		OnPropertyChanged(nameof(DateHint));
 
 		var times = d.Encounters.Where(e => e.TimeToFirstShot is not null).Select(e => e.TimeToFirstShot!.Value).Order().ToList();
 		var moving = d.Encounters.Count(e => e.SpeedRatio > 1);

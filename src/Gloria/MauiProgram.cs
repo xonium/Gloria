@@ -68,6 +68,7 @@ public static class MauiProgram
 			baseModels,
 			reason => services.GetRequiredService<ILogger<DuelOutcomes>>().LogWarning("Outcome model not used: {Reason}", reason))));
 		builder.Services.AddSingleton<AppSettings>();
+		builder.Services.AddSingleton<DemoDates>();
 		builder.Services.AddSingleton<DemoAnalyzer>();
 		builder.Services.AddSingleton<DemoImporter>();
 		builder.Services.AddSingleton(services => new GloriaReadModel(

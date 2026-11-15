@@ -8,6 +8,9 @@ public enum PlayedAtSource
 
     /// <summary>The match time in Valve's <c>.dem.info</c> file next to the demo.</summary>
     MatchInfo,
+
+    /// <summary>Set by the user. Kept across re-analysis.</summary>
+    User,
 }
 
 /// <summary>

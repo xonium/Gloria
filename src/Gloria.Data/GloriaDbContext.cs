@@ -19,6 +19,8 @@ public sealed class GloriaDbContext(DbContextOptions<GloriaDbContext> options) :
 
     public DbSet<CorrectionRecord> Corrections => Set<CorrectionRecord>();
 
+    public DbSet<PlayedAtOverrideRecord> PlayedAtOverrides => Set<PlayedAtOverrideRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<DemoRecord>(demo =>
@@ -43,6 +45,12 @@ public sealed class GloriaDbContext(DbContextOptions<GloriaDbContext> options) :
         modelBuilder.Entity<ProfileRecord>(profile => profile.HasIndex(p => p.SteamId).IsUnique());
 
         modelBuilder.Entity<SettingRecord>(setting => setting.HasKey(s => s.Key));
+
+        modelBuilder.Entity<PlayedAtOverrideRecord>(date =>
+        {
+            date.HasKey(d => d.ContentHash);
+            date.Property(d => d.ContentHash).HasMaxLength(64);
+        });
 
         modelBuilder.Entity<CorrectionRecord>(correction =>
         {

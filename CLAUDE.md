@@ -45,6 +45,7 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
   - `Import`: `DemoImporter` analyzes a demo once, for every player in it, and stores rounds, encounters, classifications and a compact per-tick trace (`TraceCodec`). No parse cache: the `.dem` isn't needed afterwards.
   - `Queries`: `GloriaReadModel`, the UI's read side. Every query takes the viewed profile's SteamID.
   - `AppSettings`: key-value settings in the `Settings` table. Don't use MAUI `Preferences`.
+  - `DemoDates`: user-set played-at dates, kept by content hash so re-analysis doesn't lose them.
   - `Corrections`: `CorrectionStore` stores the user's verdicts, keyed so they survive re-analysis. It also applies them to `EncounterRecord.Flags`, builds the training set, and reclassifies stored encounters.
   - Profiles: one SteamID each (`ProfileRecord`). Demos are shared between profiles; switching profile only changes the SteamID filter.
 - `src/Gloria.Core/Classification`: aim categories (`AimCategory`), `EncounterFeatures`, `RuleBasedAimLabeler`, and `IAimClassifier` with its rule-based fallback. It has no ML.NET reference.

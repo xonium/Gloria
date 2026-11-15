@@ -110,6 +110,42 @@ public sealed class ImportTests : IDisposable
     }
 
     [Fact]
+    public async Task DemoDates_SetKeepsAnOverrideAndClearingRestoresTheFileDate()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var file = Path.Combine(Directory.CreateTempSubdirectory("gloria-date-").FullName, "a.dem");
+        await File.WriteAllBytesAsync(file, [1, 2, 3], ct);
+        var written = new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(file, written);
+        File.SetCreationTimeUtc(file, written);
+        int id;
+        await using (var db = _factory.CreateDbContext())
+        {
+            var demo = new DemoRecord { ContentHash = "dd", FileName = "a.dem", FilePath = file, PlayedAt = written, PlayedAtSource = PlayedAtSource.FileTime };
+            db.Demos.Add(demo);
+            await db.SaveChangesAsync(ct);
+            id = demo.Id;
+        }
+
+        var dates = new DemoDates(_factory);
+        var played = new DateTimeOffset(2026, 8, 20, 21, 30, 0, TimeSpan.FromHours(2));
+
+        var set = await dates.SetAsync(id, played, ct);
+        Assert.Equal(played, set?.PlayedAt);
+        Assert.Equal(PlayedAtSource.User, set?.Source);
+        await using (var db = _factory.CreateDbContext())
+            Assert.Equal(played, (await db.PlayedAtOverrides.SingleAsync(ct)).PlayedAt);
+
+        var cleared = await dates.SetAsync(id, null, ct);
+        Assert.Equal(new DateTimeOffset(written), cleared?.PlayedAt);
+        Assert.Equal(PlayedAtSource.FileTime, cleared?.Source);
+        await using (var db = _factory.CreateDbContext())
+            Assert.Empty(db.PlayedAtOverrides);
+
+        File.Delete(file);
+    }
+
+    [Fact]
     public async Task Profiles_AddIsIdempotentPerSteamId()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -131,6 +167,17 @@ public sealed class ImportTests : IDisposable
         var ct = TestContext.Current.CancellationToken;
         var importer = new DemoImporter(_factory, new DemoFileDemoParser(), new RuleBasedAimClassifier());
 
+        // A date the user set before re-analysis is applied to the imported demo.
+        string hash;
+        await using (var stream = File.OpenRead(path))
+            hash = await DemoHasher.ComputeSha256Async(stream, ct);
+        var userDate = new DateTimeOffset(2026, 3, 4, 18, 0, 0, TimeSpan.Zero);
+        await using (var setup = _factory.CreateDbContext())
+        {
+            setup.PlayedAtOverrides.Add(new PlayedAtOverrideRecord { ContentHash = hash, PlayedAt = userDate });
+            await setup.SaveChangesAsync(ct);
+        }
+
         var result = await importer.ImportAsync(path, cancellationToken: ct);
         var again = await importer.ImportAsync(path, cancellationToken: ct);
 
@@ -148,6 +195,7 @@ public sealed class ImportTests : IDisposable
         var candidate = (await readModel.PlayerCandidatesAsync(ct))[0];
         var match = Assert.Single(await readModel.MatchesAsync(candidate.SteamId, ct));
         Assert.True(match.RoundsWon + match.RoundsLost > 0);
+        Assert.Equal((userDate, PlayedAtSource.User), (match.PlayedAt, match.PlayedAtSource));
 
         var detail = await readModel.MatchDetailAsync(match.DemoId, candidate.SteamId, ct);
         Assert.NotNull(detail);

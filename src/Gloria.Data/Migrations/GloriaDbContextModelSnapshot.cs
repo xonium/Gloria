@@ -264,6 +264,20 @@ namespace Gloria.Data.Migrations
                     b.ToTable("Encounters");
                 });
 
+            modelBuilder.Entity("Gloria.Data.Entities.PlayedAtOverrideRecord", b =>
+                {
+                    b.Property<string>("ContentHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("PlayedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ContentHash");
+
+                    b.ToTable("PlayedAtOverrides");
+                });
+
             modelBuilder.Entity("Gloria.Data.Entities.ProfileRecord", b =>
                 {
                     b.Property<int>("Id")

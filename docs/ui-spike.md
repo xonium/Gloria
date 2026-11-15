@@ -89,7 +89,7 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
 - **Played-at date:** the demo records no wall-clock time.
   - `DemoDate` reads `matchtime` from the `.dem.info` file that Valve matchmaking downloads include.
   - Otherwise it takes the earlier of the file's creation and modified times. Demos downloaded together still share a date, and the match screen marks it "(file date)".
-  - Editing the date by hand would be the next step.
+  - "Change date" on the match screen sets it by hand (`DemoDates`). The date is kept by content hash in `PlayedAtOverrides`, so re-analysis keeps it, and "Use the automatic date" removes it.
 
 ## Suggested next steps
 

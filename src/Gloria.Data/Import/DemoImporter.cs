@@ -54,6 +54,7 @@ public sealed class DemoImporter(
                 hash = await DemoHasher.ComputeSha256Async(stream, cancellationToken);
 
             CorrectionLookup corrections;
+            DateTimeOffset? userDate;
             await using (var db = dbFactory.CreateDbContext())
             {
                 var existing = await db.Demos
@@ -65,6 +66,7 @@ public sealed class DemoImporter(
 
                 // A demo imported again after re-analysis keeps the user's corrections.
                 corrections = new CorrectionLookup(await db.Corrections.AsNoTracking().Where(c => c.DemoHash == hash).ToListAsync(cancellationToken));
+                userDate = (await db.PlayedAtOverrides.AsNoTracking().FirstOrDefaultAsync(d => d.ContentHash == hash, cancellationToken))?.PlayedAt;
             }
 
             progress?.Report(new ImportProgress(ImportStage.Parsing, 0));
@@ -84,6 +86,12 @@ public sealed class DemoImporter(
                 ? classifier.Classify(analysis.Encounters.Select(e => e.Features).ToList())
                 : [];
             var record = BuildRecord(path, hash, demo, analysis, classifications, source, corrections);
+            if (userDate is { } date)
+            {
+                record.PlayedAt = date;
+                record.PlayedAtSource = PlayedAtSource.User;
+            }
+
 
             progress?.Report(new ImportProgress(ImportStage.Saving, 0));
             await using (var db = dbFactory.CreateDbContext())
