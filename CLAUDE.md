@@ -12,7 +12,7 @@ The projects, the Velopack startup hook, update source, database location and mi
 - outcome labels
 - ML training via `tools/Gloria.Trainer`
 
-A base model is shipped in `src/Gloria/models/base/`. A first UI slice runs on real data: import, profiles, Overview, Matches, Match, Encounter (with replay) and Progress. Findings and the gaps against the design are in `docs/ui-spike.md`. The replay shows where each bullet went (crosshair plus recoil). User corrections work and retrain the user's model in the background. Still to do: the rest of Progress, and filters.
+A base model is shipped in `src/Gloria/models/base/`. A first UI slice runs on real data: import, profiles, Overview, Matches, Match, Encounter (with replay) and Progress. Findings and the gaps against the design are in `docs/ui-spike.md`. The replay shows where each bullet went (crosshair plus recoil). User corrections work and retrain the user's model in the background. Progress has rolling medians, a by-weapon table and lost-duel causes; Overview and Progress have period selectors and Matches has filters.
 
 ## Commands
 
@@ -27,6 +27,7 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
 - Train on `_demos/`: `dotnet run --project tools/Gloria.Trainer -c Release -- all` (extract, train, report into `artifacts/training/`), then `-- publish` to copy the bundle into `src/Gloria/models/base/` and commit it. Re-run after changing the analysis; bump the stage's `Version` so cached features are re-extracted.
 - Package: `./build/pack.ps1 -Version 0.1.0`. This publishes to `artifacts/publish/` and runs `vpk pack` into `releases/`, producing `Gloria-win-Setup.exe`. Keep the `Velopack` NuGet version equal to the `vpk` version in `.config/dotnet-tools.json`.
 - Test in-app updates: install with Setup.exe, then pack a higher version and copy `releases/` to `%LocalAppData%\Gloria.Releases`, or set `GLORIA_UPDATE_DIR` to point at it.
+- To click through the UI from a script, use Windows UI Automation (`System.Windows.Automation` in `powershell.exe`). Buttons and pickers are found by their `SemanticProperties.Description`.
 - Run the app against a scratch database: set `GLORIA_DATA_DIR`. Settings (saved folders, current profile) live in the database, so a scratch folder starts clean. To check a screen from a script, also set `GLORIA_START_ROUTE` (e.g. `encounter?id=12`) and `GLORIA_CAPTURE` (a .png path); `GLORIA_CAPTURE_SCROLL` scrolls down first. See `Services/DevHooks.cs`. Desktop screenshot tools capture WinUI content as black, so use this instead.
 
 ## Solution layout (actual)
@@ -39,7 +40,7 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
   - `Weapons`: speeds and classes for every gun.
   - `Classification`: the feature extractor and `OutcomeLabeler`.
   - `Analysis`: `DemoAnalyzer`, which runs the whole chain.
-  - `Aggregation`.
+  - `Aggregation`: `Rolling.Median` for per-demo trends.
 - `src/Gloria.Data`: EF Core SQLite: `GloriaDbContext`, `Migrations/`, `DatabaseLocation` (`%LocalAppData%\Gloria.Data\gloria.db`, or `GLORIA_DATA_DIR`), and `DatabaseInitializer.Migrate`, which runs at startup.
   - `Import`: `DemoImporter` analyzes a demo once, for every player in it, and stores rounds, encounters, classifications and a compact per-tick trace (`TraceCodec`). No parse cache: the `.dem` isn't needed afterwards.
   - `Queries`: `GloriaReadModel`, the UI's read side. Every query takes the viewed profile's SteamID.

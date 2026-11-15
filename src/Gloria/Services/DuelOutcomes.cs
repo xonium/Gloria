@@ -9,6 +9,15 @@ namespace Gloria.Services;
 /// <param name="IsSituation">Context the player didn't aim badly at (HP, weapons, distance, who fired first), not a mistake.</param>
 public sealed record DuelCost(string Text, float Weight, bool IsSituation);
 
+/// <summary>How often one factor was what cost the most in the duels a player lost.</summary>
+/// <param name="Largest">Lost duels where this was the largest factor of all.</param>
+/// <param name="LargestAim">Lost duels where this was the largest aim factor; 0 for situation factors.</param>
+public sealed record LossCause(string Name, bool IsSituation, int Largest, int LargestAim);
+
+/// <param name="Duels">Lost duels explained.</param>
+/// <param name="WithAimCost">Lost duels where at least one aim factor lowered the chance.</param>
+public sealed record LossCauses(int Duels, int WithAimCost, IReadOnlyList<LossCause> Causes);
+
 /// <param name="WinChance">Null when the encounter ended without a kill or death, so there was no duel to win.</param>
 public sealed record DuelOutlook(float? WinChance, float? FirstShotHitChance, IReadOnlyList<DuelCost> Costs, string ModelVersion);
 
@@ -48,15 +57,77 @@ public sealed class DuelOutcomes(MlOutcomePredictor? predictor)
 		return new DuelOutlook(isDuel ? won?.Probability : null, hit?.Probability, costs, predictor.Manifest.ModelVersion);
 	}
 
+	/// <summary>
+	/// Runs the duel model on lost duels and counts, per factor, how often it cost the most. Null when there is no
+	/// outcome model. CPU-bound: call it off the UI thread.
+	/// </summary>
+	public LossCauses? ExplainLosses(IReadOnlyList<EncounterRecord> losses)
+	{
+		if (predictor is null)
+			return null;
+
+		var largest = new Dictionary<string, int>();
+		var largestAim = new Dictionary<string, int>();
+		var withAim = 0;
+		var predictions = predictor.Predict(losses.Select(e => e.ToFeatures()).ToList());
+		foreach (var prediction in predictions)
+		{
+			if (prediction.FirstOrDefault(p => p.Target == OutcomeTarget.WonDuel) is not { } won)
+				continue;
+
+			var costs = Merge(won);
+			if (costs.Count == 0)
+				continue;
+
+			Increment(largest, costs[0].Feature);
+			if (costs.FirstOrDefault(c => !Situation.Contains(c.Feature)) is { Feature: not null } aim)
+			{
+				Increment(largestAim, aim.Feature);
+				withAim++;
+			}
+		}
+
+		var causes = largest.Keys.Union(largestAim.Keys)
+			.Select(f => new LossCause(Name(f), Situation.Contains(f), largest.GetValueOrDefault(f), largestAim.GetValueOrDefault(f)))
+			.OrderByDescending(c => c.Largest)
+			.ToList();
+		return new LossCauses(losses.Count, withAim, causes);
+	}
+
+	/// <summary>A factor in general terms, for summaries over many duels.</summary>
+	public static string Name(string feature) => feature switch
+	{
+		nameof(MlEncounterRow.TimeToFirstShot) => "Time to the first shot",
+		nameof(MlEncounterRow.TimeToOnTarget) => "Time to get the crosshair on the body",
+		nameof(MlEncounterRow.AngularErrorAtFirstVisible) => "Crosshair placement when they appeared",
+		nameof(MlEncounterRow.AngularErrorAtFirstShot) => "Crosshair off the body at the first shot",
+		nameof(MlEncounterRow.PeakOvershootDegrees) => "Overshooting the body",
+		nameof(MlEncounterRow.CorrectionCount) => "Small corrections before the shot",
+		nameof(MlEncounterRow.FlickDistanceDegrees) => "Size of the flick",
+		nameof(MlEncounterRow.SpeedRatioAtFirstShot) => "Moving at the first shot",
+		nameof(MlEncounterRow.ShotsWhileMovingRatio) => "Shooting while moving",
+		nameof(MlEncounterRow.DistanceToEnemy) => "Distance",
+		nameof(MlEncounterRow.WeaponClass) => "Your weapon",
+		nameof(MlEncounterRow.PlayerHealth) => "Your HP",
+		nameof(MlEncounterRow.OpponentHealth) => "Their HP",
+		nameof(MlEncounterRow.OpponentWeaponClass) => "Their weapon",
+		nameof(MlEncounterRow.FiredFirst) => "Who fired first",
+		_ => feature,
+	};
+
+	private static void Increment(Dictionary<string, int> counts, string key) => counts[key] = counts.GetValueOrDefault(key) + 1;
+
+	/// <summary>The factors that lowered the prediction, largest first.</summary>
+	private static List<(string Feature, float Contribution)> Merge(OutcomePrediction prediction) => prediction.Costs
+		// TimeToOnTarget and ReachedTarget describe the same thing; count them as one factor.
+		.GroupBy(c => c.Feature == nameof(MlEncounterRow.ReachedTarget) ? nameof(MlEncounterRow.TimeToOnTarget) : c.Feature)
+		.Select(g => (Feature: g.Key, Contribution: g.Sum(c => c.Contribution)))
+		.OrderBy(c => c.Contribution)
+		.ToList();
+
 	private static List<DuelCost> Costs(EncounterRecord e, OutcomePrediction prediction)
 	{
-		// TimeToOnTarget and ReachedTarget describe the same thing; show them as one line.
-		var merged = prediction.Costs
-			.GroupBy(c => c.Feature == nameof(MlEncounterRow.ReachedTarget) ? nameof(MlEncounterRow.TimeToOnTarget) : c.Feature)
-			.Select(g => (Feature: g.Key, Contribution: g.Sum(c => c.Contribution)))
-			.OrderBy(c => c.Contribution)
-			.Take(MaxCosts)
-			.ToList();
+		var merged = Merge(prediction).Take(MaxCosts).ToList();
 		if (merged.Count == 0)
 			return [];
 

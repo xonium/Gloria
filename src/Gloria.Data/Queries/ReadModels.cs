@@ -2,6 +2,7 @@ using Gloria.Core.Analysis;
 using Gloria.Core.Classification;
 using Gloria.Core.Encounters;
 using Gloria.Core.Ingestion;
+using Gloria.Core.Weapons;
 using Gloria.Data.Entities;
 
 namespace Gloria.Data.Queries;
@@ -78,6 +79,34 @@ public sealed record EncounterDetail(
     int? PreviousId,
     int? NextId);
 
+/// <summary>Counts over a set of one player's encounters.</summary>
+/// <param name="MovingFirstShots">First shots above the weapon's accurate speed.</param>
+/// <param name="HabitCounts">Encounters flagged per <see cref="AimCategory"/>, indexed by the enum value.</param>
+/// <param name="Clean">Encounters with no habit flagged.</param>
+public sealed record EncounterStats(
+    int Encounters,
+    int Kills,
+    int Deaths,
+    int FirstShotHits,
+    int FirstShotKnown,
+    double? MedianTimeToFirstShot,
+    int MovingFirstShots,
+    int[] HabitCounts,
+    int Clean);
+
+/// <summary>The player's numbers with one class of weapon (what they fired first with).</summary>
+public sealed record WeaponClassStats(WeaponClass Class, EncounterStats Stats);
+
+/// <summary>Progress over the latest demos analyzed by the current version.</summary>
+/// <param name="Demos">Oldest first.</param>
+/// <param name="DeathIds">Encounters in those demos that the player lost, for explaining with the outcome model.</param>
+/// <param name="OlderVersionDemos">Demos left out because an older analysis version produced them.</param>
+public sealed record ProgressData(
+    IReadOnlyList<DemoStats> Demos,
+    IReadOnlyList<WeaponClassStats> WeaponClasses,
+    IReadOnlyList<int> DeathIds,
+    int OlderVersionDemos);
+
 /// <summary>One demo's numbers for one player, for trends.</summary>
 /// <param name="HabitCounts">Encounters flagged per <see cref="AimCategory"/>, indexed by the enum value.</param>
 public sealed record DemoStats(
@@ -91,7 +120,8 @@ public sealed record DemoStats(
     int FirstShotKnown,
     double? MedianTimeToFirstShot,
     int MovingFirstShots,
-    int[] HabitCounts);
+    int[] HabitCounts,
+    int Clean);
 
 /// <param name="Recent">The latest demos, oldest first.</param>
 /// <param name="Previous">The demos before <paramref name="Recent"/>, oldest first.</param>

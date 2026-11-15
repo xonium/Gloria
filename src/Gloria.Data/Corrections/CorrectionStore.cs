@@ -1,5 +1,6 @@
 using Gloria.Core.Classification;
 using Gloria.Data.Entities;
+using Gloria.Data.Queries;
 using Microsoft.EntityFrameworkCore;
 
 namespace Gloria.Data.Corrections;
@@ -96,38 +97,9 @@ public sealed class CorrectionStore(IDbContextFactory<GloriaDbContext> dbFactory
         var corrections = await db.Corrections.AsNoTracking().ToListAsync(ct);
         var byDemo = corrections.GroupBy(c => c.DemoHash).ToDictionary(g => g.Key, g => new CorrectionLookup(g));
 
-        var rows = await db.Encounters.AsNoTracking()
-            .OrderBy(e => e.Id)
-            .Select(e => new
-            {
-                Hash = e.Demo!.ContentHash,
-                Record = new EncounterRecord
-                {
-                    Id = e.Id,
-                    PlayerSteamId = e.PlayerSteamId,
-                    OpponentSteamId = e.OpponentSteamId,
-                    RoundNumber = e.RoundNumber,
-                    Outcome = e.Outcome,
-                    TimeToFirstShot = e.TimeToFirstShot,
-                    TimeToOnTarget = e.TimeToOnTarget,
-                    FirstShotTick = e.FirstShotTick,
-                    FirstShotWeapon = e.FirstShotWeapon,
-                    OpponentWeapon = e.OpponentWeapon,
-                    ShotCount = e.ShotCount,
-                    ShotsWhileMoving = e.ShotsWhileMoving,
-                    SpeedRatioAtFirstShot = e.SpeedRatioAtFirstShot,
-                    AngularErrorAtStart = e.AngularErrorAtStart,
-                    AngularErrorAtFirstShot = e.AngularErrorAtFirstShot,
-                    PeakOvershootDegrees = e.PeakOvershootDegrees,
-                    CorrectionCount = e.CorrectionCount,
-                    FlickDistanceDegrees = e.FlickDistanceDegrees,
-                    DistanceAtFirstShot = e.DistanceAtFirstShot,
-                    PlayerHealthAtStart = e.PlayerHealthAtStart,
-                    OpponentHealthAtStart = e.OpponentHealthAtStart,
-                    FiredFirst = e.FiredFirst,
-                },
-            })
-            .ToListAsync(ct);
+        var hashes = await db.Demos.AsNoTracking().ToDictionaryAsync(d => d.Id, d => d.ContentHash, ct);
+        var records = await db.Encounters.AsNoTracking().OrderBy(e => e.Id).ForFeatures().ToListAsync(ct);
+        var rows = records.Select(r => (Hash: hashes[r.DemoId], Record: r));
 
         return rows
             .Select(r => new TrainingRow(r.Record.Id, r.Record.ToFeatures(), r.Hash, byDemo.GetValueOrDefault(r.Hash)?.For(r.Record)))

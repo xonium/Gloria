@@ -8,10 +8,21 @@
 
     <ScrollView>
         <VerticalStackLayout Padding="40,32,40,48" Spacing="20">
-            <VerticalStackLayout Spacing="6">
-                <Label Text="Overview" Style="{StaticResource H1}" SemanticProperties.HeadingLevel="Level1" />
-                <Label Text="{Binding Subtitle}" Style="{StaticResource Sub}" FontSize="15" />
-            </VerticalStackLayout>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                <VerticalStackLayout Spacing="6">
+                    <Label Text="Overview" Style="{StaticResource H1}" SemanticProperties.HeadingLevel="Level1" />
+                    <Label Text="{Binding Subtitle}" Style="{StaticResource Sub}" FontSize="15" />
+                </VerticalStackLayout>
+                <Border Grid.Column="1" BackgroundColor="#111316" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 9" Padding="3" VerticalOptions="End">
+                    <HorizontalStackLayout Spacing="2" BindableLayout.ItemsSource="{Binding Periods}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ChoiceOption">
+                                <Button Text="{Binding Label}" Command="{Binding SelectCommand}" BackgroundColor="{Binding Background}" TextColor="{Binding Foreground}" BorderWidth="0" MinimumHeightRequest="34" Padding="12,0" FontSize="13" SemanticProperties.Description="{Binding Label, StringFormat='Period: {0} demos'}" />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </HorizontalStackLayout>
+                </Border>
+            </Grid>
 
             <Border Style="{StaticResource Card}" Padding="14,10" IsVisible="{Binding HasOlder}">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
@@ -45,9 +56,9 @@
                     <VerticalStackLayout Spacing="10">
                         <Grid ColumnDefinitions="*,Auto">
                             <Label Text="Aim habits" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
-                            <HorizontalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                            <HorizontalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center" IsVisible="{Binding HasPrevious}">
                                 <BoxView WidthRequest="2" HeightRequest="12" Color="#d6d7da" />
-                                <Label Text="previous 10 demos" Style="{StaticResource Caption}" />
+                                <Label Text="{Binding PreviousLabel}" Style="{StaticResource Caption}" />
                             </HorizontalStackLayout>
                         </Grid>
                         <Label Text="Share of your encounters flagged with each habit. One encounter can have several." Style="{StaticResource Caption}" FontSize="13" />

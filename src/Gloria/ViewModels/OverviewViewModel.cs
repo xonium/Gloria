@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Gloria.Core.Classification;
+using Gloria.Data;
 using Gloria.Data.Import;
 using Gloria.Data.Queries;
 using Gloria.Graphics;
@@ -16,25 +17,37 @@ public sealed record HabitItem(string Name, string Description, string Percent, 
 
 public sealed class OverviewViewModel : ObservableObject
 {
+	private const string PeriodKey = "overview-period";
+	private const int DefaultPeriod = 10;
+
 	private readonly GloriaReadModel _readModel;
 	private readonly ProfileState _profiles;
 	private readonly ImportQueue _queue;
 	private readonly DemoImporter _importer;
+	private readonly AppSettings _settings;
+	private int? _period;
+	private int _refresh;
+	private string _previousLabel = "";
 	private string _subtitle = "";
 	private string _olderText = "";
 	private bool _hasData;
 	private bool _isEmpty;
 
-	public OverviewViewModel(GloriaReadModel readModel, ProfileState profiles, ImportQueue queue, DemoImporter importer)
+	public OverviewViewModel(GloriaReadModel readModel, ProfileState profiles, ImportQueue queue, DemoImporter importer, AppSettings settings)
 	{
 		_readModel = readModel;
 		_profiles = profiles;
 		_queue = queue;
 		_importer = importer;
+		_settings = settings;
+		_period = ChoiceOption.LoadPeriod(settings, PeriodKey, DefaultPeriod);
+		Periods = ChoiceOption.Periods([10, 20, 50, null], _period, SelectPeriod);
 		ReanalyzeCommand = new Command(async () => await ReanalyzeAsync());
 		_queue.DemoImported += async (_, _) => await RefreshAsync();
 		_profiles.CurrentChanged += async (_, _) => await RefreshAsync();
 	}
+
+	public IReadOnlyList<ChoiceOption> Periods { get; }
 
 	public ObservableCollection<TileItem> Tiles { get; } = [];
 
@@ -49,6 +62,19 @@ public sealed class OverviewViewModel : ObservableObject
 	public ICommand AllMatchesCommand { get; } = new Command(async () => await Shell.Current.GoToAsync("//matches"));
 
 	public string Subtitle { get => _subtitle; private set => Set(ref _subtitle, value); }
+
+	/// <summary>Legend of the habit bars' markers, e.g. "previous 10 demos"; empty when there is nothing to compare with.</summary>
+	public string PreviousLabel
+	{
+		get => _previousLabel;
+		private set
+		{
+			if (Set(ref _previousLabel, value))
+				OnPropertyChanged(nameof(HasPrevious));
+		}
+	}
+
+	public bool HasPrevious => PreviousLabel.Length > 0;
 
 	public string OlderText { get => _olderText; private set => Set(ref _olderText, value); }
 
@@ -65,9 +91,17 @@ public sealed class OverviewViewModel : ObservableObject
 		if (_profiles.Current is not { } profile)
 			return;
 
-		var data = await _readModel.OverviewAsync(profile.SteamId);
+		// A newer refresh (another period, another profile) wins over one still loading.
+		var refresh = ++_refresh;
+		var data = await _readModel.OverviewAsync(profile.SteamId, _period ?? int.MaxValue);
+		if (refresh != _refresh)
+			return;
+
 		var encounters = data.Recent.Sum(d => d.Encounters);
-		Subtitle = $"{profile.Name} · last {data.Recent.Count} of {data.DemoCount} demos · {encounters} encounters";
+		Subtitle = _period is null || data.Recent.Count < _period
+			? $"{profile.Name} · all {data.Recent.Count} demos · {encounters} encounters"
+			: $"{profile.Name} · last {data.Recent.Count} of {data.DemoCount} demos · {encounters} encounters";
+		PreviousLabel = data.Previous.Count == 0 ? "" : $"previous {data.Previous.Count} demos";
 		OlderText = data.OlderVersionDemos == 0
 			? ""
 			: $"{data.OlderVersionDemos} demos were analyzed by an older version. Their numbers are left out until they are re-analyzed.";
@@ -154,6 +188,15 @@ public sealed class OverviewViewModel : ObservableObject
 	{
 		var sorted = values.Where(v => !double.IsNaN(v)).Order().ToList();
 		return sorted.Count == 0 ? double.NaN : sorted[sorted.Count / 2];
+	}
+
+	private async void SelectPeriod(ChoiceOption option)
+	{
+		foreach (var p in Periods)
+			p.IsSelected = p == option;
+		_period = option.Value;
+		ChoiceOption.SavePeriod(_settings, PeriodKey, option.Value);
+		await RefreshAsync();
 	}
 
 	private async Task ReanalyzeAsync()

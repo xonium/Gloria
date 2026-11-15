@@ -1,6 +1,7 @@
 using Gloria.Core.Classification;
 using Gloria.Core.Encounters;
 using Gloria.Core.Ingestion;
+using Gloria.Core.Weapons;
 using Gloria.Data.Entities;
 using Gloria.Data.Import;
 using Microsoft.EntityFrameworkCore;
@@ -163,36 +164,8 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
         var newestFirst = data.Demos.OrderByDescending(d => d.PlayedAt).ThenByDescending(d => d.Id).ToList();
         var current = newestFirst.Where(d => d.AnalysisVersionKey == currentAnalysisVersion).ToList();
 
-        DemoStats Stats(DemoInfo d)
-        {
-            var facts = data.FactsOf(d.Id);
-            var times = facts.Where(f => f.TimeToFirstShot is not null).Select(f => f.TimeToFirstShot!.Value).Order().ToList();
-            var habits = new int[Enum.GetValues<AimCategory>().Length];
-            foreach (var f in facts)
-            {
-                foreach (var c in Enum.GetValues<AimCategory>())
-                {
-                    if ((f.Flags & (1 << (int)c)) != 0)
-                        habits[(int)c]++;
-                }
-            }
-
-            return new DemoStats(
-                d.Id,
-                d.MapName,
-                d.PlayedAt,
-                facts.Count,
-                facts.Count(f => f.Outcome == EncounterOutcome.Kill),
-                facts.Count(f => f.Outcome == EncounterOutcome.Death),
-                facts.Count(f => f.FirstShotHit == true),
-                facts.Count(f => f.FirstShotHit is not null),
-                times.Count == 0 ? null : times[times.Count / 2],
-                facts.Count(f => f.SpeedRatio > 1f),
-                habits);
-        }
-
-        var recent = current.Take(window).Reverse().Select(Stats).ToList();
-        var previous = current.Skip(window).Take(window).Reverse().Select(Stats).ToList();
+        var recent = current.Take(window).Reverse().Select(d => StatsOf(d, data)).ToList();
+        var previous = current.Skip(window).Take(window).Reverse().Select(d => StatsOf(d, data)).ToList();
         var worth = current.Take(3)
             .SelectMany(d => data.FactsOf(d.Id).Select(f => Row(f, d, data)))
             .Where(r => r.Flags != 0)
@@ -208,6 +181,74 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
             newestFirst.Take(5).Select(d => Summarize(d, data)).ToList(),
             worth,
             data.Demos.Count - current.Count);
+    }
+
+    /// <param name="lastDemos">How many of the latest demos to include; null for all.</param>
+    public async Task<ProgressData> ProgressAsync(ulong steamId, int? lastDemos = null, CancellationToken ct = default)
+    {
+        await using var db = dbFactory.CreateDbContext();
+        var data = await LoadAsync(db, steamId, demoId: null, ct);
+        var current = data.Demos
+            .Where(d => d.AnalysisVersionKey == currentAnalysisVersion)
+            .OrderByDescending(d => d.PlayedAt).ThenByDescending(d => d.Id)
+            .Take(lastDemos ?? int.MaxValue)
+            .Reverse()
+            .ToList();
+        var facts = current.SelectMany(d => data.FactsOf(d.Id)).ToList();
+        var weapons = facts
+            .GroupBy(f => StaticWeaponData.Instance.Classify(f.Weapon))
+            .Select(g => new WeaponClassStats(g.Key, Tally(g.ToList())))
+            .OrderByDescending(w => w.Stats.Encounters)
+            .ToList();
+
+        return new ProgressData(
+            current.Select(d => StatsOf(d, data)).ToList(),
+            weapons,
+            facts.Where(f => f.Outcome == EncounterOutcome.Death).Select(f => f.Id).ToList(),
+            data.Demos.Count(d => d.AnalysisVersionKey != currentAnalysisVersion));
+    }
+
+    /// <summary>The encounters with what the models need, without their traces. Order is not kept.</summary>
+    public async Task<IReadOnlyList<EncounterRecord>> FeatureRecordsAsync(IReadOnlyCollection<int> ids, CancellationToken ct = default)
+    {
+        await using var db = dbFactory.CreateDbContext();
+        var records = new List<EncounterRecord>(ids.Count);
+        // Keeps each IN list well under the SQLite parameter limit.
+        foreach (var chunk in ids.Chunk(500))
+            records.AddRange(await db.Encounters.AsNoTracking().Where(e => chunk.Contains(e.Id)).ForFeatures().ToListAsync(ct));
+        return records;
+    }
+
+    private static DemoStats StatsOf(DemoInfo d, PlayerData data)
+    {
+        var s = Tally(data.FactsOf(d.Id));
+        return new DemoStats(d.Id, d.MapName, d.PlayedAt, s.Encounters, s.Kills, s.Deaths, s.FirstShotHits, s.FirstShotKnown,
+            s.MedianTimeToFirstShot, s.MovingFirstShots, s.HabitCounts, s.Clean);
+    }
+
+    private static EncounterStats Tally(IReadOnlyList<Facts> facts)
+    {
+        var times = facts.Where(f => f.TimeToFirstShot is not null).Select(f => f.TimeToFirstShot!.Value).Order().ToList();
+        var habits = new int[Enum.GetValues<AimCategory>().Length];
+        foreach (var f in facts)
+        {
+            foreach (var c in Enum.GetValues<AimCategory>())
+            {
+                if ((f.Flags & (1 << (int)c)) != 0)
+                    habits[(int)c]++;
+            }
+        }
+
+        return new EncounterStats(
+            facts.Count,
+            facts.Count(f => f.Outcome == EncounterOutcome.Kill),
+            facts.Count(f => f.Outcome == EncounterOutcome.Death),
+            facts.Count(f => f.FirstShotHit == true),
+            facts.Count(f => f.FirstShotHit is not null),
+            times.Count == 0 ? null : times[times.Count / 2],
+            facts.Count(f => f.SpeedRatio > 1f),
+            habits,
+            facts.Count(f => f.Flags == 0));
     }
 
     private static async Task<PlayerData> LoadAsync(GloriaDbContext db, ulong steamId, int? demoId, CancellationToken ct)

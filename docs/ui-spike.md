@@ -72,8 +72,14 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
   - It shows the chance to win and the chance the first shot hits, with the factors that lowered them. Each factor is tagged as aim or situation.
   - `DuelOutcomes` runs the model on the stored metrics (`EncounterRecord.ToFeatures`), so nothing is re-parsed.
   - Some factors read oddly, e.g. "reached the body 0.00 s after sighting" listed as a cost. They are what the trees learned, not a display bug.
-- **Progress:** plain lines only. Rolling medians, the weapon-class table and duel costs are still to come.
-- **Overview and Matches:** the period selector and the match filters are missing.
+- **Progress:** done since the spike.
+  - Per-demo dots with a rolling median of 5 demos (`Rolling.Median`). Each card's number is the latest median.
+  - A by-weapon table, grouped by the weapon fired first.
+  - "What cost your lost duels": the outcome model runs over every lost duel. It counts how often each factor was the largest cost overall, and the largest aim factor (situation factors left out).
+  - A period selector (last 20, last 50, all).
+- **Overview:** period selector (last 10, 20, 50 or all demos), compared with the window before. Periods count demos, not days, because file dates are unreliable. Both choices are saved in `Settings`.
+- **Matches:** filters for result, map and main habit, with Clear and a "no matches" message. They are not saved.
+- **Sides switch after round 11** in every imported demo (`TeamsByRound`), where MR12 would switch after round 12. Either a round is missing at the start or the side for round 12 is read after the swap. Not investigated yet.
 - **Profile switcher:** a plain picker rather than the designed menu.
 - **Folder watching:** startup rescan only; there's no file system watcher.
 - **Not exercised by script:** the folder and file pickers, drag and drop, and the CS2 replays lookup. These need a manual click-through.
@@ -84,5 +90,4 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
 
 ## Suggested next steps
 
-1. Finish Progress, and the Overview and Matches filters.
-2. Click-test import on a clean machine, including an installed (Velopack) build.
+1. Click-test import on a clean machine, including an installed (Velopack) build.

@@ -107,6 +107,17 @@ public static class Display
 		_ => "—",
 	};
 
+	public static string WeaponClass(WeaponClass weaponClass) => weaponClass switch
+	{
+		Core.Weapons.WeaponClass.Pistol => "Pistols",
+		Core.Weapons.WeaponClass.Smg => "SMGs",
+		Core.Weapons.WeaponClass.Rifle => "Rifles",
+		Core.Weapons.WeaponClass.Sniper => "Snipers",
+		Core.Weapons.WeaponClass.Shotgun => "Shotguns",
+		Core.Weapons.WeaponClass.MachineGun => "Machine guns",
+		_ => "Other (knife, grenade, taser)",
+	};
+
 	public static string Weapon(string weapon)
 	{
 		var name = StaticWeaponData.Normalize(weapon);

@@ -52,7 +52,21 @@
 
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="All matches" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                    <Grid ColumnDefinitions="*,Auto,180,180,Auto" ColumnSpacing="10">
+                        <Label Text="All matches" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" VerticalOptions="Center" />
+                        <Border Grid.Column="1" BackgroundColor="#111316" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 9" Padding="3" VerticalOptions="Center">
+                            <HorizontalStackLayout Spacing="2" BindableLayout.ItemsSource="{Binding Results}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ChoiceOption">
+                                        <Button Text="{Binding Label}" Command="{Binding SelectCommand}" BackgroundColor="{Binding Background}" TextColor="{Binding Foreground}" BorderWidth="0" MinimumHeightRequest="32" Padding="12,0" FontSize="13" SemanticProperties.Description="{Binding Label, StringFormat='Result: {0}'}" />
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </HorizontalStackLayout>
+                        </Border>
+                        <Picker Grid.Column="2" ItemsSource="{Binding MapOptions}" SelectedIndex="{Binding MapIndex}" VerticalOptions="Center" SemanticProperties.Description="Filter by map" />
+                        <Picker Grid.Column="3" ItemsSource="{Binding HabitOptions}" SelectedIndex="{Binding HabitIndex}" VerticalOptions="Center" SemanticProperties.Description="Filter by main habit" />
+                        <Button Grid.Column="4" Text="Clear" Style="{StaticResource GhostButton}" Command="{Binding ClearFiltersCommand}" IsVisible="{Binding IsFiltered}" MinimumHeightRequest="34" FontSize="13" VerticalOptions="Center" />
+                    </Grid>
                     <Grid ColumnDefinitions="80,*,110,60,90,90,100,130,110" ColumnSpacing="8" Padding="8,6">
                         <Label Text="Date" Style="{StaticResource Overline}" />
                         <Label Grid.Column="1" Text="Map" Style="{StaticResource Overline}" />
@@ -95,6 +109,7 @@
                             </DataTemplate>
                         </BindableLayout.ItemTemplate>
                     </VerticalStackLayout>
+                    <Label Text="No matches fit these filters." Style="{StaticResource Sub}" IsVisible="{Binding HasNoMatches}" Margin="8,12" />
                     <Label Style="{StaticResource Caption}" Text="The demo itself doesn't record when it was played. Dates come from the .dem.info file that Valve matchmaking downloads include, or else from the file's timestamps. Score is counted from round winners." />
                 </VerticalStackLayout>
             </Border>
