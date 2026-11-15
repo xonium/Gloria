@@ -23,3 +23,8 @@ public sealed record PlayerDeathEvent(
 public sealed record RoundStartEvent(int Tick) : DemoEvent(Tick);
 
 public sealed record RoundEndEvent(int Tick, Team Winner, int Reason) : DemoEvent(Tick);
+
+public sealed record RoundFreezeEndEvent(int Tick) : DemoEvent(Tick);
+
+/// <summary>The match went live (after warmup or a restart).</summary>
+public sealed record MatchStartEvent(int Tick) : DemoEvent(Tick);

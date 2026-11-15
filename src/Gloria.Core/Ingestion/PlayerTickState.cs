@@ -6,6 +6,7 @@ namespace Gloria.Core.Ingestion;
 /// One player's recorded state at one tick. Yaw/pitch are the recorded view angles in
 /// degrees (where the crosshair was), not the bullet direction, which recoil and aim punch offset.
 /// </summary>
+/// <param name="EyeHeight">Height of the eye above <see cref="Position"/> (lower while crouched).</param>
 public readonly record struct PlayerTickState(
     int Tick,
     ulong SteamId,
@@ -15,4 +16,16 @@ public readonly record struct PlayerTickState(
     float Pitch,
     string ActiveWeapon,
     bool IsAlive,
-    Team Team);
+    Team Team,
+    float EyeHeight = PlayerTickState.StandingEyeHeight,
+    bool IsScoped = false,
+    bool IsOnGround = true,
+    bool IsDucking = false)
+{
+    public const float StandingEyeHeight = 64.06f;
+    public const float CrouchingEyeHeight = 46.04f;
+
+    public Vector3 EyePosition => Position with { Z = Position.Z + EyeHeight };
+
+    public float HorizontalSpeed => MathF.Sqrt(Velocity.X * Velocity.X + Velocity.Y * Velocity.Y);
+}

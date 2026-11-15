@@ -1,3 +1,5 @@
+using Gloria.Core.Ingestion;
+
 namespace Gloria.Core.Tests.Fixtures;
 
 /// <summary>
@@ -16,6 +18,19 @@ public static class DemoFiles
     {
         Assert.SkipWhen(All.Count == 0, "No .dem files found in _demos/.");
         return All[0];
+    }
+
+    private static readonly Lazy<Task<ParsedDemo>> FirstParsed = new(async () =>
+    {
+        await using var stream = File.OpenRead(All[0]);
+        return await new DemoFileDemoParser().ParseAsync(stream);
+    });
+
+    /// <summary>Parses the first demo once and shares it between tests, or skips if none is available.</summary>
+    public static Task<ParsedDemo> ParseFirstOrSkipAsync()
+    {
+        FirstOrSkip();
+        return FirstParsed.Value;
     }
 
     private static string[] Find()

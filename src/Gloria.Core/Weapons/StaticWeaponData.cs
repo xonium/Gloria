@@ -1,34 +1,76 @@
 namespace Gloria.Core.Weapons;
 
 /// <summary>
-/// Seed table of weapon movement data.
-/// TODO: source the full table from the game's weapon data instead of hand-entered values.
+/// Movement data for every gun, entered by hand from the game's weapon data.
+/// TODO: verify the speeds against the game's items_game / weapon scripts.
 /// </summary>
 public sealed class StaticWeaponData : IWeaponData
 {
     // Firing is accurate up to roughly a third of the weapon's max speed.
     private const float DefaultAccurateFraction = 0.34f;
 
-    private static readonly Dictionary<string, WeaponMovementData> Weapons =
-        new WeaponMovementData[]
-        {
-            new("weapon_ak47", 215f, DefaultAccurateFraction),
-            new("weapon_m4a1", 225f, DefaultAccurateFraction),
-            new("weapon_m4a1_silencer", 225f, DefaultAccurateFraction),
-            new("weapon_awp", 200f, DefaultAccurateFraction),
-            new("weapon_deagle", 230f, DefaultAccurateFraction),
-            new("weapon_glock", 240f, DefaultAccurateFraction),
-            new("weapon_usp_silencer", 240f, DefaultAccurateFraction),
-        }.ToDictionary(w => w.Weapon, StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, WeaponMovementData> Weapons = Table()
+        .ToDictionary(w => w.Weapon, StringComparer.OrdinalIgnoreCase);
 
-    public WeaponMovementData? Find(string weapon)
+    public static StaticWeaponData Instance { get; } = new();
+
+    public WeaponMovementData? Find(string weapon) => Weapons.GetValueOrDefault(Normalize(weapon));
+
+    public WeaponClass Classify(string weapon) => Find(weapon)?.Class ?? WeaponClass.Other;
+
+    /// <summary>Strips the <c>weapon_</c> prefix that entity item names carry and game events omit.</summary>
+    public static string Normalize(string weapon) =>
+        weapon.StartsWith("weapon_", StringComparison.OrdinalIgnoreCase) ? weapon["weapon_".Length..] : weapon;
+
+    private static IEnumerable<WeaponMovementData> Table()
     {
-        if (Weapons.TryGetValue(weapon, out var data))
-        {
-            return data;
-        }
+        static WeaponMovementData W(string name, WeaponClass c, float max, float? scoped = null) =>
+            new(name, c, max, DefaultAccurateFraction, scoped);
 
-        // Game events report weapons without the "weapon_" prefix.
-        return Weapons.GetValueOrDefault("weapon_" + weapon);
+        // Pistols
+        yield return W("glock", WeaponClass.Pistol, 240);
+        yield return W("hkp2000", WeaponClass.Pistol, 240);
+        yield return W("usp_silencer", WeaponClass.Pistol, 240);
+        yield return W("p250", WeaponClass.Pistol, 240);
+        yield return W("elite", WeaponClass.Pistol, 240);
+        yield return W("fiveseven", WeaponClass.Pistol, 240);
+        yield return W("tec9", WeaponClass.Pistol, 240);
+        yield return W("cz75a", WeaponClass.Pistol, 240);
+        yield return W("deagle", WeaponClass.Pistol, 230);
+        yield return W("revolver", WeaponClass.Pistol, 220);
+
+        // SMGs
+        yield return W("mac10", WeaponClass.Smg, 240);
+        yield return W("mp9", WeaponClass.Smg, 240);
+        yield return W("bizon", WeaponClass.Smg, 240);
+        yield return W("mp5sd", WeaponClass.Smg, 235);
+        yield return W("ump45", WeaponClass.Smg, 230);
+        yield return W("p90", WeaponClass.Smg, 230);
+        yield return W("mp7", WeaponClass.Smg, 220);
+
+        // Rifles
+        yield return W("ak47", WeaponClass.Rifle, 215);
+        yield return W("galilar", WeaponClass.Rifle, 215);
+        yield return W("m4a1", WeaponClass.Rifle, 225);
+        yield return W("m4a1_silencer", WeaponClass.Rifle, 225);
+        yield return W("famas", WeaponClass.Rifle, 220);
+        yield return W("aug", WeaponClass.Rifle, 220, scoped: 150);
+        yield return W("sg556", WeaponClass.Rifle, 210, scoped: 150);
+
+        // Snipers
+        yield return W("awp", WeaponClass.Sniper, 200, scoped: 100);
+        yield return W("ssg08", WeaponClass.Sniper, 230);
+        yield return W("g3sg1", WeaponClass.Sniper, 215, scoped: 120);
+        yield return W("scar20", WeaponClass.Sniper, 215, scoped: 120);
+
+        // Shotguns
+        yield return W("nova", WeaponClass.Shotgun, 220);
+        yield return W("xm1014", WeaponClass.Shotgun, 215);
+        yield return W("mag7", WeaponClass.Shotgun, 225);
+        yield return W("sawedoff", WeaponClass.Shotgun, 210);
+
+        // Machine guns
+        yield return W("m249", WeaponClass.MachineGun, 195);
+        yield return W("negev", WeaponClass.MachineGun, 150);
     }
 }
