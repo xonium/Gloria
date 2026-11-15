@@ -121,13 +121,12 @@ public sealed class OverviewViewModel : ObservableObject
 		{
 			var share = data.Recent.Sum(d => d.HabitCounts[(int)c]) / (double)recentTotal;
 			var previous = data.Previous.Count == 0 ? -1 : data.Previous.Sum(d => d.HabitCounts[(int)c]) / (double)previousTotal;
-			// Bars are drawn against 50%, so the common shares use most of the width.
 			Habits.Add(new HabitItem(
 				Display.Habit(c),
 				Display.HabitDescription(c),
 				$"{share:P0}",
-				new Rect(0, 0, Math.Min(share * 2, 1), 1),
-				new Rect(Math.Min(Math.Max(previous, 0) * 2, 1), 0, 2, 1),
+				new Rect(0, 0, Math.Clamp(share, 0, 1), 1),
+				new Rect(Math.Clamp(Math.Max(previous, 0), 0, 1), 0, 2, 1),
 				previous >= 0));
 		}
 
