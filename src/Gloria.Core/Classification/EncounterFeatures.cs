@@ -11,6 +11,10 @@ namespace Gloria.Core.Classification;
 /// Speed at the first shot divided by the weapon's accurate-speed threshold
 /// (<see cref="WeaponMovementData.AccurateSpeedThreshold"/>). Above 1 means the shot was inaccurate from movement.
 /// </param>
+/// <param name="PlayerHealth">The player's HP at the start of the encounter.</param>
+/// <param name="OpponentHealth">The opponent's HP at the start of the encounter.</param>
+/// <param name="OpponentWeaponClass">What the opponent held when the player fired their first shot.</param>
+/// <param name="FiredFirst">The player's first shot came no later than the opponent's first shot at them (or the opponent never fired).</param>
 public sealed record EncounterFeatures(
     float TimeToFirstShot,
     float? TimeToOnTarget,
@@ -23,8 +27,12 @@ public sealed record EncounterFeatures(
     float ShotsWhileMovingRatio,
     float DistanceToEnemy,
     WeaponClass WeaponClass,
-    bool IsKill)
+    bool IsKill,
+    int PlayerHealth,
+    int OpponentHealth,
+    WeaponClass OpponentWeaponClass,
+    bool FiredFirst)
 {
     /// <summary>Bump when fields are added, removed or change meaning. Saved models with another version are refused.</summary>
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
 }

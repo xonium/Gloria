@@ -22,5 +22,9 @@ public sealed class EncounterFeatureExtractor(IWeaponData? weapons = null) : IEn
         ShotsWhileMovingRatio: metrics.SpeedAtShots.Count > 0 ? metrics.ShotsWhileMoving / (float)metrics.SpeedAtShots.Count : 0f,
         DistanceToEnemy: metrics.DistanceAtFirstShot,
         WeaponClass: _weapons.Classify(metrics.FirstShotWeapon),
-        IsKill: encounter.Outcome == EncounterOutcome.Kill);
+        IsKill: encounter.Outcome == EncounterOutcome.Kill,
+        PlayerHealth: metrics.PlayerHealthAtStart,
+        OpponentHealth: metrics.OpponentHealthAtStart,
+        OpponentWeaponClass: _weapons.Classify(metrics.OpponentWeapon),
+        FiredFirst: metrics.FiredFirst);
 }

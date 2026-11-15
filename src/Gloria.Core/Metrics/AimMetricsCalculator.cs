@@ -41,6 +41,9 @@ public sealed record AimMetricsOptions
     /// best (see the trainer report's sub-tick alignment section).
     /// </summary>
     public float ShotSubTickFraction { get; init; } = 0f;
+
+    /// <summary>How far before the encounter start an opponent's shot at the player still counts for who fired first.</summary>
+    public float OpponentShotLookbackSeconds { get; init; } = 1f;
 }
 
 /// <summary>Scores one encounter from the analyzed player's view angles and movement relative to the opponent.</summary>
@@ -52,7 +55,7 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
     private readonly IWeaponData _weapons = weapons ?? StaticWeaponData.Instance;
     private readonly AimMetricsOptions _options = options ?? new AimMetricsOptions();
 
-    public int Version => 3;
+    public int Version => 5;
 
     public EncounterMetrics? Calculate(ParsedDemo demo, Encounter encounter)
     {
@@ -120,7 +123,36 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
             ErrorAt(first.Tick),
             ErrorAt(first.Tick - 1),
             ErrorAt(first.Tick - 2),
-            approachStart);
+            approachStart,
+            HealthBefore(timeline, player, encounter.StartTick),
+            HealthBefore(timeline, opponent, encounter.StartTick),
+            timeline.TryGet(opponent, first.Tick - 1, out var themBeforeShot) ? themBeforeShot.ActiveWeapon : them.ActiveWeapon,
+            OpponentFirstShotTick(demo, encounter));
+    }
+
+    /// <summary>
+    /// HP one tick before <paramref name="tick"/>. Context is read before the encounter and the first shot:
+    /// the state recorded on a fire tick already includes that shot's damage, and a killed opponent holds no weapon.
+    /// </summary>
+    private static int HealthBefore(PlayerTimeline timeline, ulong steamId, int tick) =>
+        timeline.TryGet(steamId, tick - 1, out var before) ? before.Health
+        : timeline.TryGet(steamId, tick, out var at) ? at.Health
+        : 100;
+
+    /// <summary>
+    /// The opponent's first shot at the player from shortly before the encounter (missed shots are not
+    /// contact, so the encounter can start after them) until its end.
+    /// </summary>
+    private int? OpponentFirstShotTick(ParsedDemo demo, Encounter encounter)
+    {
+        var from = encounter.StartTick - (int)(_options.OpponentShotLookbackSeconds * demo.TickRate);
+        foreach (var shot in DemoIndex.For(demo).ShotsBy(encounter.OpponentSteamId))
+        {
+            if (shot.Target == encounter.PlayerSteamId && shot.Tick >= from && shot.Tick <= encounter.EndTick)
+                return shot.Tick;
+        }
+
+        return null;
     }
 
     /// <summary>

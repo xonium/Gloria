@@ -39,7 +39,11 @@ public static class SyntheticEncounters
         ShotsWhileMovingRatio: 0.1f,
         DistanceToEnemy: 1200f,
         WeaponClass: WeaponClass.Rifle,
-        IsKill: true);
+        IsKill: true,
+        PlayerHealth: 100,
+        OpponentHealth: 100,
+        OpponentWeaponClass: WeaponClass.Rifle,
+        FiredFirst: true);
 
     private static EncounterFeatures Features(Random random, WeaponClass[] weapons)
     {
@@ -57,7 +61,11 @@ public static class SyntheticEncounters
             ShotsWhileMovingRatio: (float)random.NextDouble(),
             DistanceToEnemy: Uniform(random, 200f, 3500f),
             WeaponClass: weapons[random.Next(weapons.Length)],
-            IsKill: random.NextDouble() < 0.5);
+            IsKill: random.NextDouble() < 0.5,
+            PlayerHealth: random.NextDouble() < 0.6 ? 100 : random.Next(1, 100),
+            OpponentHealth: random.NextDouble() < 0.6 ? 100 : random.Next(1, 100),
+            OpponentWeaponClass: weapons[random.Next(weapons.Length)],
+            FiredFirst: random.NextDouble() < 0.5);
     }
 
     private static float Uniform(Random random, float min, float max) => min + (float)random.NextDouble() * (max - min);

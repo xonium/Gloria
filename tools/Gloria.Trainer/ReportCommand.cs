@@ -30,6 +30,12 @@ public static class ReportCommand
         new(nameof(EncounterFeatures.AngularErrorAtFirstVisible), r => r.Features.AngularErrorAtFirstVisible, [0, 1, 2, 5, 10, 20, 45]),
         new(nameof(EncounterFeatures.ShotsWhileMovingRatio), r => r.Features.ShotsWhileMovingRatio, [0, 0.01f, 0.25f, 0.5f, 0.75f, 1]),
         new(nameof(EncounterFeatures.DistanceToEnemy), r => r.Features.DistanceToEnemy, [0, 250, 500, 1000, 1500, 2000, 3000]),
+        new(nameof(EncounterFeatures.PlayerHealth), r => r.Features.PlayerHealth, [0, 25, 50, 75, 100]),
+        new(nameof(EncounterFeatures.OpponentHealth), r => r.Features.OpponentHealth, [0, 25, 50, 75, 100]),
+        new("HealthDifference (player − opponent)", r => r.Features.PlayerHealth - r.Features.OpponentHealth, [-100, -50, -25, -1, 1, 25, 50]),
+        new(nameof(EncounterFeatures.FiredFirst), r => r.Features.FiredFirst ? 1 : 0, [0, 1]),
+        new($"{nameof(EncounterFeatures.OpponentWeaponClass)} (0 Other, 1 Pistol, 2 Smg, 3 Rifle, 4 Sniper, 5 Shotgun, 6 MachineGun)",
+            r => (float)r.Features.OpponentWeaponClass, [0, 1, 2, 3, 4, 5, 6]),
     ];
 
     public static void Run(TrainerOptions options)
@@ -238,7 +244,7 @@ public static class ReportCommand
                     w.Count, N(w.Rate), N(w.Interval.Low), N(w.Interval.High)));
             }
 
-            File.WriteAllText(Path.Combine(binsDirectory, $"{spec.Name}.csv"), csv.ToString());
+            File.WriteAllText(Path.Combine(binsDirectory, $"{spec.Name.Split(' ')[0]}.csv"), csv.ToString());
             md.AppendLine();
         }
 

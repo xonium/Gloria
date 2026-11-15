@@ -1,8 +1,8 @@
 {
   "FormatVersion": 1,
-  "FeatureSchemaVersion": 1,
-  "ModelVersion": "20261115T154232Z",
-  "TrainedAt": "2026-11-15T15:42:32.2498088+00:00",
+  "FeatureSchemaVersion": 2,
+  "ModelVersion": "20261115T155039Z",
+  "TrainedAt": "2026-11-15T15:50:39.3485028+00:00",
   "Categories": [
     {
       "Category": "Overshoot",
@@ -33,8 +33,8 @@
       "TrainingRows": 6438,
       "PositiveRows": 3119,
       "CorrectedRows": 0,
-      "Auc": 0.9994863093662926,
-      "F1": 0.9891067538126361
+      "Auc": 0.9993617783035756,
+      "F1": 0.9826086956521739
     },
     {
       "Category": "SlowReaction",

@@ -120,7 +120,8 @@ public sealed class PlayerTimeline
             c.EyeHeight[row],
             flags.HasFlag(StateFlags.Scoped),
             flags.HasFlag(StateFlags.OnGround),
-            flags.HasFlag(StateFlags.Ducking));
+            flags.HasFlag(StateFlags.Ducking),
+            c.Health[row]);
     }
 
     internal sealed class PlayerColumns(int capacity)
@@ -137,6 +138,7 @@ public sealed class PlayerTimeline
         public ushort[] Weapon = new ushort[capacity];
         public StateFlags[] Flags = new StateFlags[capacity];
         public byte[] Team = new byte[capacity];
+        public byte[] Health = new byte[capacity];
         public ulong[] SpottedBy = new ulong[capacity];
 
         public void Resize(int size)
@@ -153,6 +155,7 @@ public sealed class PlayerTimeline
             Array.Resize(ref Weapon, size);
             Array.Resize(ref Flags, size);
             Array.Resize(ref Team, size);
+            Array.Resize(ref Health, size);
             Array.Resize(ref SpottedBy, size);
         }
     }
@@ -225,6 +228,7 @@ public sealed class PlayerTimelineBuilder
         c.EyeHeight[row] = state.EyeHeight;
         c.Weapon[row] = WeaponId(state.ActiveWeapon);
         c.Team[row] = (byte)state.Team;
+        c.Health[row] = (byte)Math.Clamp(state.Health, 0, 255);
         c.SpottedBy[row] = spottedBy;
 
         var flags = PlayerTimeline.StateFlags.Present;

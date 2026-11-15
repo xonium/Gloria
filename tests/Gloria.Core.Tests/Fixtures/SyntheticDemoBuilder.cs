@@ -19,7 +19,7 @@ public sealed class SyntheticDemoBuilder
     private readonly List<RoundInfo> _rounds = [];
 
     /// <summary>A player's scripted state. Null fields keep the default (standing still, facing +X).</summary>
-    public readonly record struct Pose(Vector3? Position = null, float? Yaw = null, float? Pitch = null, Vector3? Velocity = null, string? Weapon = null);
+    public readonly record struct Pose(Vector3? Position = null, float? Yaw = null, float? Pitch = null, Vector3? Velocity = null, string? Weapon = null, int? Health = null);
 
     public SyntheticDemoBuilder Player(ulong id, Team team, Vector3 position)
     {
@@ -99,7 +99,8 @@ public sealed class SyntheticDemoBuilder
                     pose.Pitch ?? 0f,
                     pose.Weapon ?? "weapon_ak47",
                     !dead,
-                    team);
+                    team,
+                    Health: dead ? 0 : pose.Health ?? 100);
 
                 ulong spottedBy = 0;
                 foreach (var s in _spotted.Where(s => s.Target == id && tick >= s.From && tick <= s.To))

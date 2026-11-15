@@ -10,7 +10,7 @@ public sealed class DemoFileDemoParser : IDemoParser
     // Entity flag set while the player stands on the ground (FL_ONGROUND).
     private const uint OnGroundFlag = 1;
 
-    public int Version => 2;
+    public int Version => 3;
 
     public async Task<ParsedDemo> ParseAsync(Stream demo, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
     {
@@ -181,7 +181,8 @@ public sealed class DemoFileDemoParser : IDemoParser
             eyeHeight,
             pawn.IsScoped,
             (pawn.Flags & OnGroundFlag) != 0,
-            duck > 0.5f);
+            duck > 0.5f,
+            pawn.Health);
     }
 
     /// <summary>

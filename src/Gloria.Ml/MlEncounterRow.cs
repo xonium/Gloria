@@ -27,6 +27,10 @@ public sealed class MlEncounterRow
         nameof(DistanceToEnemy),
         nameof(WeaponClass),
         nameof(IsKill),
+        nameof(PlayerHealth),
+        nameof(OpponentHealth),
+        nameof(OpponentWeaponClass),
+        nameof(FiredFirst),
     ];
 
     public float TimeToFirstShot { get; set; }
@@ -44,6 +48,10 @@ public sealed class MlEncounterRow
     // Ordinal code; trees split it well enough. Switch to one-hot if a linear trainer is used.
     public float WeaponClass { get; set; }
     public float IsKill { get; set; }
+    public float PlayerHealth { get; set; }
+    public float OpponentHealth { get; set; }
+    public float OpponentWeaponClass { get; set; }
+    public float FiredFirst { get; set; }
 
     public bool Label { get; set; }
     public float Weight { get; set; } = 1f;
@@ -66,6 +74,10 @@ public sealed class MlEncounterRow
         DistanceToEnemy = f.DistanceToEnemy,
         WeaponClass = (float)f.WeaponClass,
         IsKill = f.IsKill ? 1f : 0f,
+        PlayerHealth = f.PlayerHealth,
+        OpponentHealth = f.OpponentHealth,
+        OpponentWeaponClass = (float)f.OpponentWeaponClass,
+        FiredFirst = f.FiredFirst ? 1f : 0f,
         Label = label,
         Weight = weight,
         DemoHash = demoHash,

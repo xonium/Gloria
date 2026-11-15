@@ -57,6 +57,11 @@ Concatenate(MlEncounterRow.FeatureNames -> "Features")
   - A shot is evaluated at the tick before its fire tick.
   - The **approach window** starts where the view movement that led to the first shot began, at most 1 s earlier. It does not start at first visibility, because the spotted state lags by up to half a second. Overshoot, corrections and flick distance are measured in this window. A pre-aimed shot has an empty approach.
   - `AngularErrorAtFirstVisible` and `TimeToFirstShot` are measured from the encounter start (first contact).
+  - Context features (schema 2):
+    - `PlayerHealth` and `OpponentHealth` are the HP one tick before the encounter start.
+    - `OpponentWeaponClass` is what the opponent held one tick before the player's first shot.
+    - `FiredFirst` means the opponent did not shoot at the player before the player's first shot. It looks back up to 1 s before the encounter, because missed shots are not contact.
+    - Everything is read *before* the shot on purpose. The state recorded on a fire tick already includes that shot's damage, and a killed opponent holds no weapon. Reading context at the shot tick leaked the outcome: FirstShotHit AUC jumped to 0.89 on the opponent's HP and weapon, and fell back to 0.83 once fixed. `Context_IsReadBeforeTheFirstShot_SoAKillingShotCannotLeakIntoIt` guards this.
 
 ### Labels: rules first, user corrections win
 
@@ -167,8 +172,21 @@ The first run used 6 demos; 17 more were added the same day. Every conclusion be
 
   | Target | Rows | AUC | Notes |
   |---|---|---|---|
-  | FirstShotHit | 6,438 (23% positive) | 0.82 ± 0.03 | Mostly crosshair error at the shot, then distance and speed |
-  | WonDuel | 4,568 (63% positive) | 0.63 ± 0.04 | Duels depend on things the features do not see: HP, the opponent's aim and weapon, who saw whom first |
+  | FirstShotHit | 6,438 (23% positive) | 0.83 ± 0.03 | Mostly crosshair error at the shot, then distance and speed. The context features add nothing here, as expected: whether a shot hits depends on the aim, not on HP. |
+  | WonDuel | 4,568 (63% positive) | 0.72 ± 0.05 | Up from 0.63 before the context features. Crosshair error, who fired first, opponent HP and opponent weapon matter most. |
+
+- **Context and duels.** Win rates by context, from the report's bins:
+
+  | Context | Win rate |
+  |---|---|
+  | Player fired first | 70% (51% otherwise) |
+  | HP difference ≥ +50 | 81% |
+  | HP difference ≤ −50 | 48% |
+  | Opponent holding a knife, grenade or C4 | 89% |
+  | Opponent with a pistol | 71% |
+  | Opponent with a rifle | 58% |
+
+  `FiredFirst` is partly an outcome of the aim itself: a player who reacts faster fires first. It belongs in the WonDuel model as context, but the UI should not present it as a separate mistake.
 
 - **Shot alignment.** The crosshair error at the tick before the fire tick predicts hits best:
 
@@ -195,7 +213,8 @@ The first run used 6 demos; 17 more were added the same day. Every conclusion be
 
 ### Next steps
 
-- Add opponent context to the features: both players' HP, the opponent's weapon, and who fired first. This should raise WonDuel substantially. It needs a `SchemaVersion` bump and a retrain.
+- More context: armor and helmet, flashes (`player_blind`), and how many opponents could see the player at once (being traded or crossfired). Each needs a `SchemaVersion` bump and a retrain.
+- To judge a player's aim, compare the WonDuel prediction with and without the aim features. That separates "lost because of the situation" from "lost because of the aim".
 - Better visibility than the spotted state (map geometry).
 - More demos. 23 demos still give fold-to-fold AUC spreads of ±0.03–0.04, so per-demo variation, not data size, dominates.
 - Hand-label a sample of encounters with the categories, to check the rule labels against expert judgment.

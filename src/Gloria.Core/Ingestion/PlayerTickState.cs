@@ -20,7 +20,8 @@ public readonly record struct PlayerTickState(
     float EyeHeight = PlayerTickState.StandingEyeHeight,
     bool IsScoped = false,
     bool IsOnGround = true,
-    bool IsDucking = false)
+    bool IsDucking = false,
+    int Health = 100)
 {
     public const float StandingEyeHeight = 64.06f;
     public const float CrouchingEyeHeight = 46.04f;

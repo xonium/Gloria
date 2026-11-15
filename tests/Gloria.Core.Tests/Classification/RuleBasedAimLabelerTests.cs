@@ -18,7 +18,11 @@ public class RuleBasedAimLabelerTests
         ShotsWhileMovingRatio: 0f,
         DistanceToEnemy: 1000f,
         WeaponClass: WeaponClass.Rifle,
-        IsKill: true);
+        IsKill: true,
+        PlayerHealth: 100,
+        OpponentHealth: 100,
+        OpponentWeaponClass: WeaponClass.Rifle,
+        FiredFirst: true);
 
     [Fact]
     public void Label_IsEmpty_ForCleanEncounter()

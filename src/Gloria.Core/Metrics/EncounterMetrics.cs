@@ -23,6 +23,10 @@ public enum AimApproach
 /// <param name="AngularErrorAtTickBeforeFirstShot">Error one tick before the first shot.</param>
 /// <param name="AngularErrorTwoTicksBeforeFirstShot">Error two ticks before the first shot.</param>
 /// <param name="ApproachStartTick">Where the view movement leading to the first shot began.</param>
+/// <param name="PlayerHealthAtStart">The player's HP just before the encounter start.</param>
+/// <param name="OpponentHealthAtStart">The opponent's HP just before the encounter start.</param>
+/// <param name="OpponentWeapon">The opponent's active weapon on the tick before the player's first shot.</param>
+/// <param name="OpponentFirstShotTick">The opponent's first shot at the player around this encounter, if any.</param>
 public sealed record EncounterMetrics(
     Encounter Encounter,
     AimApproach Approach,
@@ -43,7 +47,15 @@ public sealed record EncounterMetrics(
     float AngularErrorAtFirstShotTick,
     float AngularErrorAtTickBeforeFirstShot,
     float AngularErrorTwoTicksBeforeFirstShot,
-    int ApproachStartTick);
+    int ApproachStartTick,
+    int PlayerHealthAtStart,
+    int OpponentHealthAtStart,
+    string OpponentWeapon,
+    int? OpponentFirstShotTick)
+{
+    /// <summary>The player shot no later than the opponent did, or the opponent never shot at them.</summary>
+    public bool FiredFirst => OpponentFirstShotTick is not { } opponent || FirstShotTick <= opponent;
+}
 
 public interface IAimMetricsCalculator
 {

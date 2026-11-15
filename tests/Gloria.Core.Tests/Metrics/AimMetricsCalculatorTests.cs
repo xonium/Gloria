@@ -118,6 +118,52 @@ public class AimMetricsCalculatorTests
         Assert.Equal(0.0, m.TimeToOnTarget);
     }
 
+    [Fact]
+    public void Context_RecordsHealthTheOpponentsWeaponAndWhoFiredFirst()
+    {
+        var demo = Duel()
+            .Animate(A, 0, 300, _ => new SyntheticDemoBuilder.Pose(Health: 60))
+            .Animate(B, 0, 300, _ => new SyntheticDemoBuilder.Pose(Yaw: 180f, Weapon: "weapon_awp", Health: 100))
+            .Spotted(B, by: A, 100, 130)
+            .Spotted(A, by: B, 100, 130)
+            .Fire(105, B, "weapon_awp")
+            .Fire(110, A)
+            .Build(300);
+
+        var m = MetricsFor(demo);
+
+        Assert.Equal(60, m.PlayerHealthAtStart);
+        Assert.Equal(100, m.OpponentHealthAtStart);
+        Assert.Equal("weapon_awp", m.OpponentWeapon);
+        Assert.Equal(105, m.OpponentFirstShotTick);
+        Assert.False(m.FiredFirst);
+    }
+
+    [Fact]
+    public void Context_IsReadBeforeTheFirstShot_SoAKillingShotCannotLeakIntoIt()
+    {
+        // The first shot is also the first contact; on that tick the victim already has 0 HP and no weapon.
+        var demo = Duel()
+            .Animate(B, 0, 300, t => new SyntheticDemoBuilder.Pose(Yaw: 180f, Weapon: t >= 110 ? "" : "weapon_ak47", Health: t >= 110 ? 0 : 100))
+            .Spotted(B, by: A, 110, 130)
+            .Fire(110, A).Hurt(110, B, A, damage: 100).Death(110, B, A)
+            .Build(300);
+
+        var m = MetricsFor(demo);
+
+        Assert.Equal(110, m.Encounter.StartTick);
+        Assert.Equal(100, m.OpponentHealthAtStart);
+        Assert.Equal("weapon_ak47", m.OpponentWeapon);
+    }
+
+    [Fact]
+    public void FiredFirst_IsTrue_WhenTheOpponentNeverShot()
+    {
+        var demo = Duel().Spotted(B, by: A, 100, 130).Fire(110, A).Build(300);
+
+        Assert.True(MetricsFor(demo).FiredFirst);
+    }
+
     private static PlayerTimeline Rescope(ParsedDemo demo)
     {
         var builder = new PlayerTimelineBuilder();

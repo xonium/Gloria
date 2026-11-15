@@ -47,17 +47,42 @@ public static class FeatureCsv
 {
     private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
 
-    private static readonly string[] Header =
+    /// <summary>Columns in file order. Rows are read back by column name, so columns can be added freely.</summary>
+    private static readonly (string Name, Func<FeatureRow, string> Value)[] Columns =
     [
-        "DemoHash", "Map", "Round", "Player", "Opponent", "StartTick", "EndTick", "FirstShotTick", "Outcome", "Weapon",
-        nameof(EncounterFeatures.TimeToFirstShot), nameof(EncounterFeatures.TimeToOnTarget),
-        nameof(EncounterFeatures.AngularErrorAtFirstVisible), nameof(EncounterFeatures.AngularErrorAtFirstShot),
-        nameof(EncounterFeatures.PeakOvershootDegrees), nameof(EncounterFeatures.CorrectionCount),
-        nameof(EncounterFeatures.FlickDistanceDegrees), nameof(EncounterFeatures.SpeedRatioAtFirstShot),
-        nameof(EncounterFeatures.ShotsWhileMovingRatio), nameof(EncounterFeatures.DistanceToEnemy),
-        nameof(EncounterFeatures.WeaponClass), nameof(EncounterFeatures.IsKill),
-        "ErrorAtFirstShotTick", "ErrorAtTickBeforeFirstShot", "ErrorTwoTicksBeforeFirstShot", "ApproachStartTick", "Shots",
-        nameof(OutcomeLabels.FirstShotHit), nameof(OutcomeLabels.WonDuel),
+        ("DemoHash", r => r.DemoHash),
+        ("Map", r => r.Map),
+        ("Round", r => I(r.Round)),
+        ("Player", r => r.Player.ToString(Invariant)),
+        ("Opponent", r => r.Opponent.ToString(Invariant)),
+        ("StartTick", r => I(r.StartTick)),
+        ("EndTick", r => I(r.EndTick)),
+        ("FirstShotTick", r => I(r.FirstShotTick)),
+        ("Outcome", r => r.Outcome.ToString()),
+        ("Weapon", r => r.Weapon),
+        (nameof(EncounterFeatures.TimeToFirstShot), r => F(r.Features.TimeToFirstShot)),
+        (nameof(EncounterFeatures.TimeToOnTarget), r => r.Features.TimeToOnTarget is { } t ? F(t) : ""),
+        (nameof(EncounterFeatures.AngularErrorAtFirstVisible), r => F(r.Features.AngularErrorAtFirstVisible)),
+        (nameof(EncounterFeatures.AngularErrorAtFirstShot), r => F(r.Features.AngularErrorAtFirstShot)),
+        (nameof(EncounterFeatures.PeakOvershootDegrees), r => F(r.Features.PeakOvershootDegrees)),
+        (nameof(EncounterFeatures.CorrectionCount), r => I(r.Features.CorrectionCount)),
+        (nameof(EncounterFeatures.FlickDistanceDegrees), r => F(r.Features.FlickDistanceDegrees)),
+        (nameof(EncounterFeatures.SpeedRatioAtFirstShot), r => F(r.Features.SpeedRatioAtFirstShot)),
+        (nameof(EncounterFeatures.ShotsWhileMovingRatio), r => F(r.Features.ShotsWhileMovingRatio)),
+        (nameof(EncounterFeatures.DistanceToEnemy), r => F(r.Features.DistanceToEnemy)),
+        (nameof(EncounterFeatures.WeaponClass), r => r.Features.WeaponClass.ToString()),
+        (nameof(EncounterFeatures.IsKill), r => B(r.Features.IsKill)),
+        (nameof(EncounterFeatures.PlayerHealth), r => I(r.Features.PlayerHealth)),
+        (nameof(EncounterFeatures.OpponentHealth), r => I(r.Features.OpponentHealth)),
+        (nameof(EncounterFeatures.OpponentWeaponClass), r => r.Features.OpponentWeaponClass.ToString()),
+        (nameof(EncounterFeatures.FiredFirst), r => B(r.Features.FiredFirst)),
+        ("ErrorAtFirstShotTick", r => F(r.ErrorAtFirstShotTick)),
+        ("ErrorAtTickBeforeFirstShot", r => F(r.ErrorAtTickBeforeFirstShot)),
+        ("ErrorTwoTicksBeforeFirstShot", r => F(r.ErrorTwoTicksBeforeFirstShot)),
+        ("ApproachStartTick", r => I(r.ApproachStartTick)),
+        ("Shots", r => I(r.Shots)),
+        (nameof(OutcomeLabels.FirstShotHit), r => B(r.Labels.FirstShotHit)),
+        (nameof(OutcomeLabels.WonDuel), r => B(r.Labels.WonDuel)),
     ];
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
@@ -94,9 +119,9 @@ public static class FeatureCsv
         var temp = path + ".tmp";
         using (var writer = new StreamWriter(temp, false, new UTF8Encoding(false)))
         {
-            writer.WriteLine(string.Join(',', Header));
+            writer.WriteLine(string.Join(',', Columns.Select(c => c.Name)));
             foreach (var r in rows)
-                writer.WriteLine(Format(r));
+                writer.WriteLine(string.Join(',', Columns.Select(c => c.Value(r))));
         }
 
         File.WriteAllText(summaryPath, JsonSerializer.Serialize(summary, JsonOptions));
@@ -113,7 +138,7 @@ public static class FeatureCsv
         if (files.Count == 0)
             throw new TrainerException($"No cached features for analysis version {TrainerOptions.AnalysisVersion} in {options.FeatureDirectory}. Run 'extract' first.");
 
-        var rows = files.SelectMany(f => File.ReadLines(f).Skip(1).Select(Parse)).ToList();
+        var rows = files.SelectMany(Read).ToList();
         var demos = files
             .Select(f => f[..^".csv".Length] + ".json")
             .Where(File.Exists)
@@ -122,54 +147,51 @@ public static class FeatureCsv
         return (rows, demos);
     }
 
-    private static string Format(FeatureRow r)
+    private static IEnumerable<FeatureRow> Read(string path)
     {
-        var f = r.Features;
-        string[] values =
-        [
-            r.DemoHash, r.Map, I(r.Round), r.Player.ToString(Invariant), r.Opponent.ToString(Invariant),
-            I(r.StartTick), I(r.EndTick), I(r.FirstShotTick), r.Outcome.ToString(), r.Weapon,
-            F(f.TimeToFirstShot), f.TimeToOnTarget is { } t ? F(t) : "",
-            F(f.AngularErrorAtFirstVisible), F(f.AngularErrorAtFirstShot),
-            F(f.PeakOvershootDegrees), I(f.CorrectionCount),
-            F(f.FlickDistanceDegrees), F(f.SpeedRatioAtFirstShot),
-            F(f.ShotsWhileMovingRatio), F(f.DistanceToEnemy),
-            f.WeaponClass.ToString(), f.IsKill ? "1" : "0",
-            F(r.ErrorAtFirstShotTick), F(r.ErrorAtTickBeforeFirstShot), F(r.ErrorTwoTicksBeforeFirstShot), I(r.ApproachStartTick), I(r.Shots),
-            B(r.Labels.FirstShotHit), B(r.Labels.WonDuel),
-        ];
-        return string.Join(',', values);
+        using var lines = File.ReadLines(path).GetEnumerator();
+        if (!lines.MoveNext())
+            yield break;
 
-        static string I(int v) => v.ToString(Invariant);
-        static string F(float v) => float.IsNaN(v) ? "" : v.ToString("0.####", Invariant);
-        static string B(bool? v) => v switch { true => "1", false => "0", null => "" };
+        var index = lines.Current.Split(',').Select((name, i) => (name, i)).ToDictionary(p => p.name, p => p.i);
+        while (lines.MoveNext())
+        {
+            var cells = lines.Current.Split(',');
+            string C(string name) => cells[index[name]];
+            var features = new EncounterFeatures(
+                TimeToFirstShot: PF(C(nameof(EncounterFeatures.TimeToFirstShot))),
+                TimeToOnTarget: C(nameof(EncounterFeatures.TimeToOnTarget)) is { Length: > 0 } t ? PF(t) : null,
+                AngularErrorAtFirstVisible: PF(C(nameof(EncounterFeatures.AngularErrorAtFirstVisible))),
+                AngularErrorAtFirstShot: PF(C(nameof(EncounterFeatures.AngularErrorAtFirstShot))),
+                PeakOvershootDegrees: PF(C(nameof(EncounterFeatures.PeakOvershootDegrees))),
+                CorrectionCount: PI(C(nameof(EncounterFeatures.CorrectionCount))),
+                FlickDistanceDegrees: PF(C(nameof(EncounterFeatures.FlickDistanceDegrees))),
+                SpeedRatioAtFirstShot: PF(C(nameof(EncounterFeatures.SpeedRatioAtFirstShot))),
+                ShotsWhileMovingRatio: PF(C(nameof(EncounterFeatures.ShotsWhileMovingRatio))),
+                DistanceToEnemy: PF(C(nameof(EncounterFeatures.DistanceToEnemy))),
+                WeaponClass: Enum.Parse<WeaponClass>(C(nameof(EncounterFeatures.WeaponClass))),
+                IsKill: C(nameof(EncounterFeatures.IsKill)) == "1",
+                PlayerHealth: PI(C(nameof(EncounterFeatures.PlayerHealth))),
+                OpponentHealth: PI(C(nameof(EncounterFeatures.OpponentHealth))),
+                OpponentWeaponClass: Enum.Parse<WeaponClass>(C(nameof(EncounterFeatures.OpponentWeaponClass))),
+                FiredFirst: C(nameof(EncounterFeatures.FiredFirst)) == "1");
+            yield return new FeatureRow(
+                C("DemoHash"), C("Map"), PI(C("Round")),
+                ulong.Parse(C("Player"), Invariant), ulong.Parse(C("Opponent"), Invariant),
+                PI(C("StartTick")), PI(C("EndTick")), PI(C("FirstShotTick")),
+                Enum.Parse<EncounterOutcome>(C("Outcome")), C("Weapon"),
+                features,
+                PF(C("ErrorAtFirstShotTick")), PF(C("ErrorAtTickBeforeFirstShot")), PF(C("ErrorTwoTicksBeforeFirstShot")),
+                PI(C("ApproachStartTick")), PI(C("Shots")),
+                new OutcomeLabels(PB(C(nameof(OutcomeLabels.FirstShotHit))), PB(C(nameof(OutcomeLabels.WonDuel)))));
+        }
     }
 
-    private static FeatureRow Parse(string line)
-    {
-        var c = line.Split(',');
-        var features = new EncounterFeatures(
-            TimeToFirstShot: F(c[10]),
-            TimeToOnTarget: c[11].Length == 0 ? null : F(c[11]),
-            AngularErrorAtFirstVisible: F(c[12]),
-            AngularErrorAtFirstShot: F(c[13]),
-            PeakOvershootDegrees: F(c[14]),
-            CorrectionCount: I(c[15]),
-            FlickDistanceDegrees: F(c[16]),
-            SpeedRatioAtFirstShot: F(c[17]),
-            ShotsWhileMovingRatio: F(c[18]),
-            DistanceToEnemy: F(c[19]),
-            WeaponClass: Enum.Parse<WeaponClass>(c[20]),
-            IsKill: c[21] == "1");
-        return new FeatureRow(
-            c[0], c[1], I(c[2]), ulong.Parse(c[3], Invariant), ulong.Parse(c[4], Invariant),
-            I(c[5]), I(c[6]), I(c[7]), Enum.Parse<EncounterOutcome>(c[8]), c[9],
-            features,
-            F(c[22]), F(c[23]), F(c[24]), I(c[25]), I(c[26]),
-            new OutcomeLabels(B(c[27]), B(c[28])));
-
-        static int I(string s) => int.Parse(s, Invariant);
-        static float F(string s) => s.Length == 0 ? float.NaN : float.Parse(s, Invariant);
-        static bool? B(string s) => s switch { "1" => true, "0" => false, _ => null };
-    }
+    private static string I(int v) => v.ToString(Invariant);
+    private static string F(float v) => float.IsNaN(v) ? "" : v.ToString("0.####", Invariant);
+    private static string B(bool v) => v ? "1" : "0";
+    private static string B(bool? v) => v switch { true => "1", false => "0", null => "" };
+    private static int PI(string s) => int.Parse(s, Invariant);
+    private static float PF(string s) => s.Length == 0 ? float.NaN : float.Parse(s, Invariant);
+    private static bool? PB(string s) => s switch { "1" => true, "0" => false, _ => null };
 }
