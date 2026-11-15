@@ -49,6 +49,8 @@ public sealed class MlEncounterRow
     public float Weight { get; set; } = 1f;
     public string DemoHash { get; set; } = "";
 
+    public MlEncounterRow Clone() => (MlEncounterRow)MemberwiseClone();
+
     public static MlEncounterRow From(EncounterFeatures f, bool label = false, float weight = 1f, string demoHash = "") => new()
     {
         TimeToFirstShot = f.TimeToFirstShot,

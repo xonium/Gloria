@@ -1,6 +1,5 @@
 using Gloria.Core.Classification;
 using Microsoft.ML;
-using Microsoft.ML.Trainers.FastTree;
 
 namespace Gloria.Ml;
 
@@ -9,6 +8,18 @@ public sealed record TrainingEncounter(
     EncounterFeatures Features,
     string DemoHash,
     IReadOnlyDictionary<AimCategory, bool>? Corrections = null);
+
+public enum EvaluationMode
+{
+    /// <summary>Leave-one-demo-out below <see cref="AimTrainingOptions.LeaveOneOutBelowDemos"/> demos, otherwise a hold-out split.</summary>
+    Auto,
+
+    /// <summary>Hold out <see cref="AimTrainingOptions.TestFraction"/> of the demos.</summary>
+    HoldOut,
+
+    /// <summary>One fold per demo; the reported score is the mean over folds.</summary>
+    LeaveOneDemoOut,
+}
 
 public sealed record AimTrainingOptions
 {
@@ -19,6 +30,11 @@ public sealed record AimTrainingOptions
 
     /// <summary>Fraction of demos (not rows) held out for evaluation.</summary>
     public double TestFraction { get; init; } = 0.2;
+
+    public EvaluationMode Evaluation { get; init; } = EvaluationMode.Auto;
+
+    /// <summary>With fewer demos, a 20% hold-out is a single demo, so <see cref="EvaluationMode.Auto"/> uses leave-one-demo-out.</summary>
+    public int LeaveOneOutBelowDemos { get; init; } = 10;
 
     public int NumberOfTrees { get; init; } = 100;
     public int NumberOfLeaves { get; init; } = 16;
@@ -31,9 +47,19 @@ public sealed record AimTrainingOptions
 /// <summary>Trains one FastTree binary classifier per <see cref="AimCategory"/>.</summary>
 public sealed class AimModelTrainer(AimTrainingOptions? options = null)
 {
-    private const string FeaturesColumn = "Features";
-
     private readonly AimTrainingOptions _options = options ?? new AimTrainingOptions();
+    private readonly BinaryModelFitter _fitter = Fitter(options ?? new AimTrainingOptions());
+
+    internal static BinaryModelFitter Fitter(AimTrainingOptions options) =>
+        new(options.NumberOfTrees, options.NumberOfLeaves, options.MinimumExampleCountPerLeaf);
+
+    /// <summary>Whether to evaluate with one fold per demo, given the options and the number of distinct demos.</summary>
+    internal static bool UseLeaveOneDemoOut(AimTrainingOptions options, int demoCount) => options.Evaluation switch
+    {
+        EvaluationMode.LeaveOneDemoOut => true,
+        EvaluationMode.HoldOut => false,
+        _ => demoCount < options.LeaveOneOutBelowDemos,
+    };
 
     public AimModelBundle Train(IReadOnlyList<TrainingEncounter> encounters, DateTimeOffset? trainedAt = null)
     {
@@ -53,8 +79,7 @@ public sealed class AimModelTrainer(AimTrainingOptions? options = null)
             inputSchema ??= data.Schema;
 
             // Evaluate on held-out demos, then train the model that is kept on everything.
-            var split = ml.Data.TrainTestSplit(data, _options.TestFraction, samplingKeyColumnName: nameof(MlEncounterRow.DemoHash), seed: _options.Seed);
-            var (auc, f1) = Evaluate(ml, Fit(ml, split.TrainSet), split.TestSet);
+            var (auc, f1) = Evaluate(ml, rows, data);
 
             models[category] = Fit(ml, data);
             infos.Add(new CategoryModelInfo(
@@ -88,37 +113,24 @@ public sealed class AimModelTrainer(AimTrainingOptions? options = null)
         return MlEncounterRow.From(encounter.Features, label, 1f, encounter.DemoHash);
     }
 
-    private ITransformer Fit(MLContext ml, IDataView data)
-    {
-        var featurizer = ml.Transforms.Concatenate(FeaturesColumn, MlEncounterRow.FeatureNames).Fit(data);
-        var featurized = featurizer.Transform(data);
+    private ITransformer Fit(MLContext ml, IDataView data) =>
+        _fitter.Fit(ml, data, MlEncounterRow.FeatureNames, _options.TopContributions, 0);
 
-        var model = ml.BinaryClassification.Trainers.FastTree(new FastTreeBinaryTrainer.Options
+    private (double? Auc, double? F1) Evaluate(MLContext ml, List<MlEncounterRow> rows, IDataView data)
+    {
+        if (UseLeaveOneDemoOut(_options, rows.Select(r => r.DemoHash).Distinct().Count()))
         {
-            LabelColumnName = nameof(MlEncounterRow.Label),
-            FeatureColumnName = FeaturesColumn,
-            ExampleWeightColumnName = nameof(MlEncounterRow.Weight),
-            NumberOfTrees = _options.NumberOfTrees,
-            NumberOfLeaves = _options.NumberOfLeaves,
-            MinimumExampleCountPerLeaf = _options.MinimumExampleCountPerLeaf,
-        }).Fit(featurized);
+            var folds = CrossValidation.LeaveOneGroupOut(rows, r => r.DemoHash)
+                .Where(f => f.Train.Any(r => r.Label) && f.Train.Any(r => !r.Label))
+                .Select(f => new FoldScores(f.HeldOut, BinaryModelFitter.Evaluate(
+                    ml, Fit(ml, ml.Data.LoadFromEnumerable(f.Train)), ml.Data.LoadFromEnumerable(f.Test))))
+                .ToList();
+            var summary = new CrossValidationSummary(folds);
+            return (summary.MeanAuc, summary.MeanF1);
+        }
 
-        var contributions = ml.Transforms
-            .CalculateFeatureContribution(model, numberOfPositiveContributions: _options.TopContributions, numberOfNegativeContributions: 0)
-            .Fit(model.Transform(featurized));
-
-        return featurizer.Append(model).Append(contributions);
+        var split = ml.Data.TrainTestSplit(data, _options.TestFraction, samplingKeyColumnName: nameof(MlEncounterRow.DemoHash), seed: _options.Seed);
+        var scores = BinaryModelFitter.Evaluate(ml, Fit(ml, split.TrainSet), split.TestSet);
+        return (scores.Auc, scores.F1);
     }
-
-    private static (double? Auc, double? F1) Evaluate(MLContext ml, ITransformer model, IDataView test)
-    {
-        var labels = ml.Data.CreateEnumerable<MlEncounterRow>(test, reuseRowObject: false).Select(r => r.Label).ToList();
-        if (labels.Count == 0 || labels.All(l => l) || labels.All(l => !l))
-            return (null, null);
-
-        var metrics = ml.BinaryClassification.Evaluate(model.Transform(test), labelColumnName: nameof(MlEncounterRow.Label));
-        return (Finite(metrics.AreaUnderRocCurve), Finite(metrics.F1Score));
-    }
-
-    private static double? Finite(double value) => double.IsFinite(value) ? value : null;
 }
