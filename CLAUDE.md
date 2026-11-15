@@ -23,8 +23,10 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
 
 - `src/Gloria.Core`: domain layers as namespaces: `Ingestion` (`IDemoParser`, `DemoFileDemoParser`, `DemoHasher`, normalized models), `Visibility`, `Encounters`, `Metrics` (`AimMath`), `Weapons`, `Aggregation`. It has no MAUI reference.
 - `src/Gloria.Data`: EF Core SQLite: `GloriaDbContext`, `Migrations/`, `DatabaseLocation` (`%LocalAppData%\Gloria.Data\gloria.db`), and `DatabaseInitializer.Migrate`, which runs at startup.
+- `src/Gloria.Core/Classification`: aim categories (`AimCategory`), `EncounterFeatures`, `RuleBasedAimLabeler`, and `IAimClassifier` with its rule-based fallback. It has no ML.NET reference.
+- `src/Gloria.Ml`: ML.NET aim classification. `AimModelTrainer` trains one FastTree binary model per category. `AimModelStore` saves and loads bundle folders. `MlAimClassifier` predicts in batches. `AimClassifierFactory` picks the user model, then the base model, then the rules. See `docs/ml-classification.md`.
 - `src/Gloria`: the MAUI app (exe `Gloria.exe`, Velopack packId `Gloria`). `Platforms/Windows/Program.cs` holds the custom `Main` with the Velopack hook. `Updates/UpdateSourceFactory` is the single switch point for the update source.
-- `tests/Gloria.Core.Tests`, `tests/Gloria.Data.Tests`: xUnit v3. Data tests use in-memory SQLite. `Fixtures/DemoFiles` finds `_demos/` and skips tests when it is empty.
+- `tests/Gloria.Core.Tests`, `tests/Gloria.Data.Tests`, `tests/Gloria.Ml.Tests`: xUnit v3. ML tests train on seeded synthetic features (`SyntheticEncounters`). Data tests use in-memory SQLite. `Fixtures/DemoFiles` finds `_demos/` and skips tests when it is empty.
 - Package versions are managed centrally in `Directory.Packages.props`.
 
 ## Tech stack (decided)
@@ -40,6 +42,12 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
 - **Embedded database: SQLite**, through `Microsoft.Data.Sqlite` or EF Core's SQLite provider. The SQLite native library ships with the NuGet package, so the app needs no separate database install.
   - **Location:** create the file at first run in a per-user folder **outside the Velopack install directory**, e.g. `%LocalAppData%\Gloria.Data\`. Velopack replaces the app folder on every update, so a database stored there would be lost.
   - **Migrations:** schema changes go through migrations that run at startup, because installed copies keep their old database across updates.
+- **Aim classification: ML.NET** (`Microsoft.ML` + `Microsoft.ML.FastTree`), one binary model per category.
+  - Labels come from `RuleBasedAimLabeler` first. User corrections override them, with a higher example weight.
+  - A base model ships with the app, and the user's retrained model lives in `%LocalAppData%\Gloria.Data\models\user\`.
+  - ML.NET is not trim-safe, so don't enable trimming.
+  - Bump `EncounterFeatures.SchemaVersion` whenever the features change; saved models with another version are refused.
+  - Design and next steps: `docs/ml-classification.md`.
 - **Demo parsing in .NET:** prefer a managed CS2 parser such as `DemoFile.Net` (`DemoFile.Game.Cs` package). That keeps the MSI free of native interop. Choosing `demoparser2` instead would mean shipping its native library and wrapping it.
 
 ## Solution layout (intended)

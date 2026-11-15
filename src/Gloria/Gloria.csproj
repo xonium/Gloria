@@ -55,6 +55,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\Gloria.Core\Gloria.Core.csproj" />
 		<ProjectReference Include="..\Gloria.Data\Gloria.Data.csproj" />
+		<ProjectReference Include="..\Gloria.Ml\Gloria.Ml.csproj" />
 	</ItemGroup>
 
 </Project>

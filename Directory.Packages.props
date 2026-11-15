@@ -11,6 +11,11 @@
     <PackageVersion Include="DemoFile.Game.Cs" Version="0.45.1" />
   </ItemGroup>
 
+  <ItemGroup Label="ML">
+    <PackageVersion Include="Microsoft.ML" Version="6.0.0" />
+    <PackageVersion Include="Microsoft.ML.FastTree" Version="6.0.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Data">
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.15" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15" />
