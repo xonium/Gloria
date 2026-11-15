@@ -23,6 +23,11 @@ public class DemoFileDemoParserTests
         output.WriteLine($"map {demo.MapName}, {demo.Rounds.Count} rounds, {timeline.SteamIds.Count} tracked players, " +
                          $"{timeline.RecordedTicks.Count} rows over ticks {timeline.FirstTick}..{timeline.LastTick} of {demo.TickCount}");
         Assert.True(demo.Rounds.Count >= 10, $"Only {demo.Rounds.Count} live rounds.");
+
+        // The first live round counts, even when the demo starts inside it (parser version 5).
+        var matchStart = demo.Events.OfType<MatchStartEvent>().Last().Tick;
+        var firstEnd = demo.Events.OfType<RoundEndEvent>().First(e => e.Tick > matchStart).Tick;
+        Assert.Equal(firstEnd, demo.Rounds[0].EndTick);
         Assert.True(timeline.SteamIds.Count >= 10);
 
         // Speeds: alive players rarely exceed the 250 u/s run speed by much.

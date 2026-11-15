@@ -79,7 +79,10 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
   - A period selector (last 20, last 50, all).
 - **Overview:** period selector (last 10, 20, 50 or all demos), compared with the window before. Periods count demos, not days, because file dates are unreliable. Both choices are saved in `Settings`.
 - **Matches:** filters for result, map and main habit, with Clear and a "no matches" message. They are not saved.
-- **Sides switch after round 11** in every imported demo (`TeamsByRound`), where MR12 would switch after round 12. Either a round is missing at the start or the side for round 12 is read after the swap. Not investigated yet.
+- **The first round was missing** from every demo until parser version 5, so sides seemed to switch after round 11 and pistol-round encounters were lost.
+  - Cause: `RoundTracker.MatchStart` cleared the round in progress, but the match start is announced during the first live round.
+  - Re-analysis adds one round per demo and about 6% more encounters.
+  - Corrections are matched without the round number, so they survive the renumbering.
 - **Profile switcher:** a plain picker rather than the designed menu.
 - **Folder watching:** startup rescan only; there's no file system watcher.
 - **Not exercised by script:** the folder and file pickers, drag and drop, and the CS2 replays lookup. These need a manual click-through.

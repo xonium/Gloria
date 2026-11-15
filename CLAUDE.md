@@ -140,6 +140,10 @@ Keep these layers separate. Parsing is slow, and analysis heuristics will change
     - Fire events and item names carry the `weapon_` prefix; hurt and death events don't.
     - Normalize with `StaticWeaponData.Normalize`.
   - **API pitfall:** `parser.GameRules` throws until the game rules entity exists.
+  - **First round:**
+    - These demos start recording inside the first live round's freeze time, with no `round_start` for it.
+    - `round_announce_match_start` lands on that round's freeze-end tick, so it marks the round as live rather than ending a warmup before it.
+    - `RoundTracker` handles this; before parser version 5 the first round was dropped.
   - **Aim punch (recoil):**
     - Read `pawn.AimPunchServices.PredictableBaseAngle` and `PredictableBaseAngleVel`. They are networked only when a shot changes them, stamped at `PredictableBaseTick + PredictableBaseTickInterpAmount` in half ticks (divide by 128 for seconds; `CurrentGameTick` divides by 64).
     - Evolve them to the sample time with the game's decay (`Recoil.Evolve`: exponential 8, linear 18°/s, velocity 4.5). `DemoFileDemoParser` stores the evolved punch per tick.

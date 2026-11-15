@@ -51,7 +51,7 @@ namespace Gloria.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DemoHash", "PlayerSteamId", "OpponentSteamId", "RoundNumber", "FirstShotTick", "Category")
+                    b.HasIndex("DemoHash", "PlayerSteamId", "OpponentSteamId", "FirstShotTick", "Category")
                         .IsUnique();
 
                     b.ToTable("Corrections");

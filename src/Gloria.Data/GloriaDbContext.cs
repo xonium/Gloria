@@ -47,7 +47,7 @@ public sealed class GloriaDbContext(DbContextOptions<GloriaDbContext> options) :
         modelBuilder.Entity<CorrectionRecord>(correction =>
         {
             correction.Property(c => c.DemoHash).HasMaxLength(64);
-            correction.HasIndex(c => new { c.DemoHash, c.PlayerSteamId, c.OpponentSteamId, c.RoundNumber, c.FirstShotTick, c.Category }).IsUnique();
+            correction.HasIndex(c => new { c.DemoHash, c.PlayerSteamId, c.OpponentSteamId, c.FirstShotTick, c.Category }).IsUnique();
         });
     }
 }

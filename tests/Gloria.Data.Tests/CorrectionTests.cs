@@ -59,7 +59,8 @@ public sealed class CorrectionTests : IDisposable
             await db.SaveChangesAsync(ct);
         }
 
-        var newId = await AddDemoAsync("bb", hastyProbability: 0.9f);
+        // Re-analysis can renumber rounds (parser version 5 added the first round); the correction must still apply.
+        var newId = await AddDemoAsync("bb", hastyProbability: 0.9f, round: 4);
         Assert.NotEqual(id, newId);
         Assert.Equal(new Dictionary<AimCategory, bool> { [AimCategory.Hasty] = false }, await _store.ForEncounterAsync(newId, ct));
 
@@ -91,13 +92,13 @@ public sealed class CorrectionTests : IDisposable
         Assert.Equal(1, await _store.CountAsync(between, ct));
     }
 
-    private async Task<int> AddDemoAsync(string hash, float hastyProbability)
+    private async Task<int> AddDemoAsync(string hash, float hastyProbability, int round = 3)
     {
         var encounter = new EncounterRecord
         {
             PlayerSteamId = 1,
             OpponentSteamId = 2,
-            RoundNumber = 3,
+            RoundNumber = round,
             StartTick = 1000,
             EndTick = 1200,
             FirstShotTick = 1050,

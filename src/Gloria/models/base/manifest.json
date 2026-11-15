@@ -1,45 +1,45 @@
 {
   "FormatVersion": 1,
   "FeatureSchemaVersion": 2,
-  "ModelVersion": "20261115T155039Z",
-  "TrainedAt": "2026-11-15T15:50:39.3485028+00:00",
+  "ModelVersion": "20261115T201643Z",
+  "TrainedAt": "2026-11-15T20:16:43.7365663+00:00",
   "Categories": [
     {
       "Category": "Overshoot",
-      "TrainingRows": 6438,
-      "PositiveRows": 1510,
+      "TrainingRows": 6884,
+      "PositiveRows": 1650,
       "CorrectedRows": 0,
       "Auc": 1,
       "F1": 1
     },
     {
       "Category": "Undershoot",
-      "TrainingRows": 6438,
-      "PositiveRows": 358,
+      "TrainingRows": 6884,
+      "PositiveRows": 373,
       "CorrectedRows": 0,
       "Auc": 1,
       "F1": 1
     },
     {
       "Category": "MovingShot",
-      "TrainingRows": 6438,
-      "PositiveRows": 2559,
+      "TrainingRows": 6884,
+      "PositiveRows": 2818,
       "CorrectedRows": 0,
       "Auc": 1,
       "F1": 1
     },
     {
       "Category": "Hasty",
-      "TrainingRows": 6438,
-      "PositiveRows": 3119,
+      "TrainingRows": 6884,
+      "PositiveRows": 3341,
       "CorrectedRows": 0,
-      "Auc": 0.9993617783035756,
-      "F1": 0.9826086956521739
+      "Auc": 0.9992048767558972,
+      "F1": 0.9818181818181819
     },
     {
       "Category": "SlowReaction",
-      "TrainingRows": 6438,
-      "PositiveRows": 678,
+      "TrainingRows": 6884,
+      "PositiveRows": 730,
       "CorrectedRows": 0,
       "Auc": 1,
       "F1": 1

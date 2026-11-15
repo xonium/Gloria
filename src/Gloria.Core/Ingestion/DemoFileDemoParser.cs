@@ -11,7 +11,8 @@ public sealed class DemoFileDemoParser : IDemoParser
     // Entity flag set while the player stands on the ground (FL_ONGROUND).
     private const uint OnGroundFlag = 1;
 
-    public int Version => 4;
+    // 5: the first live round is no longer dropped when the match start is announced during it.
+    public int Version => 5;
 
     public async Task<ParsedDemo> ParseAsync(Stream demo, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
     {
@@ -44,7 +45,7 @@ public sealed class DemoFileDemoParser : IDemoParser
         parser.Source1GameEvents.RoundAnnounceMatchStart += _ =>
         {
             events.Add(new MatchStartEvent(Tick()));
-            rounds.MatchStart();
+            rounds.MatchStart(Tick());
         };
         parser.Source1GameEvents.RoundStart += _ =>
         {
@@ -241,41 +242,5 @@ public sealed class DemoFileDemoParser : IDemoParser
         }
 
         return result;
-    }
-
-    /// <summary>Turns round events into live rounds, dropping warmup and restarted rounds.</summary>
-    private sealed class RoundTracker
-    {
-        private readonly List<RoundInfo> _rounds = [];
-        private (int Start, int? FreezeEnd, bool Warmup)? _current;
-
-        public IReadOnlyList<RoundInfo> Rounds => _rounds;
-
-        // Rounds before the match went live were warmup or restarts.
-        public void MatchStart()
-        {
-            _rounds.Clear();
-            _current = null;
-        }
-
-        public void Start(int tick, bool warmup) => _current = (tick, null, warmup);
-
-        public void FreezeEnd(int tick)
-        {
-            if (_current is { } c)
-            {
-                _current = c with { FreezeEnd = tick };
-            }
-        }
-
-        public void End(int tick, Team winner)
-        {
-            if (_current is { Warmup: false } c)
-            {
-                _rounds.Add(new RoundInfo(_rounds.Count + 1, c.Start, c.FreezeEnd ?? c.Start, tick, winner));
-            }
-
-            _current = null;
-        }
     }
 }

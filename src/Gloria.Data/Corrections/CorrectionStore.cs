@@ -24,14 +24,14 @@ public sealed class CorrectionStore(IDbContextFactory<GloriaDbContext> dbFactory
         await using var db = dbFactory.CreateDbContext();
         var e = await db.Encounters.AsNoTracking()
             .Where(x => x.Id == encounterId)
-            .Select(x => new { x.Demo!.ContentHash, x.PlayerSteamId, x.OpponentSteamId, x.RoundNumber, x.FirstShotTick })
+            .Select(x => new { x.Demo!.ContentHash, x.PlayerSteamId, x.OpponentSteamId, x.FirstShotTick })
             .FirstOrDefaultAsync(ct);
         if (e is null)
             return new Dictionary<AimCategory, bool>();
 
         return await db.Corrections.AsNoTracking()
             .Where(c => c.DemoHash == e.ContentHash && c.PlayerSteamId == e.PlayerSteamId && c.OpponentSteamId == e.OpponentSteamId
-                && c.RoundNumber == e.RoundNumber && c.FirstShotTick == e.FirstShotTick)
+                && c.FirstShotTick == e.FirstShotTick)
             .ToDictionaryAsync(c => c.Category, c => c.Value, ct);
     }
 
@@ -67,6 +67,7 @@ public sealed class CorrectionStore(IDbContextFactory<GloriaDbContext> dbFactory
             }
 
             correction.Value = v;
+            correction.RoundNumber = encounter.RoundNumber;
             correction.UpdatedAt = DateTimeOffset.UtcNow;
         }
         else if (correction is not null)
@@ -156,5 +157,5 @@ public sealed class CorrectionStore(IDbContextFactory<GloriaDbContext> dbFactory
 
     private static IQueryable<CorrectionRecord> Matching(IQueryable<CorrectionRecord> corrections, string hash, EncounterRecord e) =>
         corrections.Where(c => c.DemoHash == hash && c.PlayerSteamId == e.PlayerSteamId && c.OpponentSteamId == e.OpponentSteamId
-            && c.RoundNumber == e.RoundNumber && c.FirstShotTick == e.FirstShotTick);
+            && c.FirstShotTick == e.FirstShotTick);
 }

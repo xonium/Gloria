@@ -162,18 +162,19 @@ dotnet run --project tools/Gloria.Trainer -c Release -- publish   # copy the lat
   - rule prevalence
   - label rates per feature bin with Wilson intervals
   - the models' leave-one-demo-out scores
-- Use all 10 players of every demo: 200–350 encounters per demo, 6,438 in total from 23 demos.
+- Use all 10 players of every demo: 220–370 encounters per demo, 6,884 in total from 23 demos (6,438 before parser version 5 added the first round).
 
 ### What the data showed (23 demos, 2026-11-15)
 
 The first run used 6 demos; 17 more were added the same day. Every conclusion below held with 23 demos, and the MovingShot and Undershoot ones got stronger.
 
+- **Parser version 5** added each demo's first round. The model scores above were re-measured with it and moved by less than their spread; the other figures in this section are from before and may be off by a point or two. `artifacts/training/report.md` has the current ones.
 - **Outcome models.** Scores are leave-one-demo-out AUC.
 
   | Target | Rows | AUC | Notes |
   |---|---|---|---|
-  | FirstShotHit | 6,438 (23% positive) | 0.83 ± 0.03 | Mostly crosshair error at the shot, then distance and speed. The context features add nothing here, as expected: whether a shot hits depends on the aim, not on HP. |
-  | WonDuel | 4,568 (63% positive) | 0.72 ± 0.05 | Up from 0.63 before the context features. Crosshair error, who fired first, opponent HP and opponent weapon matter most. |
+  | FirstShotHit | 6,884 (22% positive) | 0.82 ± 0.03 | Mostly crosshair error at the shot, then distance and speed. The context features add nothing here, as expected: whether a shot hits depends on the aim, not on HP. |
+  | WonDuel | 4,763 (63% positive) | 0.71 ± 0.05 | Up from 0.63 before the context features. Crosshair error, who fired first, opponent HP and opponent weapon matter most. |
 
 - **Context and duels.** Win rates by context, from the report's bins:
 
