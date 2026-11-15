@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Gloria.Core/Gloria.Core.csproj" />
+    <Project Path="src/Gloria.Data/Gloria.Data.csproj" />
+    <Project Path="src/Gloria/Gloria.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Gloria.Core.Tests/Gloria.Core.Tests.csproj" />
+    <Project Path="tests/Gloria.Data.Tests/Gloria.Data.Tests.csproj" />
+  </Folder>
+</Solution>

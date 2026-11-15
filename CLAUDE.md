@@ -4,7 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Greenfield. As of this writing the repository holds only sample demos in `_demos/` and no source code, so no build, lint or test commands exist yet. Once the solution is scaffolded, add the real commands here, including how to run a single test.
+Scaffolded. The projects, the Velopack startup hook, update source, database location and migrations, and the DemoFile parser (events and players only) are in place. Encounter segmentation, per-tick state collection, aim metrics and aggregation are interfaces or stubs.
+
+## Commands
+
+Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into Microsoft.Testing.Platform (xUnit v3), so test filters use xUnit's MTP options, not VSTest's `--filter`.
+
+- Build: `dotnet build Gloria.slnx`
+- Test everything: `dotnet test`
+- Skip tests that parse the real demos: `dotnet test -- --filter-not-trait "Category=Demo"`. Those tests also skip on their own when `_demos/` has no `.dem` files.
+- Run a single test class or method: `dotnet test --project tests/Gloria.Core.Tests --filter-class "Gloria.Core.Tests.Metrics.AimMathTests"`, or `--filter-method "*YawDelta*"`
+- Run the app (unpackaged): `dotnet build src/Gloria` and then start `src/Gloria/bin/Debug/net10.0-windows10.0.19041.0/win-x64/Gloria.exe`, or press F5 in Visual Studio
+- Add a migration: `dotnet tool restore`, then `dotnet ef migrations add <Name> -p src/Gloria.Data -s src/Gloria.Data -o Migrations`. `DesignTimeDbContextFactory` lets `dotnet ef` run without the MAUI app.
+- Package: `./build/pack.ps1 -Version 0.1.0`. This publishes to `artifacts/publish/` and runs `vpk pack` into `releases/`, producing `Gloria-win-Setup.exe`. Keep the `Velopack` NuGet version equal to the `vpk` version in `.config/dotnet-tools.json`.
+- Test in-app updates: install with Setup.exe, then pack a higher version and copy `releases/` to `%LocalAppData%\Gloria.Releases`, or set `GLORIA_UPDATE_DIR` to point at it.
+
+## Solution layout (actual)
+
+- `src/Gloria.Core`: domain layers as namespaces: `Ingestion` (`IDemoParser`, `DemoFileDemoParser`, `DemoHasher`, normalized models), `Visibility`, `Encounters`, `Metrics` (`AimMath`), `Weapons`, `Aggregation`. It has no MAUI reference.
+- `src/Gloria.Data`: EF Core SQLite: `GloriaDbContext`, `Migrations/`, `DatabaseLocation` (`%LocalAppData%\Gloria.Data\gloria.db`), and `DatabaseInitializer.Migrate`, which runs at startup.
+- `src/Gloria`: the MAUI app (exe `Gloria.exe`, Velopack packId `Gloria`). `Platforms/Windows/Program.cs` holds the custom `Main` with the Velopack hook. `Updates/UpdateSourceFactory` is the single switch point for the update source.
+- `tests/Gloria.Core.Tests`, `tests/Gloria.Data.Tests`: xUnit v3. Data tests use in-memory SQLite. `Fixtures/DemoFiles` finds `_demos/` and skips tests when it is empty.
+- Package versions are managed centrally in `Directory.Packages.props`.
 
 ## Tech stack (decided)
 

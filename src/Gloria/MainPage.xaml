@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Gloria.MainPage"
+             Title="Gloria">
+
+    <ScrollView>
+        <VerticalStackLayout
+            Padding="30"
+            Spacing="16">
+            <Label
+                Text="Gloria"
+                Style="{StaticResource Headline}"
+                SemanticProperties.HeadingLevel="Level1" />
+
+            <Label
+                Text="CS2 aim analysis"
+                Style="{StaticResource SubHeadline}"
+                SemanticProperties.HeadingLevel="Level2" />
+
+            <Label x:Name="VersionLabel" />
+            <Label x:Name="DatabaseLabel" />
+
+            <Button
+                x:Name="CheckUpdatesButton"
+                Text="Check for updates"
+                Clicked="OnCheckUpdatesClicked"
+                HorizontalOptions="Start" />
+
+            <Label x:Name="UpdateStatusLabel" />
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>
