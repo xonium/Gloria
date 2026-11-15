@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Gloria.ViewModels"
+             xmlns:services="clr-namespace:Gloria.Services"
+             xmlns:controls="clr-namespace:Gloria.Controls"
+             x:Class="Gloria.Pages.ImportPage"
+             x:DataType="vm:ImportViewModel"
+             Title="Import">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="40,32,40,48" Spacing="20">
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Import" Style="{StaticResource H1}" SemanticProperties.HeadingLevel="Level1" />
+                <Label Text="Add demos to analyze, and choose the folders Gloria checks for new ones." Style="{StaticResource Sub}" />
+            </VerticalStackLayout>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                <Border Style="{StaticResource Card}" VerticalOptions="Start">
+                    <VerticalStackLayout Spacing="16">
+                        <Label Text="Add demos" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                        <controls:DemoDropZone DemosChosen="OnDemosChosen" />
+                        <Button Text="Import files…" Command="{Binding ImportFilesCommand}" Style="{StaticResource PrimaryButton}" HorizontalOptions="Start" />
+                        <Label Text="{Binding Message}" IsVisible="{Binding HasMessage}" TextColor="{StaticResource WarnText}" FontSize="13" />
+                        <Label Style="{StaticResource Caption}" FontSize="13" LineHeight="1.3"
+                               Text="Demos you download in CS2 usually land in …\Counter-Strike Global Offensive\game\csgo\replays. Each demo is read once; you can keep using the app meanwhile." />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource Card}" VerticalOptions="Start">
+                    <VerticalStackLayout Spacing="16">
+                        <Label Text="Demo folders" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                        <Label Text="No folders yet. Add one and new demos in it are imported at every startup." Style="{StaticResource Caption}" IsVisible="{Binding HasNoFolders}" />
+                        <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Folders}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="vm:FolderItem">
+                                    <Border Style="{StaticResource InnerCard}">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                            <Label Text="{Binding Path}" VerticalOptions="Center" LineBreakMode="MiddleTruncation" />
+                                            <Button Grid.Column="1" Text="Remove" Style="{StaticResource GhostButton}" Command="{Binding RemoveCommand}" MinimumHeightRequest="34" FontSize="13" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </VerticalStackLayout>
+                        <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="10">
+                            <Button Text="Add folder…" Command="{Binding AddFolderCommand}" />
+                            <Button Grid.Column="1" Text="Use the CS2 replays folder" Command="{Binding UseReplaysCommand}" Style="{StaticResource GhostButton}" />
+                            <Button Grid.Column="2" Text="Rescan folders" Command="{Binding RescanCommand}" Style="{StaticResource GhostButton}" />
+                        </Grid>
+                        <Border BackgroundColor="{StaticResource Sidebar}" StrokeThickness="0" StrokeShape="RoundRectangle 8" Padding="12">
+                            <Label Style="{StaticResource Caption}" FontSize="13" Text="Gloria reads demos where they are and never moves them. Folders are rescanned at startup; files already imported are skipped." />
+                        </Border>
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <Border Style="{StaticResource Card}">
+                <VerticalStackLayout Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Import queue" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                            <Label Text="Runs in the background, one demo at a time." Style="{StaticResource Caption}" />
+                        </VerticalStackLayout>
+                        <Button Grid.Column="1" Text="Clear finished" Style="{StaticResource GhostButton}" Command="{Binding ClearFinishedCommand}" IsVisible="{Binding HasQueue}" MinimumHeightRequest="34" FontSize="13" />
+                    </Grid>
+                    <Label Text="Nothing importing right now." Style="{StaticResource Caption}" FontSize="13" IsVisible="{Binding HasNoQueue}" />
+                    <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Queue}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="services:ImportItem">
+                                <Border Style="{StaticResource InnerCard}">
+                                    <Grid ColumnDefinitions="260,*" ColumnSpacing="20">
+                                        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                                            <Label Text="{Binding FileName}" FontFamily="OpenSansSemibold" LineBreakMode="MiddleTruncation" />
+                                            <Label Text="{Binding SizeText}" Style="{StaticResource Caption}" />
+                                        </VerticalStackLayout>
+                                        <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                                            <ProgressBar Progress="{Binding Progress}" />
+                                            <Label Text="{Binding Status}" FontSize="13" TextColor="{StaticResource Text2}" />
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

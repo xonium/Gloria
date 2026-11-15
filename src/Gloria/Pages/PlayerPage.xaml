@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Gloria.ViewModels"
+             x:Class="Gloria.Pages.PlayerPage"
+             x:DataType="vm:PlayerViewModel"
+             Title="Player">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="40,32,40,48" Spacing="24">
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Player" Style="{StaticResource H1}" SemanticProperties.HeadingLevel="Level1" />
+                <Label Text="Which player in your demos each profile follows." Style="{StaticResource Sub}" />
+            </VerticalStackLayout>
+
+            <Border Style="{StaticResource Card}" VerticalOptions="Start" MaximumWidthRequest="760" HorizontalOptions="Start">
+                <VerticalStackLayout Spacing="16">
+                    <Label Text="{Binding Title}" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                    <Label Text="{Binding Intro}" Style="{StaticResource Sub}" />
+                    <VerticalStackLayout Spacing="8" IsVisible="{Binding IsReading}">
+                        <Label Text="{Binding ReadingText}" FontSize="13" />
+                        <ProgressBar Progress="{Binding ReadingProgress}" />
+                        <Label Style="{StaticResource Caption}" Text="Import keeps running in the background. You can pick your player as soon as the list looks right." />
+                    </VerticalStackLayout>
+                    <Label Text="No players yet. They appear here as demos are read." Style="{StaticResource Caption}" IsVisible="{Binding HasNoCandidates}" />
+                    <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Candidates}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CandidateItem">
+                                <Border BackgroundColor="{Binding Background}" Stroke="{Binding Stroke}" StrokeThickness="1" StrokeShape="RoundRectangle 8" Padding="12,10"
+                                        SemanticProperties.Description="{Binding Name}">
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding SelectCommand}" />
+                                    </Border.GestureRecognizers>
+                                    <Grid ColumnDefinitions="36,*,110" ColumnSpacing="12">
+                                        <Border StrokeThickness="0" BackgroundColor="{StaticResource Line}" StrokeShape="RoundRectangle 18" HeightRequest="36" VerticalOptions="Center">
+                                            <Label Text="{Binding Initial}" FontFamily="OpenSansSemibold" HorizontalOptions="Center" VerticalOptions="Center" />
+                                        </Border>
+                                        <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                            <HorizontalStackLayout Spacing="8">
+                                                <Label Text="{Binding Name}" FontFamily="OpenSansSemibold" FontSize="15" />
+                                                <Border IsVisible="{Binding Suggested}" BackgroundColor="{StaticResource AccentSoft}" StrokeThickness="0" StrokeShape="RoundRectangle 4" Padding="6,1" VerticalOptions="Center">
+                                                    <Label Text="Suggested · in every demo" FontSize="11" TextColor="{StaticResource AccentLight}" FontFamily="OpenSansSemibold" />
+                                                </Border>
+                                            </HorizontalStackLayout>
+                                            <Label Text="{Binding Detail}" Style="{StaticResource Caption}" LineBreakMode="TailTruncation" />
+                                        </VerticalStackLayout>
+                                        <VerticalStackLayout Grid.Column="2" Spacing="6" VerticalOptions="Center">
+                                            <Label Text="{Binding SeenText}" FontSize="13" HorizontalTextAlignment="End" />
+                                            <ProgressBar Progress="{Binding Fraction}" />
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Or enter a SteamID" FontFamily="OpenSansSemibold" FontSize="14" />
+                        <Entry Text="{Binding ManualSteamId}" Placeholder="76561198… or steamcommunity.com/profiles/…" SemanticProperties.Description="SteamID" />
+                        <Label Style="{StaticResource Caption}" Text="Paste the numeric SteamID64 or a /profiles/ link. Custom /id/ links would need the Steam Web API." />
+                    </VerticalStackLayout>
+                    <Label Text="{Binding Message}" TextColor="{StaticResource WarnText}" FontSize="13" />
+                    <Button Text="{Binding StartText}" Command="{Binding StartCommand}" Style="{StaticResource PrimaryButton}" HorizontalOptions="Start" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

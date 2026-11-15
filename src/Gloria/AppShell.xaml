@@ -51,12 +51,23 @@
                 </VerticalStackLayout>
             </Border>
 
-            <Border Grid.Row="4" BackgroundColor="{StaticResource Panel}" StrokeThickness="0" StrokeShape="RoundRectangle 8" Padding="12">
-                <VerticalStackLayout Spacing="2">
-                    <Label Text="{Binding AnalysisLabel}" Style="{StaticResource Caption}" />
-                    <Label Text="{Binding ClassifierLabel}" Style="{StaticResource Caption}" />
-                </VerticalStackLayout>
-            </Border>
+            <VerticalStackLayout Grid.Row="4" Spacing="10">
+                <Border IsVisible="{Binding Updates.IsReady}" BackgroundColor="{StaticResource AccentSofter}" Stroke="{StaticResource Accent}" StrokeShape="RoundRectangle 8" Padding="12">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="{Binding Updates.StatusText}" FontFamily="OpenSansSemibold" FontSize="13" />
+                        <Button Text="Restart to update" Style="{StaticResource PrimaryButton}" Command="{Binding RestartToUpdateCommand}" MinimumHeightRequest="34" FontSize="13" />
+                    </VerticalStackLayout>
+                </Border>
+                <Border BackgroundColor="{StaticResource Panel}" StrokeThickness="0" StrokeShape="RoundRectangle 8" Padding="12">
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="{Binding Updates.StatusText}" Style="{StaticResource Caption}" IsVisible="{Binding Updates.IsNotReady}" />
+                        <Button Text="Check for updates" Command="{Binding CheckUpdatesCommand}" IsVisible="{Binding Updates.CanCheck}"
+                                BackgroundColor="Transparent" TextColor="{StaticResource AccentLight}" BorderWidth="0" Padding="0" MinimumHeightRequest="24" FontSize="12" HorizontalOptions="Start" />
+                        <Label Text="{Binding AnalysisLabel}" Style="{StaticResource Caption}" />
+                        <Label Text="{Binding ClassifierLabel}" Style="{StaticResource Caption}" />
+                    </VerticalStackLayout>
+                </Border>
+            </VerticalStackLayout>
         </Grid>
     </Shell.FlyoutContent>
 
@@ -64,6 +75,7 @@
     <ShellContent Route="overview" Title="Overview" ContentTemplate="{DataTemplate pages:OverviewPage}" />
     <ShellContent Route="matches" Title="Matches" ContentTemplate="{DataTemplate pages:MatchesPage}" />
     <ShellContent Route="trends" Title="Progress" ContentTemplate="{DataTemplate pages:TrendsPage}" />
-    <ShellContent Route="setup" Title="Folders &amp; player" ContentTemplate="{DataTemplate pages:SetupPage}" />
+    <ShellContent Route="import" Title="Import" ContentTemplate="{DataTemplate pages:ImportPage}" />
+    <ShellContent Route="player" Title="Player" ContentTemplate="{DataTemplate pages:PlayerPage}" />
 
 </Shell>

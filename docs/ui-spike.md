@@ -14,10 +14,11 @@ Goal: find out whether the design (canvas "Gloria UI — first pass") can be bui
 - **App:**
   - Shell with a custom sidebar: profile switcher, navigation, import status and analysis version.
   - Screens:
-    - Welcome (empty state): folder picker, file picker, drag and drop, and a CS2 replays folder lookup.
-    - Folders & player: candidates ordered by how many demos they appear in, or a pasted SteamID64.
+    - Welcome (empty state): folder picker, file picker, drag and drop, and a CS2 replays folder lookup. The sidebar is hidden until something is imported.
+    - Import: the same drop zone (`Controls/DemoDropZone`), the saved demo folders with the CS2 replays lookup and a rescan, and the import queue. The sidebar's import card opens it.
+    - Player: candidates ordered by how many demos they appear in, or a pasted SteamID64.
     - Overview.
-    - Matches, with the import queue.
+    - Matches.
     - Match: round strip, encounters per round, habits, opponents.
     - Encounter:
       - A replay to scale with play, step and speed controls.
@@ -90,7 +91,11 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
   - It imported all 23 demos in 50 s, classified with the shipped base model.
   - It found 0.2.1 in a local release folder (`GLORIA_UPDATE_DIR`), downloaded the 226 kB delta, and restarted into it with the data intact.
   - `Update.exe --uninstall` removed the install and its Start menu entry.
-- **Updates can only be checked from the Welcome screen,** which disappears once demos are imported, so an installed copy in normal use never offers updates. Check at startup and show it in the sidebar instead.
+- **Updates:** an installed copy checks at startup (`UpdateNotifier`) and downloads an update right away.
+  - The sidebar footer shows the progress, then "Version X is ready" with a Restart button. If an import is running, the button asks first.
+  - A "Check for updates" link checks by hand, and the Welcome screen shares the same state. Development builds show "Development build" and don't check.
+  - Tested installed, 0.3.0 → 0.3.1: found and downloaded at startup with no clicks, restarted, then reported "up to date".
+  - A missing local release folder counts as "no updates", not a failure.
 - **Not exercised by script:** the folder and file pickers, drag and drop, and the CS2 replays lookup. The pickers open system dialogs that UI Automation can't drive from here, so these need a manual click-through.
 - **Played-at date:** the demo records no wall-clock time.
   - `DemoDate` reads `matchtime` from the `.dem.info` file that Valve matchmaking downloads include.
@@ -99,5 +104,4 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
 
 ## Suggested next steps
 
-1. Check for updates at startup, not only on the Welcome screen.
-2. Click through the pickers, drag and drop and the CS2 replays lookup by hand, ideally on a clean machine.
+1. Click through the pickers, drag and drop and the CS2 replays lookup by hand, ideally on a clean machine.

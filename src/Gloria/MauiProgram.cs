@@ -77,18 +77,21 @@ public static class MauiProgram
 		builder.Services.AddSingleton<ImportQueue>();
 		builder.Services.AddSingleton<ProfileState>();
 		builder.Services.AddSingleton<UpdateService>();
+		builder.Services.AddSingleton<UpdateNotifier>();
 
 		builder.Services.AddSingleton<ShellViewModel>();
 		builder.Services.AddSingleton<AppShell>();
 		// Top-level pages and their view models live for the app's lifetime; detail pages are created per visit.
-		builder.Services.AddSingleton<SetupViewModel>();
+		builder.Services.AddSingleton<PlayerViewModel>();
+		builder.Services.AddSingleton<ImportViewModel>();
 		builder.Services.AddSingleton<OverviewViewModel>();
 		builder.Services.AddSingleton<MatchesViewModel>();
 		builder.Services.AddSingleton<TrendsViewModel>();
 		builder.Services.AddTransient<MatchViewModel>();
 		builder.Services.AddTransient<EncounterViewModel>();
 		builder.Services.AddTransient<WelcomePage>();
-		builder.Services.AddTransient<SetupPage>();
+		builder.Services.AddTransient<PlayerPage>();
+		builder.Services.AddTransient<ImportPage>();
 		builder.Services.AddTransient<OverviewPage>();
 		builder.Services.AddTransient<MatchesPage>();
 		builder.Services.AddTransient<TrendsPage>();

@@ -12,7 +12,7 @@ The projects, the Velopack startup hook, update source, database location and mi
 - outcome labels
 - ML training via `tools/Gloria.Trainer`
 
-A base model is shipped in `src/Gloria/models/base/`. A first UI slice runs on real data: import, profiles, Overview, Matches, Match, Encounter (with replay) and Progress. Findings and the gaps against the design are in `docs/ui-spike.md`. The replay shows where each bullet went (crosshair plus recoil). User corrections work and retrain the user's model in the background. Progress has rolling medians, a by-weapon table and lost-duel causes; Overview and Progress have period selectors and Matches has filters.
+A base model is shipped in `src/Gloria/models/base/`. A first UI slice runs on real data: Import (drop zone, demo folders, queue), Player (profiles), Overview, Matches, Match, Encounter (with replay) and Progress. Findings and the gaps against the design are in `docs/ui-spike.md`. The replay shows where each bullet went (crosshair plus recoil). User corrections work and retrain the user's model in the background. Progress has rolling medians, a by-weapon table and lost-duel causes; Overview and Progress have period selectors and Matches has filters.
 
 ## Commands
 
@@ -26,7 +26,7 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
 - Add a migration: `dotnet tool restore`, then `dotnet ef migrations add <Name> -p src/Gloria.Data -s src/Gloria.Data -o Migrations`. `DesignTimeDbContextFactory` lets `dotnet ef` run without the MAUI app.
 - Train on `_demos/`: `dotnet run --project tools/Gloria.Trainer -c Release -- all` (extract, train, report into `artifacts/training/`), then `-- publish` to copy the bundle into `src/Gloria/models/base/` and commit it. Re-run after changing the analysis; bump the stage's `Version` so cached features are re-extracted.
 - Package: `./build/pack.ps1 -Version 0.1.0`. This publishes to `artifacts/publish/` and runs `vpk pack` into `releases/`, producing `Gloria-win-Setup.exe`. Keep the `Velopack` NuGet version equal to the `vpk` version in `.config/dotnet-tools.json`.
-- Test in-app updates: install with Setup.exe, then pack a higher version and copy `releases/` to `%LocalAppData%\Gloria.Releases`, or set `GLORIA_UPDATE_DIR` to point at it.
+- Test in-app updates: install with Setup.exe, then pack a higher version and copy `releases/` to `%LocalAppData%\Gloria.Releases`, or set `GLORIA_UPDATE_DIR` to point at it. The installed app checks at startup and offers a restart in the sidebar (`Updates/UpdateNotifier`). Setup and uninstall clear `%LocalAppData%\Gloria`, so back up anything there first.
 - To click through the UI from a script, use Windows UI Automation (`System.Windows.Automation` in `powershell.exe`). Buttons and pickers are found by their `SemanticProperties.Description`.
 - Run the app against a scratch database: set `GLORIA_DATA_DIR`. Settings (saved folders, current profile) live in the database, so a scratch folder starts clean. To check a screen from a script, also set `GLORIA_START_ROUTE` (e.g. `encounter?id=12`) and `GLORIA_CAPTURE` (a .png path); `GLORIA_CAPTURE_SCROLL` scrolls down first. See `Services/DevHooks.cs`. Desktop screenshot tools capture WinUI content as black, so use this instead.
 

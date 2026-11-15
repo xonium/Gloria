@@ -9,16 +9,24 @@ public partial class WelcomePage : ContentPage
 {
 	private readonly ImportQueue _queue;
 	private readonly AppSettings _settings;
-	private readonly UpdateService _updates;
+	private readonly UpdateNotifier _updates;
 
-	public WelcomePage(ImportQueue queue, AppSettings settings, UpdateService updates)
+	public WelcomePage(ImportQueue queue, AppSettings settings, UpdateNotifier updates)
 	{
 		_queue = queue;
 		_settings = settings;
 		_updates = updates;
 		InitializeComponent();
-		VersionLabel.Text = $"Gloria {_updates.CurrentVersion ?? "development build"}";
-		UpdateButton.IsEnabled = _updates.IsInstalled;
+		ShowUpdateState();
+		// Same state as the sidebar, which checks at startup.
+		_updates.PropertyChanged += (_, _) => ShowUpdateState();
+	}
+
+	private void ShowUpdateState()
+	{
+		VersionLabel.Text = _updates.StatusText;
+		UpdateButton.Text = _updates.IsReady ? "Restart to update" : "Check for updates";
+		UpdateButton.IsEnabled = _updates.CanCheck || _updates.IsReady;
 	}
 
 	private async void OnPickFolder(object? sender, EventArgs e)
@@ -39,13 +47,8 @@ public partial class WelcomePage : ContentPage
 		await ImportFoldersAsync(folders);
 	}
 
-	private async void OnPickFiles(object? sender, TappedEventArgs e) =>
-		await ImportFilesAsync(await DemoSources.PickFilesAsync());
-
-	private void OnDragOver(object? sender, DragEventArgs e) => DemoSources.AcceptDrag(e);
-
-	private async void OnDrop(object? sender, DropEventArgs e) =>
-		await ImportFilesAsync(await DemoSources.DroppedDemosAsync(e));
+	private async void OnDemosChosen(object? sender, IReadOnlyList<string> files) =>
+		await ImportFilesAsync(files);
 
 	private async Task ImportFoldersAsync(IReadOnlyList<string> folders)
 	{
@@ -75,7 +78,7 @@ public partial class WelcomePage : ContentPage
 			return;
 		}
 
-		await Shell.Current.GoToAsync("//setup");
+		await Shell.Current.GoToAsync("//player");
 	}
 
 	private void ShowStatus(string text)
@@ -86,27 +89,10 @@ public partial class WelcomePage : ContentPage
 
 	private async void OnCheckUpdates(object? sender, EventArgs e)
 	{
-		UpdateButton.IsEnabled = false;
-		try
-		{
-			var version = await _updates.CheckForUpdateAsync();
-			if (version is null)
-			{
-				VersionLabel.Text = $"Gloria {_updates.CurrentVersion} · up to date";
-				return;
-			}
+		if (!_updates.IsReady)
+			await _updates.CheckAsync();
 
-			await _updates.DownloadUpdateAsync(p => MainThread.BeginInvokeOnMainThread(() => VersionLabel.Text = $"Downloading {version}: {p}%"));
-			if (await DisplayAlertAsync("Update ready", $"Version {version} is ready. Restart now?", "Restart", "Later"))
-				_updates.ApplyUpdateAndRestart();
-		}
-		catch (Exception ex)
-		{
-			VersionLabel.Text = $"Update failed: {ex.Message}";
-		}
-		finally
-		{
-			UpdateButton.IsEnabled = _updates.IsInstalled;
-		}
+		if (_updates.IsReady && await DisplayAlertAsync("Update ready", $"Version {_updates.AvailableVersion} is ready. Restart now?", "Restart", "Later"))
+			_updates.Restart();
 	}
 }

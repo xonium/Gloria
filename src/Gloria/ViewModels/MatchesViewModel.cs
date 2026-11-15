@@ -11,18 +11,16 @@ public sealed class MatchesViewModel : ObservableObject
 {
 	private readonly GloriaReadModel _readModel;
 	private readonly ProfileState _profiles;
-	private readonly ImportQueue _queue;
 	private IReadOnlyList<MatchSummary> _all = [];
 	private int _total;
 	private int _mapIndex;
 	private int _habitIndex;
 	private string _subtitle = "";
 
-	public MatchesViewModel(GloriaReadModel readModel, ProfileState profiles, ImportQueue queue, AppSettings settings)
+	public MatchesViewModel(GloriaReadModel readModel, ProfileState profiles, ImportQueue queue)
 	{
 		_readModel = readModel;
 		_profiles = profiles;
-		_queue = queue;
 		Results =
 		[
 			new ChoiceOption("All", null, SelectResult) { IsSelected = true },
@@ -32,27 +30,9 @@ public sealed class MatchesViewModel : ObservableObject
 		];
 		HabitOptions = ["Any main habit", .. Enum.GetValues<AimCategory>().Select(Display.Habit), "No habit flagged"];
 		ClearFiltersCommand = new Command(ClearFilters);
-		AddFolderCommand = new Command(async () =>
-		{
-			if (await DemoSources.PickFolderAsync() is { } folder)
-			{
-				settings.AddDemoFolder(folder);
-				await _queue.EnqueueFolderAsync(folder);
-			}
-		});
-		ImportFilesCommand = new Command(async () => await _queue.EnqueueAsync(await DemoSources.PickFilesAsync()));
-		ClearFinishedCommand = new Command(() =>
-		{
-			foreach (var item in _queue.Items.Where(i => i.IsFinished).ToList())
-				_queue.Items.Remove(item);
-			OnPropertyChanged(nameof(HasQueue));
-		});
-		_queue.DemoImported += async (_, _) => await RefreshAsync();
-		_queue.Changed += (_, _) => OnPropertyChanged(nameof(HasQueue));
+		queue.DemoImported += async (_, _) => await RefreshAsync();
 		_profiles.CurrentChanged += async (_, _) => await RefreshAsync();
 	}
-
-	public ObservableCollection<ImportItem> Queue => _queue.Items;
 
 	public ObservableCollection<MatchRow> Matches { get; } = [];
 
@@ -90,14 +70,6 @@ public sealed class MatchesViewModel : ObservableObject
 
 	public bool HasNoMatches => Matches.Count == 0 && _all.Count > 0;
 
-	public ICommand AddFolderCommand { get; }
-
-	public ICommand ImportFilesCommand { get; }
-
-	public ICommand ClearFinishedCommand { get; }
-
-	public bool HasQueue => _queue.Items.Count > 0;
-
 	public string Subtitle { get => _subtitle; private set => Set(ref _subtitle, value); }
 
 	public async Task RefreshAsync()
@@ -119,7 +91,6 @@ public sealed class MatchesViewModel : ObservableObject
 		OnPropertyChanged(nameof(MapIndex));
 
 		ApplyFilters();
-		OnPropertyChanged(nameof(HasQueue));
 	}
 
 	private const int ResultWins = 1;

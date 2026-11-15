@@ -2,53 +2,16 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:Gloria.ViewModels"
-             xmlns:services="clr-namespace:Gloria.Services"
              x:Class="Gloria.Pages.MatchesPage"
              x:DataType="vm:MatchesViewModel"
              Title="Matches">
 
     <ScrollView>
         <VerticalStackLayout Padding="40,32,40,48" Spacing="20">
-            <Grid ColumnDefinitions="*,Auto">
-                <VerticalStackLayout Spacing="6">
-                    <Label Text="Matches" Style="{StaticResource H1}" SemanticProperties.HeadingLevel="Level1" />
-                    <Label Text="{Binding Subtitle}" Style="{StaticResource Sub}" FontSize="15" />
-                </VerticalStackLayout>
-                <HorizontalStackLayout Grid.Column="1" Spacing="10" VerticalOptions="End">
-                    <Button Text="Add folder…" Style="{StaticResource GhostButton}" Command="{Binding AddFolderCommand}" />
-                    <Button Text="Import files…" Style="{StaticResource PrimaryButton}" Command="{Binding ImportFilesCommand}" />
-                </HorizontalStackLayout>
-            </Grid>
-
-            <Border Style="{StaticResource Card}" IsVisible="{Binding HasQueue}">
-                <VerticalStackLayout Spacing="12">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <VerticalStackLayout Spacing="2">
-                            <Label Text="Import queue" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
-                            <Label Text="Runs in the background, one demo at a time." Style="{StaticResource Caption}" />
-                        </VerticalStackLayout>
-                        <Button Grid.Column="1" Text="Clear finished" Style="{StaticResource GhostButton}" Command="{Binding ClearFinishedCommand}" MinimumHeightRequest="34" FontSize="13" />
-                    </Grid>
-                    <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Queue}">
-                        <BindableLayout.ItemTemplate>
-                            <DataTemplate x:DataType="services:ImportItem">
-                                <Border Style="{StaticResource InnerCard}">
-                                    <Grid ColumnDefinitions="260,*" ColumnSpacing="20">
-                                        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
-                                            <Label Text="{Binding FileName}" FontFamily="OpenSansSemibold" LineBreakMode="MiddleTruncation" />
-                                            <Label Text="{Binding SizeText}" Style="{StaticResource Caption}" />
-                                        </VerticalStackLayout>
-                                        <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
-                                            <ProgressBar Progress="{Binding Progress}" />
-                                            <Label Text="{Binding Status}" FontSize="13" TextColor="{StaticResource Text2}" />
-                                        </VerticalStackLayout>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </BindableLayout.ItemTemplate>
-                    </VerticalStackLayout>
-                </VerticalStackLayout>
-            </Border>
+            <VerticalStackLayout Spacing="6">
+                <Label Text="Matches" Style="{StaticResource H1}" SemanticProperties.HeadingLevel="Level1" />
+                <Label Text="{Binding Subtitle}" Style="{StaticResource Sub}" FontSize="15" />
+            </VerticalStackLayout>
 
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="8">

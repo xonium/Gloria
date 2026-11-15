@@ -5,6 +5,7 @@ using Gloria.Data;
 using Gloria.Data.Import;
 using Gloria.Data.Queries;
 using Gloria.Services;
+using Gloria.Updates;
 
 namespace Gloria.ViewModels;
 
@@ -48,8 +49,18 @@ public sealed class ShellViewModel : ObservableObject
 	private readonly UserModelTraining _training;
 	private int _selectedProfileIndex = -1;
 
-	public ShellViewModel(ProfileState profiles, ImportQueue queue, GloriaReadModel readModel, AppSettings settings, DemoImporter importer, UserModelTraining training)
+	public ShellViewModel(
+		ProfileState profiles,
+		ImportQueue queue,
+		GloriaReadModel readModel,
+		AppSettings settings,
+		DemoImporter importer,
+		UserModelTraining training,
+		UpdateNotifier updates)
 	{
+		Updates = updates;
+		CheckUpdatesCommand = new Command(async () => await Updates.CheckAsync());
+		RestartToUpdateCommand = new Command(async () => await RestartToUpdateAsync());
 		_profiles = profiles;
 		_settings = settings;
 		_training = training;
@@ -66,10 +77,11 @@ public sealed class ShellViewModel : ObservableObject
 			new NavItem("Overview", "overview", Go("//overview")),
 			new NavItem("Matches", "matches", Go("//matches")),
 			new NavItem("Progress", "trends", Go("//trends")),
-			new NavItem("Folders & player", "setup", Go("//setup")),
+			new NavItem("Import", "import", Go("//import")),
+			new NavItem("Player", "player", Go("//player")),
 		];
-		TrackAnotherCommand = Go("//setup");
-		OpenQueueCommand = Go("//matches");
+		TrackAnotherCommand = Go("//player");
+		OpenQueueCommand = Go("//import");
 
 		_profiles.Profiles.CollectionChanged += (_, _) => RefreshProfiles();
 		_profiles.CurrentChanged += (_, _) => RefreshProfiles();
@@ -83,6 +95,13 @@ public sealed class ShellViewModel : ObservableObject
 	public ICommand TrackAnotherCommand { get; }
 
 	public ICommand OpenQueueCommand { get; }
+
+	/// <summary>Update state for the sidebar footer.</summary>
+	public UpdateNotifier Updates { get; }
+
+	public ICommand CheckUpdatesCommand { get; }
+
+	public ICommand RestartToUpdateCommand { get; }
 
 	public string AnalysisLabel { get; }
 
@@ -121,9 +140,12 @@ public sealed class ShellViewModel : ObservableObject
 		if (_profiles.Current is not null)
 			await Shell.Current.GoToAsync("//overview");
 		else if (await _readModel.DemoCountAsync() > 0 || _queue.Remaining > 0)
-			await Shell.Current.GoToAsync("//setup");
+			await Shell.Current.GoToAsync("//player");
 		else
 			await Shell.Current.GoToAsync("//welcome");
+
+		// Runs alongside the catch-up below; it never throws.
+		_ = Updates.CheckAsync();
 
 		// Encounters classified by another model (an update shipped a new base model, or a retrain was interrupted).
 		await _training.CatchUpAsync();
@@ -133,6 +155,18 @@ public sealed class ShellViewModel : ObservableObject
 	{
 		foreach (var item in NavItems)
 			item.Active = location.Contains($"//{item.Route}", StringComparison.Ordinal);
+	}
+
+	private async Task RestartToUpdateAsync()
+	{
+		// An interrupted import loses only the demo in progress; the folder rescan at startup picks it up again.
+		if (_queue.Remaining > 0 && Shell.Current?.CurrentPage is { } page
+			&& !await page.DisplayAlertAsync("Import running", $"{ImportText} Restart anyway? The rest is imported after the update.", "Restart", "Wait"))
+		{
+			return;
+		}
+
+		Updates.Restart();
 	}
 
 	private void RefreshProfiles()

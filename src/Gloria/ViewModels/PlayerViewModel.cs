@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
-using Gloria.Data;
 using Gloria.Data.Queries;
 using Gloria.Services;
 
@@ -49,43 +48,26 @@ public sealed class CandidateItem(PlayerCandidate candidate, int demoCount, bool
 	public Color Stroke => IsSelected ? Display.Accent : Display.Line;
 }
 
-public sealed class FolderItem(string path, Action<string> remove)
-{
-	public string Path { get; } = path;
-
-	public Command RemoveCommand { get; } = new(() => remove(path));
-}
-
-public sealed partial class SetupViewModel : ObservableObject
+public sealed partial class PlayerViewModel : ObservableObject
 {
 	private readonly GloriaReadModel _readModel;
 	private readonly ImportQueue _queue;
 	private readonly ProfileState _profiles;
-	private readonly AppSettings _settings;
 	private CandidateItem? _selected;
 	private string _manualSteamId = "";
 	private string _message = "";
 
-	public SetupViewModel(GloriaReadModel readModel, ImportQueue queue, ProfileState profiles, AppSettings settings)
+	public PlayerViewModel(GloriaReadModel readModel, ImportQueue queue, ProfileState profiles)
 	{
 		_readModel = readModel;
 		_queue = queue;
 		_profiles = profiles;
-		_settings = settings;
-		AddFolderCommand = new Command(async () => await AddFolderAsync());
-		AddFilesCommand = new Command(async () => await AddFilesAsync());
 		StartCommand = new Command(async () => await StartAsync());
 		_queue.Changed += (_, _) => OnQueueChanged();
 		_queue.DemoImported += async (_, _) => await RefreshAsync();
 	}
 
 	public ObservableCollection<CandidateItem> Candidates { get; } = [];
-
-	public ObservableCollection<FolderItem> Folders { get; } = [];
-
-	public ICommand AddFolderCommand { get; }
-
-	public ICommand AddFilesCommand { get; }
 
 	public ICommand StartCommand { get; }
 
@@ -129,10 +111,6 @@ public sealed partial class SetupViewModel : ObservableObject
 
 	public async Task RefreshAsync()
 	{
-		Folders.Clear();
-		foreach (var folder in _settings.DemoFolders)
-			Folders.Add(new FolderItem(folder, RemoveFolder));
-
 		var demoCount = await _readModel.DemoCountAsync();
 		var candidates = await _readModel.PlayerCandidatesAsync();
 		var tracked = _profiles.Profiles.Select(p => p.SteamId).ToHashSet();
@@ -187,30 +165,6 @@ public sealed partial class SetupViewModel : ObservableObject
 
 		ManualSteamId = "";
 		await Shell.Current.GoToAsync("//overview");
-	}
-
-	private async Task AddFolderAsync()
-	{
-		if (await DemoSources.PickFolderAsync() is not { } folder)
-			return;
-
-		_settings.AddDemoFolder(folder);
-		await _queue.EnqueueFolderAsync(folder);
-		await RefreshAsync();
-	}
-
-	private async Task AddFilesAsync()
-	{
-		await _queue.EnqueueAsync(await DemoSources.PickFilesAsync());
-		await RefreshAsync();
-	}
-
-	private void RemoveFolder(string folder)
-	{
-		_settings.RemoveDemoFolder(folder);
-		var item = Folders.FirstOrDefault(f => f.Path == folder);
-		if (item is not null)
-			Folders.Remove(item);
 	}
 
 	private void OnQueueChanged()

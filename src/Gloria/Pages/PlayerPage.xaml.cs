@@ -2,11 +2,11 @@ using Gloria.ViewModels;
 
 namespace Gloria.Pages;
 
-public partial class SetupPage : ContentPage
+public partial class PlayerPage : ContentPage
 {
-	private readonly SetupViewModel _viewModel;
+	private readonly PlayerViewModel _viewModel;
 
-	public SetupPage(SetupViewModel viewModel)
+	public PlayerPage(PlayerViewModel viewModel)
 	{
 		_viewModel = viewModel;
 		InitializeComponent();
