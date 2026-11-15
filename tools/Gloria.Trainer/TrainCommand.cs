@@ -25,7 +25,7 @@ public static class TrainCommand
         File.WriteAllText(options.LatestModelFile, aim.Manifest.ModelVersion);
 
         foreach (var c in aim.Manifest.Categories)
-            Console.WriteLine($"  aim {c.Category,-13} rows {c.TrainingRows,5}  positives {c.PositiveRows,5}  LODO AUC {Format(c.Auc)}");
+            Console.WriteLine($"  aim {c.Category,-13} rows {c.TrainingRows,5}  positives {c.PositiveRows,5}  held-out AUC {Format(c.Auc)}");
         foreach (var t in outcomes.Manifest.Targets)
         {
             var cv = t.CrossValidation;

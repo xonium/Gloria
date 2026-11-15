@@ -147,7 +147,7 @@ dotnet run --project tools/Gloria.Trainer -c Release -- all       # extract, tra
 dotnet run --project tools/Gloria.Trainer -c Release -- publish   # copy the latest bundle to src/Gloria/models/base/
 ```
 
-- **extract** parses each demo and caches one CSV row per encounter in `artifacts/training/features/`. Each file is keyed by the demo's SHA-256 and the analysis version (`p{parser}-s{segmenter}-m{metrics}-f{schema}-l{labeler}`), so a demo is re-parsed only when one of those versions is bumped. All six demos take about 10 s.
+- **extract** parses each demo and caches one CSV row per encounter in `artifacts/training/features/`. Each file is keyed by the demo's SHA-256 and the analysis version (`p{parser}-s{segmenter}-m{metrics}-f{schema}-l{labeler}`), so a demo is re-parsed only when one of those versions is bumped. Extracting 23 demos from scratch takes about 40 s; new demos are added incrementally.
 - **train** trains the aim bundle (rule labels) and the outcome bundle into `artifacts/training/models/<version>/`.
 - **report** writes `artifacts/training/report.md`, with per-feature CSVs in `bins/`. It covers:
   - the dataset, including what was dropped
@@ -157,25 +157,27 @@ dotnet run --project tools/Gloria.Trainer -c Release -- publish   # copy the lat
   - rule prevalence
   - label rates per feature bin with Wilson intervals
   - the models' leave-one-demo-out scores
-- Use all 10 players of every demo: about 330 encounters per demo, 1,991 in total from six demos.
+- Use all 10 players of every demo: 200–350 encounters per demo, 6,438 in total from 23 demos.
 
-### What the first run showed (six demos, 2026-11-15)
+### What the data showed (23 demos, 2026-11-15)
+
+The first run used 6 demos; 17 more were added the same day. Every conclusion below held with 23 demos, and the MovingShot and Undershoot ones got stronger.
 
 - **Outcome models.** Scores are leave-one-demo-out AUC.
 
   | Target | Rows | AUC | Notes |
   |---|---|---|---|
-  | FirstShotHit | 1,991 (21% positive) | 0.80 ± 0.03 | Mostly crosshair error at the shot, then distance and speed |
-  | WonDuel | 1,334 (62% positive) | 0.60 ± 0.04 | Duels depend on things the features do not see: HP, the opponent's aim and weapon, who saw whom first |
+  | FirstShotHit | 6,438 (23% positive) | 0.82 ± 0.03 | Mostly crosshair error at the shot, then distance and speed |
+  | WonDuel | 4,568 (63% positive) | 0.63 ± 0.04 | Duels depend on things the features do not see: HP, the opponent's aim and weapon, who saw whom first |
 
 - **Shot alignment.** The crosshair error at the tick before the fire tick predicts hits best:
 
   | Error measured at | AUC |
   |---|---|
-  | Tick before the fire tick | 0.735 |
-  | Two ticks before | 0.719 |
-  | Midpoint | 0.700 |
-  | Fire tick | 0.655 |
+  | Tick before the fire tick | 0.753 |
+  | Two ticks before | 0.730 |
+  | Midpoint (6 demos) | 0.700 |
+  | Fire tick | 0.651 |
 
   The angles recorded on the fire tick already include movement after the shot.
 - **Spotted cadence.** The spotted state updates about every 33 ticks (~0.5 s): set runs come in lengths of 33, 66, 99 ticks.
@@ -183,16 +185,17 @@ dotnet run --project tools/Gloria.Trainer -c Release -- publish   # copy the lat
   - `TimeToFirstShot` showed no significant relation to winning the duel.
   - True line of sight would need map geometry, for example the per-map triangle meshes that awpy uses.
 - **Blind shots.** Before encounters needed visibility, 56% of them started with the shot itself and hit 11% of the time; most were spam through smokes and walls. They are now dropped as "never seen".
-- **Hasty threshold.** The best fixed cut fell from 3.5° at close range to 0.5° at long range. In body half-widths, one cut works at every range and separates hits much better (chi-square 323 vs 171):
-  - The current rule gives a first-shot hit rate of 37% when on the body and 6% when off it.
+- **Hasty threshold.** The best fixed cut fell from 2–3.5° at close range to 0.5° at long range. In body half-widths, one cut works at every range and separates hits much better (chi-square 1,062 vs 732):
+  - The current rule gives a first-shot hit rate of 39% when on the body and 6% when off it (best cut 0.75 half-widths; 1 is kept because it means "off the body").
   - The old fixed 2° gave 28% / 8%.
-- **MovingSpeedRatio.** The game's threshold of 1 already lowers the hit rate (31% → 23% with error < 2°), and the steepest drop is near 1.6. The constant stays 1, which matches the game's accuracy mechanics.
-- **Overshoot and corrections.** They have only weak links to the outcomes (chi-square ≤ 10). The constants stay. These metrics need the most work: overshoot is flagged on 24% of encounters, and target movement probably inflates it.
+- **MovingSpeedRatio.** The game's threshold of 1 lowers the hit rate from 35% to 21% (error < 2°). The best cut is 1.1 (1.6 on 6 demos), so the constant stays 1, which also matches the game's accuracy mechanics.
+- **Overshoot and corrections.** Two or more corrections lower the hit rate (23% → 17%) and the win rate (64% → 55%), and 2 is the best cut for both labels. Overshoot has only a weak link to the outcomes (chi-square ≤ 18) and is flagged on 23% of encounters; target movement probably inflates it, so it needs the most work.
 - **Bias.** Deaths where the player never fired at the killer are dropped (about 60 per demo), so WonDuel is above 50%. The report counts them.
+- **SlowReaction.** Still no meaningful link between `TimeToFirstShot` and winning (chi-square 15 at a 0.05 s cut, rates 67% vs 61%); the constant stays 0.6 s.
 
 ### Next steps
 
 - Add opponent context to the features: both players' HP, the opponent's weapon, and who fired first. This should raise WonDuel substantially. It needs a `SchemaVersion` bump and a retrain.
 - Better visibility than the spotted state (map geometry).
-- More demos. Six demos give fold-to-fold AUC spreads of ±0.03–0.04.
+- More demos. 23 demos still give fold-to-fold AUC spreads of ±0.03–0.04, so per-demo variation, not data size, dominates.
 - Hand-label a sample of encounters with the categories, to check the rule labels against expert judgment.

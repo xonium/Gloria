@@ -260,7 +260,7 @@ public static class ReportCommand
         var aim = AimModelStore.Load(directory).Manifest;
         var outcomes = OutcomeModelStore.Load(Path.Combine(directory, OutcomeModelStore.SubfolderName)).Manifest;
 
-        md.AppendLine($"Latest model `{version}`. All scores are leave-one-demo-out: each demo is predicted by a model trained on the others.");
+        md.AppendLine($"Latest model `{version}`. Outcome scores are leave-one-demo-out: each demo is predicted by a model trained on the others.");
         md.AppendLine();
         md.AppendLine("### Outcome models");
         md.AppendLine();
@@ -277,7 +277,8 @@ public static class ReportCommand
         md.AppendLine();
         md.AppendLine("### Aim category models (rule labels)");
         md.AppendLine();
-        md.AppendLine("These learn the rules, so a high AUC only shows the model reproduces them.");
+        md.AppendLine("These learn the rules, so a high AUC only shows the model reproduces them. AUC is on held-out demos:");
+        md.AppendLine("leave-one-demo-out below 10 demos, otherwise a 20% hold-out of the demos.");
         md.AppendLine();
         md.AppendLine("| Category | Rows | Positives | AUC |");
         md.AppendLine("|---|---:|---:|---:|");
