@@ -12,7 +12,7 @@ The projects, the Velopack startup hook, update source, database location and mi
 - outcome labels
 - ML training via `tools/Gloria.Trainer`
 
-A base model is shipped in `src/Gloria/models/base/`. A first UI slice runs on real data: Import (drop zone, demo folders, queue), Player (profiles), Overview, Matches, Match, Encounter (with replay) and Progress. Findings and the gaps against the design are in `docs/ui-spike.md`. The replay shows where each bullet went (crosshair plus recoil). User corrections work and retrain the user's model in the background. Progress has rolling medians, a by-weapon table and lost-duel causes; Overview and Progress have period selectors and Matches has filters.
+A base model is shipped in `src/Gloria/models/base/`. A first UI slice runs on real data: Import (drop zone, demo folders, queue), Player (profiles), Overview, Matches, Match, Encounter (with replay) and Progress. Findings and the gaps against the design are in `docs/ui-spike.md`. The Encounter replay shows where each bullet went (crosshair plus recoil), both players' health, the last hit's damage, weapon icons, the opponent's agent model (pre-rendered sprites) and a radar map of where the duel happened. User corrections work and retrain the user's model in the background. Progress has rolling medians, a by-weapon table and lost-duel causes; Overview and Progress have period selectors and Matches has filters.
 
 ## Commands
 
@@ -25,11 +25,13 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
 - Run the app (unpackaged): `dotnet build src/Gloria` and then start `src/Gloria/bin/Debug/net10.0-windows10.0.19041.0/win-x64/Gloria.exe`, or press F5 in Visual Studio
 - Add a migration: `dotnet tool restore`, then `dotnet ef migrations add <Name> -p src/Gloria.Data -s src/Gloria.Data -o Migrations`. `DesignTimeDbContextFactory` lets `dotnet ef` run without the MAUI app.
 - Train on `_demos/`: `dotnet run --project tools/Gloria.Trainer -c Release -- all` (extract, train, report into `artifacts/training/`), then `-- publish` to copy the bundle into `src/Gloria/models/base/` and commit it. Re-run after changing the analysis; bump the stage's `Version` so cached features are re-extracted.
+- Game art: `./build/fetch-assets.ps1` downloads weapon icons (recolored for the dark theme) into `src/Gloria/Resources/Images/Weapons/` and radars plus `maps.json` into `src/Gloria/Resources/Raw/maps/`. Commit the results. The art is Valve's and is bundled by choice.
+- Agent sprites: download the two Sketchfab models by hand into `_assets/models/ct.glb` and `t.glb` (git-ignored), then `dotnet run --project tools/Gloria.Sprites`. It renders `src/Gloria/Resources/Raw/agents/` with three.js in the installed Edge and writes contact sheets to `artifacts/sprites/`. Check that 0° faces the camera; if not, set `yawOffset` in `_assets/models/agents.json`. That file can also set an animation `clip` or `stand`/`crouch` bone rotations; the tool prints the bone names.
 - Package: `./build/pack.ps1 -Version 0.1.0`. This publishes to `artifacts/publish/` and runs `vpk pack` into `releases/`, producing `Gloria-win-Setup.exe`. Keep the `Velopack` NuGet version equal to the `vpk` version in `.config/dotnet-tools.json`.
 - Release: push a `v<semver>` tag (`git tag v0.2.0 && git push origin v0.2.0`). `.github/workflows/release.yml` tests, downloads the previous release (for deltas), runs `build/pack.ps1` and publishes with `vpk upload github`. A tag with a `-suffix` becomes a pre-release, which installed copies ignore.
 - Test in-app updates without GitHub: install with Setup.exe, then pack a higher version and point `GLORIA_UPDATE_DIR` at `releases/` (as a user environment variable, e.g. `setx`, so the Start menu shortcut sees it). The installed app checks at startup and offers a restart in the sidebar (`Updates/UpdateNotifier`). Setup and uninstall clear `%LocalAppData%\Gloria`, so back up anything there first.
 - To click through the UI from a script, use Windows UI Automation (`System.Windows.Automation` in `powershell.exe`). Buttons and pickers are found by their `SemanticProperties.Description`.
-- Run the app against a scratch database: set `GLORIA_DATA_DIR`. Settings (saved folders, current profile) live in the database, so a scratch folder starts clean. To check a screen from a script, also set `GLORIA_START_ROUTE` (e.g. `encounter?id=12`) and `GLORIA_CAPTURE` (a .png path); `GLORIA_CAPTURE_SCROLL` scrolls down first. See `Services/DevHooks.cs`. Desktop screenshot tools capture WinUI content as black, so use this instead.
+- Run the app against a scratch database: set `GLORIA_DATA_DIR`. Settings (saved folders, current profile) live in the database, so a scratch folder starts clean. `GLORIA_IMPORT` (files or folders, `;`-separated) imports demos before anything else. To check a screen from a script, also set `GLORIA_START_ROUTE` (e.g. `encounter?id=12`) and `GLORIA_CAPTURE` (a .png path); `GLORIA_CAPTURE_SCROLL` scrolls down first. See `Services/DevHooks.cs`. Desktop screenshot tools capture WinUI content as black, so use this instead.
 
 ## Solution layout (actual)
 
@@ -43,7 +45,7 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
   - `Analysis`: `DemoAnalyzer`, which runs the whole chain.
   - `Aggregation`: `Rolling.Median` for per-demo trends.
 - `src/Gloria.Data`: EF Core SQLite: `GloriaDbContext`, `Migrations/`, `DatabaseLocation` (`%LocalAppData%\Gloria.Data\gloria.db`, or `GLORIA_DATA_DIR`), and `DatabaseInitializer.Migrate`, which runs at startup.
-  - `Import`: `DemoImporter` analyzes a demo once, for every player in it, and stores rounds, encounters, classifications and a compact per-tick trace (`TraceCodec`). No parse cache: the `.dem` isn't needed afterwards.
+  - `Import`: `DemoImporter` analyzes a demo once, for every player in it, and stores rounds, encounters, classifications and a compact per-tick trace (`TraceCodec`, format 3: aim angles, plus a `TraceScene` with positions, yaw, health, crouch, held weapons, damage between the two and the deciding death). No parse cache: the `.dem` isn't needed afterwards.
   - `Queries`: `GloriaReadModel`, the UI's read side. Every query takes the viewed profile's SteamID.
   - `AppSettings`: key-value settings in the `Settings` table. Don't use MAUI `Preferences` or `FileSystem.AppDataDirectory`: unpackaged, they live in `%LocalAppData%\Gloria\Gloria`, inside the Velopack install folder, which `Setup.exe` and uninstall delete.
   - `DemoDates`: user-set played-at dates, kept by content hash so re-analysis doesn't lose them.
@@ -59,10 +61,11 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
   - `CrossValidation` evaluates leave-one-demo-out.
   - `FeatureBinReport` produces the trainer report's statistics.
 - `tools/Gloria.Trainer`: the dev-time console tool that turns `_demos/` into the base model and `artifacts/training/report.md`.
+- `tools/Gloria.Sprites`: the dev-time tool that renders agent models into the replay's sprites (Playwright on the installed Edge).
 - `src/Gloria`: the MAUI app (exe `Gloria.exe`, Velopack packId `Gloria`). `Platforms/Windows/Program.cs` holds the custom `Main` with the Velopack hook. `Updates/UpdateSourceFactory` is the single switch point for the update source.
   - Native XAML, dark theme in `Resources/Styles/Theme.xaml`. `AppShell` has a custom sidebar; detail routes (`match`, `encounter`) are created through DI by `ServiceRouteFactory`.
-  - `Pages/` and `ViewModels/` (plain `ObservableObject`, no MVVM package). `Graphics/` holds the `GraphicsView` drawables: sparklines, trace charts and the replay.
-  - `Services/`: `ImportQueue` (background import), `ProfileState` (current profile), `DemoSources` (pickers, drag and drop, CS2 replays folder), `DuelOutcomes` (the outcome model on a stored encounter), `UserModelTraining` (background retraining and promotion), `Display` (wording, colors, and the number culture).
+  - `Pages/` and `ViewModels/` (plain `ObservableObject`, no MVVM package). `Graphics/` holds the `GraphicsView` drawables: sparklines, trace charts, the replay and the map (`MapDrawable`, using `Core/Maps/MapProjection`).
+  - `Services/`: `ImportQueue` (background import), `ProfileState` (current profile), `DemoSources` (pickers, drag and drop, CS2 replays folder), `DuelOutcomes` (the outcome model on a stored encounter), `UserModelTraining` (background retraining and promotion), `Display` (wording, colors, weapon names and icons, and the number culture), `GameArt` (loads radars and agent sprites from `Resources/Raw` once, outside `Draw`).
   - Unhandled exceptions are written to `crash.log` in the data folder.
   - MAUI pitfalls hit so far: see `docs/ui-spike.md`. The main one: use `Grid` columns, not `FlexLayout` with a percentage basis, for cards with long text.
 - `tests/Gloria.Core.Tests`, `tests/Gloria.Data.Tests`, `tests/Gloria.Ml.Tests`: xUnit v3. ML tests train on seeded synthetic features (`SyntheticEncounters`). Data tests use in-memory SQLite. `Fixtures/DemoFiles` finds `_demos/` and skips tests when it is empty.
@@ -141,6 +144,9 @@ Keep these layers separate. Parsing is slow, and analysis heuristics will change
     - Fire events and item names carry the `weapon_` prefix; hurt and death events don't.
     - Normalize with `StaticWeaponData.Normalize`.
     - `player_hurt` names the base item, not the variant: an M4A1-S hit says `m4a1` and a USP-S hit `hkp2000`, while `weapon_fire` and `player_death` say `m4a1_silencer` / `usp_silencer`. Match fires to hurts with `StaticWeaponData.SameGun`. Before segmenter version 3 every M4A1-S and USP-S hit counted as a miss.
+    - The pawn's active item name (`ActiveWeapon`) does name the variant, so `TraceDamage` takes the attacker's held weapon when it is the same gun.
+  - **Damage:** `dmg_health` is not exact: an 18-damage hit can kill at 19 HP. Use the per-tick `Health` for health, and `dmg_health` only as the hit's reported damage.
+  - **Maps:** radar pixel = ((x − pos_x) / scale, (pos_y − y) / scale) on the 1024 px radar. Nuke, Vertigo and Train have a lower level, below `lowerBelow` altitude in `maps.json`.
   - **API pitfall:** `parser.GameRules` throws until the game rules entity exists.
   - **First round:**
     - These demos start recording inside the first live round's freeze time, with no `round_start` for it.

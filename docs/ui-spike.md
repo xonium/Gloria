@@ -66,6 +66,12 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
   - The replay draws a ring where the crosshair was on the tick before each shot, and a diamond where the bullet went (crosshair plus recoil), joined by a dashed line. The shots table gives both offsets from the body.
   - Random spread isn't in the demo, so it isn't modeled, and the screen says so.
   - Traces stored before this (`TraceCodec` format 1) keep the old drawing until the demo is re-analyzed. Format 2 adds the bullet direction, about 14 bytes a tick instead of 10.
+- **Replay detail:** done since the spike.
+  - **Zero-hit kills:** these turned out to be an attribution bug. `player_hurt` names an M4A1-S hit `m4a1` and a USP-S hit `hkp2000`, so those hits never matched their shot. Segmenter version 3 fixes it; every gun hurt in the first demo now has a shot (86 of 646 didn't).
+  - **Trace format 3:** adds a `TraceScene`, about 33 bytes a tick instead of 14. The table shows both players' health, the last hit, and each player's weapon with an icon. The timeline lists utility and damage taken, and names the kill weapon.
+  - **Map:** a panel left of the replay draws the radar, both paths, view cones and shot positions. Two-level maps switch radar by the player's altitude.
+  - **Agent models:** pre-rendered sprites from the Sketchfab GLBs (`tools/Gloria.Sprites`), drawn to scale and turned to the opponent's facing. Until sprites are rendered, the replay keeps the drawn body.
+  - **MAUI:** `MauiImage TintColor` doesn't recolor PNGs, so the weapon icons are recolored in `fetch-assets.ps1`. In the app project, `IImage` is ambiguous between `Microsoft.Maui.IImage` and `Microsoft.Maui.Graphics.IImage`; alias the graphics one.
 - **Corrections:** done since the spike.
   - The encounter screen has Yes/No per category. Answers override the model in every screen and feed the user's model, which retrains after 10 new answers or on "Retrain now".
   - See `docs/ml-classification.md`, "Feedback loop".
