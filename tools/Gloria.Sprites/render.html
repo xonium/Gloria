@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: transparent; } canvas { display: block; }</style>
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<script type="module">
+// Renders an agent model for Gloria's replay: orthographic, at eye level, transparent background.
+// The world is in game units with the feet at y = 0; the frame spans [bottom, top] vertically and
+// [-halfWidth, halfWidth] horizontally, so the replay can place it to scale.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const size = 256;
+const frame = { bottom: -4, top: 80, halfWidth: 42 };
+
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(size, size);
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const camera = new THREE.OrthographicCamera(-frame.halfWidth, frame.halfWidth, frame.top, frame.bottom, 0.1, 1000);
+// Straight on from +Z: the frame's vertical range comes from the projection, not from tilting the camera.
+camera.position.set(0, 0, 300);
+
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30343a, 1.6));
+const key = new THREE.DirectionalLight(0xffffff, 2.2);
+key.position.set(-120, 160, 200);
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x9cc6f5, 1.6);
+rim.position.set(150, 120, -200);
+scene.add(rim);
+
+let root = null;      // yaw turns this
+let model = null;     // the loaded scene, normalized to 72 units tall
+let mixer = null;
+let rest = new Map(); // bone name -> rest quaternion
+
+window.setup = async (url, config) => {
+    const gltf = await new GLTFLoader().loadAsync(url);
+    model = gltf.scene;
+    root = new THREE.Group();
+    root.add(model);
+    scene.add(root);
+
+    model.rotation.y = THREE.MathUtils.degToRad(config.yawOffset ?? 0);
+    if (config.clip && gltf.animations.length > 0) {
+        const clip = gltf.animations.find(a => a.name === config.clip) ?? gltf.animations[0];
+        mixer = new THREE.AnimationMixer(model);
+        mixer.clipAction(clip).play();
+        mixer.setTime(config.clipTime ?? 0);
+    }
+
+    model.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(model);
+    const height = box.max.y - box.min.y;
+    const scale = 72 / height;
+    model.scale.multiplyScalar(scale);
+    model.updateMatrixWorld(true);
+    const scaled = new THREE.Box3().setFromObject(model);
+    const center = scaled.getCenter(new THREE.Vector3());
+    model.position.x -= center.x;
+    model.position.z -= center.z;
+    model.position.y -= scaled.min.y;
+
+    const bones = [];
+    model.traverse(o => { if (o.isBone) { bones.push(o.name); rest.set(o.name, o.quaternion.clone()); } });
+    return { bones, clips: gltf.animations.map(a => a.name), height };
+};
+
+// pose: { boneName: [x, y, z] degrees added to the rest rotation }; squash scales the height (crouch fallback).
+window.render = (yaw, pose, squash) => {
+    model.traverse(o => {
+        if (!o.isBone) return;
+        o.quaternion.copy(rest.get(o.name));
+        const r = pose?.[o.name];
+        if (r) o.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(...r.map(THREE.MathUtils.degToRad))));
+    });
+    root.rotation.y = THREE.MathUtils.degToRad(yaw);
+    root.scale.set(1, squash ?? 1, 1);
+    renderer.render(scene, camera);
+    return frame;
+};
+
+window.ready = true;
+</script>
+</body>
+</html>

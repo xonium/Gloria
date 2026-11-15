@@ -395,6 +395,9 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 		await BuildCorrectionsAsync(e);
 		Map.Art = await _art.MapAsync(d.MapName);
 		Map.MapName = d.MapName;
+		Replay.Agent = d.Trace?.Scene is { } scene
+			? await _art.AgentAsync(scene.OpponentTeam == Core.Ingestion.Team.CounterTerrorist ? "ct" : "t")
+			: null;
 		LoadTrace(d);
 	}
 

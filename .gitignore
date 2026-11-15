@@ -484,3 +484,6 @@ $RECYCLE.BIN/
 # CS2 demo files (large, never commit)
 _demos/
 *.dem
+
+# Agent models downloaded from Sketchfab for tools/Gloria.Sprites (large; the rendered sprites are committed)
+_assets/

@@ -1,5 +1,6 @@
 using Gloria.Core.Analysis;
 using Gloria.Services;
+using IImage = Microsoft.Maui.Graphics.IImage;
 
 namespace Gloria.Graphics;
 
@@ -18,6 +19,8 @@ public sealed class ReplayDrawable : IDrawable
 	private const float Hips = -32;
 	private const float Feet = -52;
 	private const float TorsoHalfWidth = 10;
+	// Feet below the upper chest when crouched: eye height 46 instead of 64.
+	private const float CrouchedFeet = -34;
 
 	private static readonly Color CrosshairColor = Color.FromArgb("#e3eefc");
 
@@ -29,6 +32,9 @@ public sealed class ReplayDrawable : IDrawable
 	public float Position { get; set; }
 
 	public string OpponentLabel { get; set; } = "";
+
+	/// <summary>The opponent's agent model, pre-rendered; null draws a plain body.</summary>
+	public AgentSprites? Agent { get; set; }
 
 	public void Draw(ICanvas canvas, RectF rect)
 	{
@@ -75,7 +81,40 @@ public sealed class ReplayDrawable : IDrawable
 
 		DrawGrid(canvas, rect, scale, cx, cy, P);
 
-		// The body, to scale.
+		var feetY = Feet;
+		if (Agent is { } agent && trace.Scene is { } scene && AgentFrame(agent, scene, current) is { } frame)
+		{
+			// The agent model, to scale, turned the way the opponent faced relative to the player.
+			feetY = scene.OpponentDucking[current] ? CrouchedFeet : Feet;
+			var topLeft = P(Deg(-agent.HalfWidth), Deg(feetY + agent.Top));
+			var bottomRight = P(Deg(agent.HalfWidth), Deg(feetY + agent.Bottom));
+			canvas.DrawImage(frame, topLeft.X, topLeft.Y, bottomRight.X - topLeft.X, bottomRight.Y - topLeft.Y);
+		}
+		else
+		{
+			DrawBody(canvas, P, Deg);
+		}
+
+		canvas.FontColor = Display.Muted;
+		canvas.FontSize = 12;
+		var feet = P(0, Deg(feetY));
+		canvas.DrawString(OpponentLabel, feet.X - 150, feet.Y + 6, 300, 16, HorizontalAlignment.Center, VerticalAlignment.Top);
+
+		DrawCrosshairPath(canvas, trace, current, P);
+	}
+
+	/// <summary>
+	/// The frame for the opponent's facing relative to the line from them to the player: 0 faces the player,
+	/// positive turns counter-clockwise seen from above, which is towards the player's right.
+	/// </summary>
+	private static IImage? AgentFrame(AgentSprites agent, TraceScene scene, int i)
+	{
+		var bearing = float.RadiansToDegrees(MathF.Atan2(scene.PlayerY[i] - scene.OpponentY[i], scene.PlayerX[i] - scene.OpponentX[i]));
+		return agent.Frame(scene.OpponentDucking[i], scene.OpponentYaw[i] - bearing);
+	}
+
+	private static void DrawBody(ICanvas canvas, Func<float, float, PointF> P, Func<float, float> Deg)
+	{
 		canvas.FillColor = Color.FromArgb("#2b2e34");
 		canvas.StrokeColor = Color.FromArgb("#6b7079");
 		canvas.StrokeSize = 1.5f;
@@ -94,14 +133,13 @@ public sealed class ReplayDrawable : IDrawable
 		}
 
 		var head = P(0, Deg(HeadCenter));
-		var headRadius = Deg(HeadRadius) * scale;
+		var headRadius = Math.Abs(P(0, Deg(HeadCenter + HeadRadius)).Y - head.Y);
 		canvas.FillCircle(head, headRadius);
 		canvas.DrawCircle(head, headRadius);
-		canvas.FontColor = Display.Muted;
-		canvas.FontSize = 12;
-		var feet = P(0, Deg(Feet));
-		canvas.DrawString(OpponentLabel, feet.X - 150, feet.Y + 6, 300, 16, HorizontalAlignment.Center, VerticalAlignment.Top);
+	}
 
+	private void DrawCrosshairPath(ICanvas canvas, EncounterTrace trace, int current, Func<float, float, PointF> P)
+	{
 		// Crosshair path up to now; the lead-in before first sighting is fainter.
 		canvas.StrokeSize = 2;
 		canvas.StrokeLineJoin = LineJoin.Round;
