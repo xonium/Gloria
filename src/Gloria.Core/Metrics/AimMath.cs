@@ -38,6 +38,55 @@ public static class AimMath
         return float.RadiansToDegrees(MathF.Atan2(sin, cos));
     }
 
+    /// <summary>Angle in degrees between two sets of view angles.</summary>
+    public static float AngleBetween(float yawA, float pitchA, float yawB, float pitchB)
+    {
+        var a = ViewDirection(yawA, pitchA);
+        var b = ViewDirection(yawB, pitchB);
+        return float.RadiansToDegrees(MathF.Atan2(Vector3.Cross(a, b).Length(), Vector3.Dot(a, b)));
+    }
+
+    /// <summary>
+    /// Angle in degrees from the view ray to the nearest point of the segment
+    /// <paramref name="bottom"/>–<paramref name="top"/>, e.g. a player's body axis. Aiming anywhere
+    /// from the hips to the head counts as zero error, so head and body aim are not penalized.
+    /// </summary>
+    public static float AngularErrorToSegment(float yawDegrees, float pitchDegrees, Vector3 eyePosition, Vector3 bottom, Vector3 top)
+    {
+        var view = ViewDirection(yawDegrees, pitchDegrees);
+        var axis = top - bottom;
+        var toBottom = bottom - eyePosition;
+
+        // Closest points between the view line eye + t*view and the segment bottom + s*axis.
+        var b = Vector3.Dot(view, axis);
+        var c = Vector3.Dot(axis, axis);
+        var d = Vector3.Dot(view, toBottom);
+        var e = Vector3.Dot(axis, toBottom);
+        var denominator = c - b * b; // |view| = 1
+        var s = denominator > 1e-6f ? (b * d - e) / denominator : 0f;
+        s = Math.Clamp(s, 0f, 1f);
+
+        return AngularError(yawDegrees, pitchDegrees, eyePosition, bottom + s * axis);
+    }
+
+    /// <summary>
+    /// Signed 2D aim error in degrees: (yaw, pitch) of the view minus the angles that look at the target,
+    /// with yaw scaled by cos(pitch) so both axes measure arc on the screen.
+    /// </summary>
+    public static Vector2 SignedError(float yawDegrees, float pitchDegrees, Vector3 eyePosition, Vector3 targetPosition)
+    {
+        var (yaw, pitch) = AnglesTo(eyePosition, targetPosition);
+        var cosPitch = MathF.Cos(float.DegreesToRadians(pitch));
+        return new Vector2(YawDelta(yaw, yawDegrees) * cosPitch, pitchDegrees - pitch);
+    }
+
+    /// <summary>Interpolates yaw along the shorter way around.</summary>
+    public static float LerpYaw(float from, float to, float amount)
+    {
+        var yaw = from + YawDelta(from, to) * amount;
+        return yaw >= 180f ? yaw - 360f : yaw < -180f ? yaw + 360f : yaw;
+    }
+
     /// <summary>Signed yaw difference <paramref name="to"/> − <paramref name="from"/>, wrapped to [-180, 180).</summary>
     public static float YawDelta(float from, float to)
     {

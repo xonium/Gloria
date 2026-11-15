@@ -67,4 +67,44 @@ public class AimMathTests
     {
         Assert.Equal(expected, AimMath.YawDelta(from, to), Tolerance);
     }
+
+    [Theory]
+    [InlineData(0f)]      // eye height
+    [InlineData(1.5f)]    // down toward the hips
+    [InlineData(-0.1f)]   // toward the head
+    public void AngularErrorToSegment_IsZero_AnywhereOnTheBodyAxis(float pitch)
+    {
+        var eye = new Vector3(0, 0, 64);
+
+        var error = AimMath.AngularErrorToSegment(0f, pitch, eye, new Vector3(1000, 0, 20), new Vector3(1000, 0, 67));
+
+        Assert.Equal(0f, error, 0.01f);
+    }
+
+    [Fact]
+    public void AngularErrorToSegment_MeasuresToTheNearestEnd_WhenAimingAbove()
+    {
+        var eye = new Vector3(0, 0, 64);
+        var top = new Vector3(1000, 0, 67);
+
+        var error = AimMath.AngularErrorToSegment(0f, -10f, eye, new Vector3(1000, 0, 20), top);
+
+        Assert.Equal(AimMath.AngularError(0f, -10f, eye, top), error, 0.01f);
+    }
+
+    [Fact]
+    public void SignedError_IsPositiveYaw_WhenTheViewIsRotatedPastTheTargetCounterClockwise()
+    {
+        var error = AimMath.SignedError(5f, 0f, Vector3.Zero, new Vector3(1000, 0, 0));
+
+        Assert.Equal(5f, error.X, 0.01f);
+        Assert.Equal(0f, error.Y, 0.01f);
+    }
+
+    [Fact]
+    public void LerpYaw_TakesTheShortWayAround()
+    {
+        Assert.Equal(-180f, Math.Abs(AimMath.LerpYaw(170f, -170f, 0.5f)) * -1, Tolerance);
+        Assert.Equal(5f, AimMath.LerpYaw(0f, 10f, 0.5f), Tolerance);
+    }
 }

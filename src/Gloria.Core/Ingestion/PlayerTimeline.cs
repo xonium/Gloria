@@ -64,7 +64,9 @@ public sealed class PlayerTimeline
     public int LastTick => RecordedTicks.Count > 0 ? RecordedTicks[^1] : -1;
 
     /// <summary>True when any player was ever spotted, i.e. the demo carries spotted state.</summary>
-    public bool HasSpottedData => Columns.Any(c => c.SpottedBy.Any(m => m != 0));
+    public bool HasSpottedData => _hasSpottedData ??= Columns.Any(c => c.SpottedBy.Any(m => m != 0));
+
+    private bool? _hasSpottedData;
 
     public int IndexOf(ulong steamId) => _indexBySteamId.GetValueOrDefault(steamId, -1);
 
