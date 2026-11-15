@@ -47,6 +47,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<!-- Base aim and outcome models, trained by tools/Gloria.Trainer and loaded from <app>\models\base. -->
+		<None Include="models\base\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" />
 		<PackageReference Include="Velopack" />

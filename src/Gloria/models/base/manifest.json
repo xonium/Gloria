@@ -1,0 +1,48 @@
+{
+  "FormatVersion": 1,
+  "FeatureSchemaVersion": 1,
+  "ModelVersion": "20261115T145018Z",
+  "TrainedAt": "2026-11-15T14:50:18.5799258+00:00",
+  "Categories": [
+    {
+      "Category": "Overshoot",
+      "TrainingRows": 1991,
+      "PositiveRows": 480,
+      "CorrectedRows": 0,
+      "Auc": 1,
+      "F1": 0.9990689013035382
+    },
+    {
+      "Category": "Undershoot",
+      "TrainingRows": 1991,
+      "PositiveRows": 151,
+      "CorrectedRows": 0,
+      "Auc": 0.9997086247086248,
+      "F1": 0.9952380952380953
+    },
+    {
+      "Category": "MovingShot",
+      "TrainingRows": 1991,
+      "PositiveRows": 841,
+      "CorrectedRows": 0,
+      "Auc": 1,
+      "F1": 0.9994606256742179
+    },
+    {
+      "Category": "Hasty",
+      "TrainingRows": 1991,
+      "PositiveRows": 1032,
+      "CorrectedRows": 0,
+      "Auc": 0.9984120859004403,
+      "F1": 0.9762164212288814
+    },
+    {
+      "Category": "SlowReaction",
+      "TrainingRows": 1991,
+      "PositiveRows": 240,
+      "CorrectedRows": 0,
+      "Auc": 1,
+      "F1": 1
+    }
+  ]
+}

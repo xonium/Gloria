@@ -4,7 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Scaffolded. The projects, the Velopack startup hook, update source, database location and migrations, and the DemoFile parser (events and players only) are in place. Encounter segmentation, per-tick state collection, aim metrics and aggregation are interfaces or stubs.
+The projects, the Velopack startup hook, update source, database location and migrations are in place. The analysis pipeline works end to end on real demos:
+- per-tick parsing
+- encounter segmentation
+- aim metrics
+- features
+- outcome labels
+- ML training via `tools/Gloria.Trainer`
+
+A base model is shipped in `src/Gloria/models/base/`. Still to do: persisting encounters and labels in the database, aggregation, and the UI.
 
 ## Commands
 
@@ -16,15 +24,32 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
 - Run a single test class or method: `dotnet test --project tests/Gloria.Core.Tests --filter-class "Gloria.Core.Tests.Metrics.AimMathTests"`, or `--filter-method "*YawDelta*"`
 - Run the app (unpackaged): `dotnet build src/Gloria` and then start `src/Gloria/bin/Debug/net10.0-windows10.0.19041.0/win-x64/Gloria.exe`, or press F5 in Visual Studio
 - Add a migration: `dotnet tool restore`, then `dotnet ef migrations add <Name> -p src/Gloria.Data -s src/Gloria.Data -o Migrations`. `DesignTimeDbContextFactory` lets `dotnet ef` run without the MAUI app.
+- Train on `_demos/`: `dotnet run --project tools/Gloria.Trainer -c Release -- all` (extract, train, report into `artifacts/training/`), then `-- publish` to copy the bundle into `src/Gloria/models/base/` and commit it. Re-run after changing the analysis; bump the stage's `Version` so cached features are re-extracted.
 - Package: `./build/pack.ps1 -Version 0.1.0`. This publishes to `artifacts/publish/` and runs `vpk pack` into `releases/`, producing `Gloria-win-Setup.exe`. Keep the `Velopack` NuGet version equal to the `vpk` version in `.config/dotnet-tools.json`.
 - Test in-app updates: install with Setup.exe, then pack a higher version and copy `releases/` to `%LocalAppData%\Gloria.Releases`, or set `GLORIA_UPDATE_DIR` to point at it.
 
 ## Solution layout (actual)
 
-- `src/Gloria.Core`: domain layers as namespaces: `Ingestion` (`IDemoParser`, `DemoFileDemoParser`, `DemoHasher`, normalized models), `Visibility`, `Encounters`, `Metrics` (`AimMath`), `Weapons`, `Aggregation`. It has no MAUI reference.
+- `src/Gloria.Core`: domain layers as namespaces. It has no MAUI reference.
+  - `Ingestion`: `IDemoParser`, `DemoFileDemoParser`, the columnar `PlayerTimeline`, `DemoHasher`.
+  - `Visibility`: spotted state, with a view-cone fallback.
+  - `Encounters`: `EncounterSegmenter`, `ShotAttribution`, `DemoIndex`.
+  - `Metrics`: `AimMetricsCalculator`, `AimMath`, `BodyModel`.
+  - `Weapons`: speeds and classes for every gun.
+  - `Classification`: the feature extractor and `OutcomeLabeler`.
+  - `Analysis`: `DemoAnalyzer`, which runs the whole chain.
+  - `Aggregation`.
 - `src/Gloria.Data`: EF Core SQLite: `GloriaDbContext`, `Migrations/`, `DatabaseLocation` (`%LocalAppData%\Gloria.Data\gloria.db`), and `DatabaseInitializer.Migrate`, which runs at startup.
 - `src/Gloria.Core/Classification`: aim categories (`AimCategory`), `EncounterFeatures`, `RuleBasedAimLabeler`, and `IAimClassifier` with its rule-based fallback. It has no ML.NET reference.
-- `src/Gloria.Ml`: ML.NET aim classification. `AimModelTrainer` trains one FastTree binary model per category. `AimModelStore` saves and loads bundle folders. `MlAimClassifier` predicts in batches. `AimClassifierFactory` picks the user model, then the base model, then the rules. See `docs/ml-classification.md`.
+- `src/Gloria.Ml`: ML.NET. See `docs/ml-classification.md`.
+  - `AimModelTrainer` trains one FastTree binary model per category.
+  - `AimModelStore` saves and loads bundle folders.
+  - `MlAimClassifier` predicts in batches.
+  - `AimClassifierFactory` picks the user model, then the base model, then the rules.
+  - `OutcomeModelTrainer` and `MlOutcomePredictor` handle FirstShotHit and WonDuel, labeled from the demos.
+  - `CrossValidation` evaluates leave-one-demo-out.
+  - `FeatureBinReport` produces the trainer report's statistics.
+- `tools/Gloria.Trainer`: the dev-time console tool that turns `_demos/` into the base model and `artifacts/training/report.md`.
 - `src/Gloria`: the MAUI app (exe `Gloria.exe`, Velopack packId `Gloria`). `Platforms/Windows/Program.cs` holds the custom `Main` with the Velopack hook. `Updates/UpdateSourceFactory` is the single switch point for the update source.
 - `tests/Gloria.Core.Tests`, `tests/Gloria.Data.Tests`, `tests/Gloria.Ml.Tests`: xUnit v3. ML tests train on seeded synthetic features (`SyntheticEncounters`). Data tests use in-memory SQLite. `Fixtures/DemoFiles` finds `_demos/` and skips tests when it is empty.
 - Package versions are managed centrally in `Directory.Packages.props`.
@@ -92,3 +117,14 @@ Keep these layers separate. Parsing is slow, and analysis heuristics will change
 - The speed at which a player counts as "stopped" depends on the weapon (it is a fraction of that weapon's max movement speed). Take these thresholds from weapon data; don't hardcode one global value.
 - The game's "spotted" state is not true line of sight. Treat visibility-based timings (reaction time, haste) as approximations, and keep the visibility source swappable.
 - Keep `_demos/` out of version control. The files are too large.
+- Measured on these demos with DemoFile.Net 0.45:
+  - **Spotted state:**
+    - Read `pawn.EntitySpottedState.SpottedByMask` on the target. Observer bit = `controller.EntityIndex - 1`.
+    - It updates only about every 33 ticks, so visibility onsets are uncertain by up to ~0.5 s.
+  - **Event timing:**
+    - `player_hurt` lands on the same tick as its `weapon_fire`.
+    - The view angles at the tick *before* the fire tick match where the shot went best.
+  - **Weapon names:**
+    - Fire events and item names carry the `weapon_` prefix; hurt and death events don't.
+    - Normalize with `StaticWeaponData.Normalize`.
+  - **API pitfall:** `parser.GameRules` throws until the game rules entity exists.

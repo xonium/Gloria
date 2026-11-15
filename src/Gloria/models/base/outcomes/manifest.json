@@ -1,0 +1,281 @@
+{
+  "FormatVersion": 1,
+  "FeatureSchemaVersion": 1,
+  "ModelVersion": "20261115T145018Z",
+  "TrainedAt": "2026-11-15T14:50:18.5799258+00:00",
+  "Targets": [
+    {
+      "Target": "FirstShotHit",
+      "FeatureNames": [
+        "TimeToFirstShot",
+        "AngularErrorAtFirstVisible",
+        "AngularErrorAtFirstShot",
+        "PeakOvershootDegrees",
+        "CorrectionCount",
+        "FlickDistanceDegrees",
+        "SpeedRatioAtFirstShot",
+        "DistanceToEnemy",
+        "WeaponClass"
+      ],
+      "TrainingRows": 1991,
+      "PositiveRows": 414,
+      "CrossValidation": {
+        "Folds": [
+          {
+            "HeldOut": "1219dc9852f42c2484ec7cc388280c5258b8a7973271c5f2946263486254c368",
+            "Scores": {
+              "Rows": 337,
+              "BaseRate": 0.2403560830860534,
+              "Auc": 0.8092689043209876,
+              "F1": 0.42857142857142855,
+              "LogLoss": 0.7011547346595852,
+              "Brier": 0.15079680277086727
+            }
+          },
+          {
+            "HeldOut": "329a169f6acd86b7b0e6484a048be16b0775b17d83cb78fd163a8297cae26204",
+            "Scores": {
+              "Rows": 353,
+              "BaseRate": 0.20679886685552407,
+              "Auc": 0.8273972602739726,
+              "F1": 0.46551724137931033,
+              "LogLoss": 0.6056891825767231,
+              "Brier": 0.13255309343957555
+            }
+          },
+          {
+            "HeldOut": "3eddad1b7f0052800b036985ed758bdb5dd3041339fabc615d75ba8b434f9679",
+            "Scores": {
+              "Rows": 322,
+              "BaseRate": 0.20186335403726707,
+              "Auc": 0.8101466626758456,
+              "F1": 0.42,
+              "LogLoss": 0.6292498949827204,
+              "Brier": 0.13600449543663407
+            }
+          },
+          {
+            "HeldOut": "4ad2c64af40df12a9c80832d36074121d5851d1f50caaafaaaff5b86ad413ee3",
+            "Scores": {
+              "Rows": 303,
+              "BaseRate": 0.264026402640264,
+              "Auc": 0.7493273542600897,
+              "F1": 0.4126984126984127,
+              "LogLoss": 0.9023421574455901,
+              "Brier": 0.1844389503584982
+            }
+          },
+          {
+            "HeldOut": "9aeb82f83d41a8b2d7f2531481da8d7c946e6e0fcb1eee5413b111f36497e35f",
+            "Scores": {
+              "Rows": 337,
+              "BaseRate": 0.19287833827893175,
+              "Auc": 0.7840497737556561,
+              "F1": 0.41071428571428575,
+              "LogLoss": 0.6953566870164603,
+              "Brier": 0.14808712452869802
+            }
+          },
+          {
+            "HeldOut": "eb72d5ffa74810c77a6518a14f95afe0c17760bc9a60f282025362515fa3cb8f",
+            "Scores": {
+              "Rows": 339,
+              "BaseRate": 0.14749262536873156,
+              "Auc": 0.8127335640138408,
+              "F1": 0.4444444444444445,
+              "LogLoss": 0.5735884715933981,
+              "Brier": 0.12577263020438342
+            }
+          }
+        ],
+        "MeanAuc": 0.7988205865500655,
+        "SdAuc": 0.02798357204073951,
+        "MeanLogLoss": 0.6845635213790796,
+        "MeanBrier": 0.14627551612310943,
+        "MeanF1": 0.43032430213464695
+      },
+      "Importance": [
+        {
+          "Feature": "AngularErrorAtFirstShot",
+          "AucDrop": 0.2112068240833643
+        },
+        {
+          "Feature": "DistanceToEnemy",
+          "AucDrop": 0.09745287686142899
+        },
+        {
+          "Feature": "SpeedRatioAtFirstShot",
+          "AucDrop": 0.03752530942502378
+        },
+        {
+          "Feature": "WeaponClass",
+          "AucDrop": 0.012755182751384486
+        },
+        {
+          "Feature": "AngularErrorAtFirstVisible",
+          "AucDrop": 0.00990258689149696
+        },
+        {
+          "Feature": "TimeToFirstShot",
+          "AucDrop": 0.0003237255652982866
+        },
+        {
+          "Feature": "FlickDistanceDegrees",
+          "AucDrop": 0.00029862972296283247
+        },
+        {
+          "Feature": "CorrectionCount",
+          "AucDrop": -0.00157905961556661
+        },
+        {
+          "Feature": "PeakOvershootDegrees",
+          "AucDrop": -0.0024101371303324646
+        }
+      ]
+    },
+    {
+      "Target": "WonDuel",
+      "FeatureNames": [
+        "TimeToFirstShot",
+        "TimeToOnTarget",
+        "ReachedTarget",
+        "AngularErrorAtFirstVisible",
+        "AngularErrorAtFirstShot",
+        "PeakOvershootDegrees",
+        "CorrectionCount",
+        "FlickDistanceDegrees",
+        "SpeedRatioAtFirstShot",
+        "ShotsWhileMovingRatio",
+        "DistanceToEnemy",
+        "WeaponClass"
+      ],
+      "TrainingRows": 1334,
+      "PositiveRows": 827,
+      "CrossValidation": {
+        "Folds": [
+          {
+            "HeldOut": "1219dc9852f42c2484ec7cc388280c5258b8a7973271c5f2946263486254c368",
+            "Scores": {
+              "Rows": 228,
+              "BaseRate": 0.6228070175438597,
+              "Auc": 0.5325908942024239,
+              "F1": 0.6819672131147542,
+              "LogLoss": 1.195621039695498,
+              "Brier": 0.28704973857065974
+            }
+          },
+          {
+            "HeldOut": "329a169f6acd86b7b0e6484a048be16b0775b17d83cb78fd163a8297cae26204",
+            "Scores": {
+              "Rows": 229,
+              "BaseRate": 0.6069868995633187,
+              "Auc": 0.5993605115907275,
+              "F1": 0.6933333333333332,
+              "LogLoss": 1.072574169895932,
+              "Brier": 0.2581651234429577
+            }
+          },
+          {
+            "HeldOut": "3eddad1b7f0052800b036985ed758bdb5dd3041339fabc615d75ba8b434f9679",
+            "Scores": {
+              "Rows": 227,
+              "BaseRate": 0.6211453744493393,
+              "Auc": 0.6340095662213425,
+              "F1": 0.7441860465116279,
+              "LogLoss": 1.0138755771555077,
+              "Brier": 0.2390216570889214
+            }
+          },
+          {
+            "HeldOut": "4ad2c64af40df12a9c80832d36074121d5851d1f50caaafaaaff5b86ad413ee3",
+            "Scores": {
+              "Rows": 201,
+              "BaseRate": 0.6318407960199005,
+              "Auc": 0.575441583315599,
+              "F1": 0.7342657342657343,
+              "LogLoss": 1.1063570868356083,
+              "Brier": 0.2593984473916523
+            }
+          },
+          {
+            "HeldOut": "9aeb82f83d41a8b2d7f2531481da8d7c946e6e0fcb1eee5413b111f36497e35f",
+            "Scores": {
+              "Rows": 234,
+              "BaseRate": 0.6324786324786325,
+              "Auc": 0.6524198617221874,
+              "F1": 0.7636363636363636,
+              "LogLoss": 1.0145783774601203,
+              "Brier": 0.23860912107213816
+            }
+          },
+          {
+            "HeldOut": "eb72d5ffa74810c77a6518a14f95afe0c17760bc9a60f282025362515fa3cb8f",
+            "Scores": {
+              "Rows": 215,
+              "BaseRate": 0.6046511627906976,
+              "Auc": 0.6103167420814479,
+              "F1": 0.7177700348432056,
+              "LogLoss": 1.0911022736640297,
+              "Brier": 0.25740413638533466
+            }
+          }
+        ],
+        "MeanAuc": 0.6006898598556214,
+        "SdAuc": 0.042791551841196235,
+        "MeanLogLoss": 1.0823514207844493,
+        "MeanBrier": 0.2566080373252773,
+        "MeanF1": 0.7225264542841697
+      },
+      "Importance": [
+        {
+          "Feature": "AngularErrorAtFirstShot",
+          "AucDrop": 0.06652245257257028
+        },
+        {
+          "Feature": "SpeedRatioAtFirstShot",
+          "AucDrop": 0.038152658078372474
+        },
+        {
+          "Feature": "FlickDistanceDegrees",
+          "AucDrop": 0.02641113853488312
+        },
+        {
+          "Feature": "WeaponClass",
+          "AucDrop": 0.02471405575527552
+        },
+        {
+          "Feature": "DistanceToEnemy",
+          "AucDrop": 0.024590876839048537
+        },
+        {
+          "Feature": "ShotsWhileMovingRatio",
+          "AucDrop": 0.017368740198293042
+        },
+        {
+          "Feature": "AngularErrorAtFirstVisible",
+          "AucDrop": 0.007907742277390347
+        },
+        {
+          "Feature": "TimeToFirstShot",
+          "AucDrop": 0.005759764550511563
+        },
+        {
+          "Feature": "CorrectionCount",
+          "AucDrop": 0.002221176779212889
+        },
+        {
+          "Feature": "ReachedTarget",
+          "AucDrop": 0.0019294525889784382
+        },
+        {
+          "Feature": "PeakOvershootDegrees",
+          "AucDrop": 0.00015378374546839066
+        },
+        {
+          "Feature": "TimeToOnTarget",
+          "AucDrop": -0.0009501444159077573
+        }
+      ]
+    }
+  ]
+}

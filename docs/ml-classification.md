@@ -1,22 +1,22 @@
 # Aim classification with ML.NET
 
-Gloria tags every frag and death with **aim categories**. ML.NET learns those categories from rule-based labels and from the user's corrections. This document covers what is built (the spike in `src/Gloria.Ml`), how it works, and what remains.
+Gloria tags every frag and death with **aim categories**. ML.NET learns those categories from rule-based labels and from the user's corrections. Separate **outcome models** learn from what actually happened in the demos (did the first shot hit, was the duel won). This document covers what is built in `src/Gloria.Ml` and `tools/Gloria.Trainer`, how it works, and what remains.
 
 ## Categories
 
 `Gloria.Core.Classification.AimCategory`:
 
-| Category | Meaning | Rule in `RuleBasedAimLabeler` (initial guess) |
+| Category | Meaning | Rule in `RuleBasedAimLabeler` |
 |---|---|---|
 | Overshoot | The crosshair went past the target and came back | `PeakOvershootDegrees >= 1.5` |
 | Undershoot | The crosshair stopped short and needed small corrections | no overshoot and `CorrectionCount >= 2` |
 | MovingShot | The first shot was fired above the weapon's accurate speed (no counter-strafe) | `SpeedRatioAtFirstShot > 1` |
-| Hasty | The first shot was fired before the crosshair was on target | `AngularErrorAtFirstShot > 2°` |
+| Hasty | The first shot was fired before the crosshair was on the body | `AngularErrorAtFirstShot` above one body half-width at the target's distance, `atan(16 / DistanceToEnemy)` |
 | SlowReaction | The first shot came late after first visibility | `TimeToFirstShot > 0.6 s` |
 
 - An encounter can have several categories at once, for example a moving, hasty death. One with none is **clean**.
 - The UI's "primary" category is the flagged category with the highest probability.
-- The thresholds are placeholders until they are tuned on real demos. The fixed 2° on-target tolerance should eventually depend on distance, because the target's angular size shrinks with range.
+- The thresholds were checked against outcomes in the real demos; see "Training on the real demos" below. Only the Hasty tolerance changed: it used to be a fixed 2°.
 
 ## Packages
 
@@ -51,7 +51,12 @@ Concatenate(MlEncounterRow.FeatureNames -> "Features")
 - `EncounterFeatures` (Core) is the domain record. `MlEncounterRow` (Ml) flattens it into float columns.
 - A missing `TimeToOnTarget` becomes `5 s` plus a `ReachedTarget = 0` flag.
 - `EncounterFeatures.SchemaVersion` is stored in each model manifest. A bundle trained on another schema is refused, and the factory falls back.
-- `IEncounterFeatureExtractor` turns `(ParsedDemo, Encounter, EncounterMetrics)` into features. It is not implemented yet: it needs per-tick state, the segmenter and the metrics calculator.
+- `EncounterFeatureExtractor` turns `(ParsedDemo, Encounter, EncounterMetrics)` into features. `DemoAnalyzer` runs the whole chain for every player of a demo: segmentation, metrics, features and outcome labels.
+- What the features measure (`AimMetricsCalculator`):
+  - Angular errors are measured to the target's body axis (hips to head), so aiming at the head or the body both count as zero error.
+  - A shot is evaluated at the tick before its fire tick.
+  - The **approach window** starts where the view movement that led to the first shot began, at most 1 s earlier. It does not start at first visibility, because the spotted state lags by up to half a second. Overshoot, corrections and flick distance are measured in this window. A pre-aimed shot has an empty approach.
+  - `AngularErrorAtFirstVisible` and `TimeToFirstShot` are measured from the encounter start (first contact).
 
 ### Labels: rules first, user corrections win
 
@@ -75,9 +80,26 @@ Concatenate(MlEncounterRow.FeatureNames -> "Features")
 - `MlAimClassifier` turns it into `CategoryScore.TopContributions`, so the UI can say "MovingShot, mostly because of SpeedRatioAtFirstShot".
 - For global importance across a dataset, the trainer tool should report `PermutationFeatureImportance`.
 
+### Outcome models
+
+`OutcomeModelTrainer` trains one FastTree model per `OutcomeTarget`. The labels come from the demo, not from the rules (`OutcomeLabeler`):
+
+| Target | Label | Features left out |
+|---|---|---|
+| FirstShotHit | A `player_hurt` from the player's first shot at the opponent, on its fire tick up to 2 ticks later. Null when the next shot came before the damage. | `IsKill` (it is the outcome), plus `TimeToOnTarget`, `ReachedTarget` and `ShotsWhileMovingRatio`, which are partly measured after the shot |
+| WonDuel | Kill = true, death = false. Disengages and timeouts are left out. | `IsKill` |
+
+- `OutcomeFeatures.For(target)` holds each target's feature subset, so a model cannot read the answer from its inputs.
+- `MlOutcomePredictor` returns the probability and the features with **negative** contributions. Those answer "what cost this duel".
+- Evaluation is leave-one-demo-out (`CrossValidation.LeaveOneGroupOut`): one fold per demo, with mean ± sd of AUC, log-loss and Brier. Grouping by demo keeps both rows of a duel (the killer's and the victim's) on the same side.
+- `AimTrainingOptions.Evaluation` defaults to `Auto`, which also uses leave-one-demo-out for the aim models below 10 demos. ML.NET's `CrossValidate` hashes keys into folds, so with few demos some folds merge.
+- The manifest stores each target's feature names, the fold scores and permutation feature importance (the drop in held-out AUC when a feature is shuffled).
+
 ### Storage and choosing a model
 
 - A bundle is a folder holding `manifest.json` plus `<Category>.zip` for each trained category (`AimModelStore`). The manifest is written last, so a folder with a manifest is complete.
+- The outcome bundle sits in its `outcomes/` subfolder, in the same layout (`OutcomeModelStore`).
+- The base bundle is committed in `src/Gloria/models/base/` and copied to the app's output and publish folders. `ShippedBaseModelTests` fails if it no longer loads, for example after a `SchemaVersion` bump without retraining.
 - `AimClassifierFactory` is the single switch point. It tries these in order:
   1. The **user model** in `%LocalAppData%\Gloria.Data\models\user\`. Like the database, this is outside the Velopack install folder, so updates keep it.
   2. The **base model** shipped in `<app>\models\base\`.
@@ -93,7 +115,7 @@ Concatenate(MlEncounterRow.FeatureNames -> "Features")
 
 - ML.NET relies on reflection and is not trim-safe. The MAUI Windows app is not trimmed. Keep it that way.
 - The self-contained win-x64 publish includes `Microsoft.ML*.dll` (verified when the spike was added).
-- The base model will be copied into the publish output as content (see below), not into `bin/`.
+- The base model is included in `Gloria.csproj` as `None` items with `CopyToPublishDirectory`, so it lands in `<publish>\models\base\`.
 
 ## Not built yet
 
@@ -112,14 +134,65 @@ Concatenate(MlEncounterRow.FeatureNames -> "Features")
 - `EncounterLabelRecord`: `(EncounterId, Category, Source = Rule|User|Model, Value, Probability, ModelVersion)`.
 - Re-classification when the model changes ties into `DemoRecord.AnalysisVersion`.
 
-### Dev-time trainer (`tools/Gloria.Trainer`)
-
-A console app that:
-1. Parses `_demos/` and extracts features to CSV.
-2. Optionally runs an AutoML sweep to compare FastTree, LightGBM and SDCA.
-3. Trains the base bundle and writes AUC/F1 and PFI reports.
-4. Copies the bundle to `src/Gloria/models/base/`, and the app csproj includes that folder as content.
-
 ### Order of work
 
-Per-tick state in `DemoFileDemoParser` → `IEncounterSegmenter` → `IAimMetricsCalculator` → `IEncounterFeatureExtractor` → stored encounters, features and labels → correction UI → background retraining → trainer tool and the shipped base model.
+Stored encounters, features and labels (the schema above) → correction UI → background retraining. The outcome predictor is not registered in `MauiProgram` yet.
+
+## Training on the real demos
+
+`tools/Gloria.Trainer` turns the demos in `_demos/` into models:
+
+```
+dotnet run --project tools/Gloria.Trainer -c Release -- all       # extract, train, report
+dotnet run --project tools/Gloria.Trainer -c Release -- publish   # copy the latest bundle to src/Gloria/models/base/
+```
+
+- **extract** parses each demo and caches one CSV row per encounter in `artifacts/training/features/`. Each file is keyed by the demo's SHA-256 and the analysis version (`p{parser}-s{segmenter}-m{metrics}-f{schema}-l{labeler}`), so a demo is re-parsed only when one of those versions is bumped. All six demos take about 10 s.
+- **train** trains the aim bundle (rule labels) and the outcome bundle into `artifacts/training/models/<version>/`.
+- **report** writes `artifacts/training/report.md`, with per-feature CSVs in `bins/`. It covers:
+  - the dataset, including what was dropped
+  - the spotted cadence
+  - sub-tick alignment
+  - a threshold scan for every rule constant (chi-square over candidate cuts, overall and by distance)
+  - rule prevalence
+  - label rates per feature bin with Wilson intervals
+  - the models' leave-one-demo-out scores
+- Use all 10 players of every demo: about 330 encounters per demo, 1,991 in total from six demos.
+
+### What the first run showed (six demos, 2026-11-15)
+
+- **Outcome models.** Scores are leave-one-demo-out AUC.
+
+  | Target | Rows | AUC | Notes |
+  |---|---|---|---|
+  | FirstShotHit | 1,991 (21% positive) | 0.80 ± 0.03 | Mostly crosshair error at the shot, then distance and speed |
+  | WonDuel | 1,334 (62% positive) | 0.60 ± 0.04 | Duels depend on things the features do not see: HP, the opponent's aim and weapon, who saw whom first |
+
+- **Shot alignment.** The crosshair error at the tick before the fire tick predicts hits best:
+
+  | Error measured at | AUC |
+  |---|---|
+  | Tick before the fire tick | 0.735 |
+  | Two ticks before | 0.719 |
+  | Midpoint | 0.700 |
+  | Fire tick | 0.655 |
+
+  The angles recorded on the fire tick already include movement after the shot.
+- **Spotted cadence.** The spotted state updates about every 33 ticks (~0.5 s): set runs come in lengths of 33, 66, 99 ticks.
+  - Visibility onsets, and so `TimeToFirstShot` and `SlowReaction`, are only known to within half a second.
+  - `TimeToFirstShot` showed no significant relation to winning the duel.
+  - True line of sight would need map geometry, for example the per-map triangle meshes that awpy uses.
+- **Blind shots.** Before encounters needed visibility, 56% of them started with the shot itself and hit 11% of the time; most were spam through smokes and walls. They are now dropped as "never seen".
+- **Hasty threshold.** The best fixed cut fell from 3.5° at close range to 0.5° at long range. In body half-widths, one cut works at every range and separates hits much better (chi-square 323 vs 171):
+  - The current rule gives a first-shot hit rate of 37% when on the body and 6% when off it.
+  - The old fixed 2° gave 28% / 8%.
+- **MovingSpeedRatio.** The game's threshold of 1 already lowers the hit rate (31% → 23% with error < 2°), and the steepest drop is near 1.6. The constant stays 1, which matches the game's accuracy mechanics.
+- **Overshoot and corrections.** They have only weak links to the outcomes (chi-square ≤ 10). The constants stay. These metrics need the most work: overshoot is flagged on 24% of encounters, and target movement probably inflates it.
+- **Bias.** Deaths where the player never fired at the killer are dropped (about 60 per demo), so WonDuel is above 50%. The report counts them.
+
+### Next steps
+
+- Add opponent context to the features: both players' HP, the opponent's weapon, and who fired first. This should raise WonDuel substantially. It needs a `SchemaVersion` bump and a retrain.
+- Better visibility than the spotted state (map geometry).
+- More demos. Six demos give fold-to-fold AUC spreads of ±0.03–0.04.
+- Hand-label a sample of encounters with the categories, to check the rule labels against expert judgment.
