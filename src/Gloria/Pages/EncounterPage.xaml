@@ -49,19 +49,44 @@
                         </HorizontalStackLayout>
                     </Grid>
                     <Label Style="{StaticResource Caption}" FontSize="13" Text="{Binding ReplayCaption}" />
-                    <Grid ColumnDefinitions="*,250" ColumnSpacing="20">
-                        <GraphicsView x:Name="ReplayView" Drawable="{Binding Replay}" HeightRequest="340" SemanticProperties.Description="Replay of the crosshair over the opponent" />
-                        <Grid Grid.Column="1" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="12" VerticalOptions="Start">
+                    <Grid ColumnDefinitions="*,290" ColumnSpacing="20">
+                        <GraphicsView x:Name="ReplayView" Drawable="{Binding Replay}" HeightRequest="400" SemanticProperties.Description="Replay of the crosshair over the opponent" />
+                        <Grid Grid.Column="1" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="11" VerticalOptions="Start">
                             <Label Text="Time" Style="{StaticResource Caption}" FontSize="13" />
                             <Label Grid.Column="1" Text="{Binding TimeText}" FontFamily="OpenSansSemibold" />
                             <Label Grid.Row="1" Text="Now" Style="{StaticResource Caption}" FontSize="13" />
                             <Label Grid.Row="1" Grid.Column="1" Text="{Binding PhaseText}" />
-                            <Label Grid.Row="2" Text="Crosshair" Style="{StaticResource Caption}" FontSize="13" />
-                            <Label Grid.Row="2" Grid.Column="1" Text="{Binding CrosshairText}" />
-                            <Label Grid.Row="3" Text="Speed" Style="{StaticResource Caption}" FontSize="13" />
-                            <Label Grid.Row="3" Grid.Column="1" Text="{Binding SpeedText}" />
-                            <Label Grid.Row="4" Text="Shots" Style="{StaticResource Caption}" FontSize="13" />
-                            <Label Grid.Row="4" Grid.Column="1" Text="{Binding ShotsText}" />
+
+                            <Label Grid.Row="2" Text="Their HP" Style="{StaticResource Caption}" FontSize="13" VerticalOptions="Center" />
+                            <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,64" ColumnSpacing="10">
+                                <ProgressBar Progress="{Binding OpponentHealth.Fraction}" ProgressColor="{Binding OpponentHealth.Color}" VerticalOptions="Center" SemanticProperties.Description="Opponent health" />
+                                <Label Grid.Column="1" Text="{Binding OpponentHealth.Text}" FontFamily="OpenSansSemibold" FontSize="16" HorizontalTextAlignment="End" />
+                            </Grid>
+                            <Label Grid.Row="3" Text="Last hit" Style="{StaticResource Caption}" FontSize="13" />
+                            <Label Grid.Row="3" Grid.Column="1" Text="{Binding LastHitText}" />
+                            <Label Grid.Row="4" Text="Your HP" Style="{StaticResource Caption}" FontSize="13" VerticalOptions="Center" />
+                            <Grid Grid.Row="4" Grid.Column="1" ColumnDefinitions="*,64" ColumnSpacing="10">
+                                <ProgressBar Progress="{Binding PlayerHealth.Fraction}" ProgressColor="{Binding PlayerHealth.Color}" VerticalOptions="Center" SemanticProperties.Description="Your health" />
+                                <Label Grid.Column="1" Text="{Binding PlayerHealth.Text}" HorizontalTextAlignment="End" />
+                            </Grid>
+
+                            <Label Grid.Row="5" Text="You" Style="{StaticResource Caption}" FontSize="13" VerticalOptions="Center" />
+                            <HorizontalStackLayout Grid.Row="5" Grid.Column="1" Spacing="10">
+                                <Image Source="{Binding PlayerWeapon.Icon}" IsVisible="{Binding PlayerWeapon.HasIcon}" HeightRequest="22" Aspect="AspectFit" VerticalOptions="Center" />
+                                <Label Text="{Binding PlayerWeapon.Name}" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            <Label Grid.Row="6" Text="Them" Style="{StaticResource Caption}" FontSize="13" VerticalOptions="Center" />
+                            <HorizontalStackLayout Grid.Row="6" Grid.Column="1" Spacing="10">
+                                <Image Source="{Binding OpponentWeapon.Icon}" IsVisible="{Binding OpponentWeapon.HasIcon}" HeightRequest="22" Aspect="AspectFit" VerticalOptions="Center" />
+                                <Label Text="{Binding OpponentWeapon.Name}" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+
+                            <Label Grid.Row="7" Text="Crosshair" Style="{StaticResource Caption}" FontSize="13" />
+                            <Label Grid.Row="7" Grid.Column="1" Text="{Binding CrosshairText}" />
+                            <Label Grid.Row="8" Text="Speed" Style="{StaticResource Caption}" FontSize="13" />
+                            <Label Grid.Row="8" Grid.Column="1" Text="{Binding SpeedText}" />
+                            <Label Grid.Row="9" Text="Shots" Style="{StaticResource Caption}" FontSize="13" />
+                            <Label Grid.Row="9" Grid.Column="1" Text="{Binding ShotsText}" />
                         </Grid>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">

@@ -241,7 +241,12 @@ public static class EncounterTraceBuilder
                 .Select(h => (Hurt: h, ByPlayer: false)))
             .Where(d => d.Hurt.Tick >= start && d.Hurt.Tick <= end)
             .OrderBy(d => d.Hurt.Tick)
-            .Select(d => new TraceDamage(d.Hurt.Tick, d.ByPlayer, StaticWeaponData.Normalize(d.Hurt.Weapon), d.Hurt.DamageHealth, d.Hurt.HitGroup))
+            .Select(d => new TraceDamage(
+                d.Hurt.Tick,
+                d.ByPlayer,
+                Variant(timeline, d.ByPlayer ? encounter.PlayerSteamId : encounter.OpponentSteamId, d.Hurt),
+                d.Hurt.DamageHealth,
+                d.Hurt.HitGroup))
             .ToList();
         TraceDeath? death =
             index.DeathOf(encounter.OpponentSteamId, start, end) is { } kill && kill.AttackerSteamId == encounter.PlayerSteamId
@@ -256,6 +261,18 @@ public static class EncounterTraceBuilder
             opponentX, opponentY, opponentZ, opponentYaw, opponentHealth, ducking,
             playerWeapons, opponentWeapons, damage, death);
         return new EncounterTrace(start, demo.TickRate, x, y, body, speed, distance, shots, bulletX, bulletY, scene);
+    }
+
+    /// <summary>
+    /// Hurt events name the base item (m4a1 for an M4A1-S); the attacker's held weapon names the variant.
+    /// </summary>
+    private static string Variant(PlayerTimeline timeline, ulong attacker, PlayerHurtEvent hurt)
+    {
+        var weapon = StaticWeaponData.Normalize(hurt.Weapon);
+        return timeline.TryGet(attacker, hurt.Tick, out var state) && StaticWeaponData.Normalize(state.ActiveWeapon ?? "") is { Length: > 0 } held
+            && StaticWeaponData.SameGun(held, weapon)
+                ? held
+                : weapon;
     }
 
     private static void Track(List<TraceWeapon> weapons, int tick, string? weapon)

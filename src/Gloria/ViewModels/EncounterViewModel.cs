@@ -25,6 +25,57 @@ public sealed record ScoreItem(string Name, string Percent, Rect Bar, Color Colo
 /// <param name="Tag">"Aim" or "Situation": situation factors are context, not mistakes.</param>
 public sealed record CostItem(string Text, string Tag, Rect Bar, Color Color);
 
+/// <summary>A player's health at the replay's current tick, as a bar and a number.</summary>
+public sealed class HealthView : ObservableObject
+{
+	private int _health = -1;
+
+	public int Health
+	{
+		get => _health;
+		set
+		{
+			if (Set(ref _health, value))
+			{
+				OnPropertyChanged(nameof(Text));
+				OnPropertyChanged(nameof(Fraction));
+				OnPropertyChanged(nameof(Color));
+			}
+		}
+	}
+
+	public string Text => Health < 0 ? "—" : $"{Health} HP";
+
+	public double Fraction => Math.Clamp(Health, 0, 100) / 100.0;
+
+	public Color Color => Display.HealthColor(Health);
+}
+
+/// <summary>A weapon as its icon and name; the icon is null when there is no file for it.</summary>
+public sealed class WeaponView : ObservableObject
+{
+	private string? _weapon;
+	private ImageSource? _icon;
+
+	public string Name => Display.Weapon(_weapon ?? "");
+
+	public ImageSource? Icon => _icon;
+
+	public bool HasIcon => _icon is not null;
+
+	public void Show(string? weapon)
+	{
+		if (_weapon == weapon)
+			return;
+
+		_weapon = weapon;
+		_icon = Display.WeaponIcon(weapon) is { } file ? ImageSource.FromFile(file) : null;
+		OnPropertyChanged(nameof(Name));
+		OnPropertyChanged(nameof(Icon));
+		OnPropertyChanged(nameof(HasIcon));
+	}
+}
+
 public sealed record ShotRow(string Number, string At, string Result, string Offset, string BulletOffset, string Speed, string Moving);
 
 /// <summary>One aim category on the correction card: what the model said, and the user's verdict if any.</summary>
@@ -135,6 +186,7 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 	private string _crosshairText = "";
 	private string _speedText = "";
 	private string _shotsText = "";
+	private string _lastHitText = "";
 	private string _markers = "";
 	private string _modelNote = "";
 	private string _outlookTitle = "";
@@ -223,6 +275,16 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 	public string SpeedText { get => _speedText; private set => Set(ref _speedText, value); }
 
 	public string ShotsText { get => _shotsText; private set => Set(ref _shotsText, value); }
+
+	public HealthView OpponentHealth { get; } = new();
+
+	public HealthView PlayerHealth { get; } = new();
+
+	public string LastHitText { get => _lastHitText; private set => Set(ref _lastHitText, value); }
+
+	public WeaponView PlayerWeapon { get; } = new();
+
+	public WeaponView OpponentWeapon { get; } = new();
 
 	public string Markers { get => _markers; private set => Set(ref _markers, value); }
 
@@ -372,22 +434,54 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 			Shots.Add(new ShotRow(
 				(++n).ToString(),
 				$"{trace.SecondsAt(trace.IndexOf(shot.Tick), e.StartTick):0.00} s",
-				shot.Hit ? $"Hit · {HitGroup(shot.HitGroup)}" : "Missed",
+				shot.Hit ? $"Hit · {Display.HitGroup(shot.HitGroup)}{(shot.Damage is { } dealt ? $" · −{dealt}" : "")}" : "Missed",
 				Math.Abs(offset) < 0.05f ? "on" : $"{Math.Abs(offset):0.0}°{(offset < 0 ? " past" : "")}",
 				shot.BulletBodyError switch { null => "—", < 0.05f => "on", { } b => $"{b:0.0}°" },
 				$"{speed:0} u/s",
 				_accurateSpeed > 0 && speed > _accurateSpeed ? $"Yes, {speed / _accurateSpeed:0.00}×" : "No"));
 		}
 
-		Markers = string.Join("   ·   ", new[] { "Seen 0.00 s" }
-			.Concat(trace.Shots.Select((s, k) => $"Shot {k + 1} {trace.SecondsAt(trace.IndexOf(s.Tick), e.StartTick):0.00} s{(s.Hit ? "" : " (miss)")}"))
-			.Append($"{Display.Outcome(e.Outcome)} {trace.SecondsAt(trace.Count - 1, e.StartTick):0.00} s"));
+		Markers = BuildMarkers(trace, e);
 
 		MaxPosition = trace.Count - 1;
 		// Start on the first shot, where most of the story is visible.
 		_position = -1;
 		Position = trace.Shots.Count > 0 ? trace.IndexOf(trace.Shots[0].Tick - 1) : _startIndex;
 	}
+
+	/// <summary>
+	/// The timeline under the replay: first sighting, shots, other damage between the two (utility, the knife,
+	/// damage taken) and how it ended.
+	/// </summary>
+	private static string BuildMarkers(EncounterTrace trace, EncounterRecord e)
+	{
+		string At(int tick) => $"{trace.SecondsAt(trace.IndexOf(tick), e.StartTick):0.00} s";
+		var events = new List<(int Tick, string Text)> { (e.StartTick, "Seen 0.00 s") };
+		events.AddRange(trace.Shots.Select((s, k) =>
+			(s.Tick, $"Shot {k + 1} {At(s.Tick)}{(s.Hit ? s.Damage is { } d ? $" (−{d})" : "" : " (miss)")}")));
+		if (trace.Scene is { } scene)
+		{
+			var shotTicks = trace.Shots.Where(s => s.Hit).Select(s => s.Tick).ToHashSet();
+			foreach (var damage in scene.Damage)
+			{
+				if (damage.ByPlayer && shotTicks.Contains(damage.Tick))
+					continue;
+
+				events.Add((damage.Tick, damage.ByPlayer
+					? $"{Display.Weapon(damage.Weapon)} −{damage.Damage} {At(damage.Tick)}"
+					: $"Took −{damage.Damage} ({Display.Weapon(damage.Weapon)}) {At(damage.Tick)}"));
+			}
+		}
+
+		events.Add((int.MaxValue, $"{OutcomeText(trace, e)} {trace.SecondsAt(trace.Count - 1, e.StartTick):0.00} s"));
+		return string.Join("   ·   ", events.OrderBy(x => x.Tick).Select(x => x.Text));
+	}
+
+	/// <summary>"Kill · HE grenade" or "Death · AWP · headshot" when the trace knows the deciding death.</summary>
+	private static string OutcomeText(EncounterTrace trace, EncounterRecord e) =>
+		trace.Scene?.Death is { } death
+			? $"{Display.Outcome(e.Outcome)} · {Display.Weapon(death.Weapon)}{(death.Headshot ? " · headshot" : "")}"
+			: Display.Outcome(e.Outcome);
 
 	private void UpdateFrame()
 	{
@@ -406,7 +500,7 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 		var fired = trace.Shots.Where(s => trace.IndexOf(s.Tick - 1) <= i).ToList();
 		var error = trace.BodyError[i];
 		PhaseText = i < _startIndex ? "Not spotted yet; may already be in view"
-			: i >= trace.Count - 1 ? Display.Outcome(e.Outcome)
+			: i >= trace.Count - 1 ? OutcomeText(trace, e)
 			: fired.Count > 0 ? $"Shooting: {fired.Count} fired, {fired.Count(s => s.Hit)} hit"
 			: error <= 0.05f && error >= -0.05f ? "Crosshair on the body"
 			: error < 0 ? "Past the body: overshoot"
@@ -416,6 +510,33 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 			? $"{trace.Speed[i]:0} u/s · {trace.Speed[i] / _accurateSpeed:0.00}× accurate"
 			: $"{trace.Speed[i]:0} u/s";
 		ShotsText = $"{fired.Count} of {trace.Shots.Count} · {fired.Count(s => s.Hit)} hit";
+
+		// Shots show on the tick before they fire, so damage does too: a hit lands with its diamond.
+		var tick = trace.StartTick + i + 1;
+		if (trace.Scene is { } scene)
+		{
+			var next = Math.Min(i + 1, trace.Count - 1);
+			OpponentHealth.Health = scene.OpponentHealth[next];
+			PlayerHealth.Health = scene.PlayerHealth[next];
+			PlayerWeapon.Show(TraceScene.WeaponAt(scene.PlayerWeapons, tick));
+			OpponentWeapon.Show(TraceScene.WeaponAt(scene.OpponentWeapons, tick));
+			var last = scene.Damage.LastOrDefault(x => x.ByPlayer && x.Tick <= tick);
+			LastHitText = last.Weapon is null
+				? "None yet"
+				: $"−{last.Damage} · {Display.HitGroup(last.HitGroup)} · {Display.Weapon(last.Weapon)}"
+					+ (tick - last.Tick > 2 ? $", {(tick - last.Tick) / (double)trace.TickRate:0.00} s ago" : "");
+		}
+		else
+		{
+			// Traces stored before format 3: health only at the start, weapons from the encounter.
+			OpponentHealth.Health = e.OpponentHealthAtStart;
+			PlayerHealth.Health = e.PlayerHealthAtStart;
+			PlayerWeapon.Show(fired.LastOrDefault().Weapon ?? e.FirstShotWeapon);
+			OpponentWeapon.Show(e.OpponentWeapon);
+			var hits = fired.Where(s => s.Hit).ToList();
+			LastHitText = hits.Count == 0 ? "None yet" : $"{Display.HitGroup(hits[^1].HitGroup)}; re-analyze for damage";
+		}
+
 		Redraw?.Invoke(this, EventArgs.Empty);
 	}
 
@@ -587,13 +708,4 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 
 	private static string Corrections(int count) => count == 1 ? "1 correction" : $"{count} corrections";
 
-	private static string HitGroup(int? group) => group switch
-	{
-		1 => "head",
-		2 => "chest",
-		3 => "stomach",
-		4 or 5 => "arm",
-		6 or 7 => "leg",
-		_ => "body",
-	};
 }

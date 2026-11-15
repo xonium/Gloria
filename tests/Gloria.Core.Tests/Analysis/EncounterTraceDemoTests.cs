@@ -29,6 +29,9 @@ public class EncounterTraceDemoTests
             Assert.Equal(0, scene.OpponentHealth[^1]);
             var hurts = index.HurtsOf(encounter.OpponentSteamId).Where(h => h.Tick >= trace.StartTick && h.Tick <= encounter.EndTick);
             Assert.Equal(hurts.Where(h => h.AttackerSteamId == encounter.PlayerSteamId).Sum(h => h.DamageHealth), scene.Damage.Where(d => d.ByPlayer).Sum(d => d.Damage));
+            // Damage names the variant fired (m4a1_silencer), not the hurt event's base item (m4a1).
+            foreach (var shot in trace.Shots.Where(s => s.Hit))
+                Assert.Contains(scene.Damage, d => d.ByPlayer && d.Weapon == shot.Weapon);
             checkedKills++;
         }
 

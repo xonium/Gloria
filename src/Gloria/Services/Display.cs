@@ -149,8 +149,74 @@ public static class Display
 			"ump45" => "UMP-45",
 			"p90" => "P90",
 			"bizon" => "PP-Bizon",
+			"g3sg1" => "G3SG1",
+			"scar20" => "SCAR-20",
+			"nova" => "Nova",
+			"xm1014" => "XM1014",
+			"mag7" => "MAG-7",
+			"sawedoff" => "Sawed-Off",
+			"m249" => "M249",
+			"negev" => "Negev",
+			"hegrenade" => "HE grenade",
+			"inferno" => "Fire",
+			"molotov" => "Molotov",
+			"incgrenade" => "Incendiary",
+			"flashbang" => "Flashbang",
+			"smokegrenade" => "Smoke",
+			"decoy" => "Decoy",
+			"taser" => "Zeus x27",
+			"c4" or "planted_c4" => "C4",
+			"world" => "World",
 			"" => "—",
+			_ when name.StartsWith("knife", StringComparison.OrdinalIgnoreCase) || name == "bayonet" => "Knife",
 			_ => name.ToUpperInvariant(),
 		};
 	}
+
+	// Files in Resources/Images/Weapons, from build/fetch-assets.ps1.
+	private static readonly HashSet<string> WeaponIcons = new(StringComparer.OrdinalIgnoreCase)
+	{
+		"ak47", "aug", "awp", "bayonet", "bizon", "c4", "cz75a", "deagle", "decoy", "elite", "famas", "fiveseven",
+		"flashbang", "g3sg1", "galilar", "glock", "hegrenade", "hkp2000", "incgrenade", "knife", "knife_butterfly",
+		"knife_falchion", "knife_flip", "knife_gut", "knife_karambit", "knife_m9_bayonet", "knife_push", "knife_t",
+		"knife_tactical", "m249", "m4a1", "m4a1_silencer", "mac10", "mag7", "molotov", "mp7", "mp9", "negev", "nova",
+		"p250", "p90", "revolver", "sawedoff", "scar20", "sg556", "smokegrenade", "ssg08", "taser", "tec9", "ump45",
+		"usp_silencer", "xm1014",
+	};
+
+	/// <summary>The icon file of a weapon (white silhouette), or null when there is none: then show only the name.</summary>
+	public static string? WeaponIcon(string? weapon)
+	{
+		if (string.IsNullOrEmpty(weapon))
+			return null;
+
+		var name = StaticWeaponData.Normalize(weapon).ToLowerInvariant() switch
+		{
+			"inferno" => "molotov",
+			"planted_c4" => "c4",
+			var n when n.StartsWith("knife") && !WeaponIcons.Contains(n) => "knife",
+			var n => n,
+		};
+		return WeaponIcons.Contains(name) ? $"weapon_{name}.png" : null;
+	}
+
+	/// <summary>Green when healthy, amber when hurt, red when nearly dead.</summary>
+	public static Color HealthColor(int health) => health switch
+	{
+		> 60 => Good,
+		> 25 => Warn,
+		_ => Loss,
+	};
+
+	/// <summary>The game's hit group as a word.</summary>
+	public static string HitGroup(int? group) => group switch
+	{
+		1 => "head",
+		2 => "chest",
+		3 => "stomach",
+		4 or 5 => "arm",
+		6 or 7 => "leg",
+		8 => "neck",
+		_ => "body",
+	};
 }

@@ -3,6 +3,7 @@ namespace Gloria.Services;
 /// <summary>
 /// Development aids, driven by environment variables so they never trigger in normal use:
 /// <list type="bullet">
+/// <item>GLORIA_IMPORT imports a demo file or folder (paths separated by ';') and waits for it before anything else.</item>
 /// <item>GLORIA_START_ROUTE opens a screen at startup, e.g. <c>encounter?id=12</c> or <c>//matches</c>.</item>
 /// <item>GLORIA_CAPTURE saves a PNG of that screen after it has rendered; GLORIA_CAPTURE_SHELL=1 includes the sidebar.
 /// Desktop screenshot tools see WinUI content as black, so this is how to check the UI from a script.</item>
@@ -14,6 +15,21 @@ public static class DevHooks
 {
 	public static async Task RunAsync(Shell shell)
 	{
+		if (Environment.GetEnvironmentVariable("GLORIA_IMPORT") is { Length: > 0 } import
+			&& shell.Handler?.MauiContext?.Services.GetService<ImportQueue>() is { } queue)
+		{
+			foreach (var item in import.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+			{
+				if (Directory.Exists(item))
+					await queue.EnqueueFolderAsync(item);
+				else
+					await queue.EnqueueAsync([item]);
+			}
+
+			while (queue.Remaining > 0)
+				await Task.Delay(500);
+		}
+
 		if (Environment.GetEnvironmentVariable("GLORIA_START_ROUTE") is { Length: > 0 } route)
 			await shell.GoToAsync(route);
 
