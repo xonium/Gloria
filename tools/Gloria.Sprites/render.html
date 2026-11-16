@@ -45,9 +45,19 @@ let root = null;      // yaw turns this
 let model = null;     // the loaded scene, normalized to 72 units tall
 let mixer = null;
 let rest = new Map(); // bone name -> rest quaternion
+let matched = {};     // pose name -> Map(bone name -> quaternion) copied from another model, see matchPoses
+
+const loader = new GLTFLoader();
+const boneRotations = m => { const r = new Map(); m.traverse(o => { if (o.isBone) r.set(o.name, o.quaternion.clone()); }); return r; };
+const setRotations = (m, r) => m.traverse(o => { if (o.isBone && r.has(o.name)) o.quaternion.copy(r.get(o.name)); });
+// pose: { boneName: [x, y, z] degrees added to the current rotation }.
+const addRotations = (m, pose) => m.traverse(o => {
+    const r = o.isBone && pose?.[o.name];
+    if (r) o.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(...r.map(THREE.MathUtils.degToRad))));
+});
 
 window.setup = async (url, config) => {
-    const gltf = await new GLTFLoader().loadAsync(url);
+    const gltf = await loader.loadAsync(url);
     model = gltf.scene;
     root = new THREE.Group();
     root.add(model);
@@ -62,7 +72,13 @@ window.setup = async (url, config) => {
     }
 
     model.updateMatrixWorld(true);
-    if (config.matchFrom) await matchPose(model, config.matchFrom);
+    rest = boneRotations(model);
+    if (config.matchFrom) {
+        matched = await matchPoses(model, config.matchFrom);
+        // Normalize the height in the matched standing pose.
+        if (matched.stand) setRotations(model, matched.stand);
+        model.updateMatrixWorld(true);
+    }
 
     const box = new THREE.Box3().setFromObject(model);
     const height = box.max.y - box.min.y;
@@ -75,19 +91,19 @@ window.setup = async (url, config) => {
     model.position.z -= center.z;
     model.position.y -= scaled.min.y;
 
-    const bones = [];
-    model.traverse(o => { if (o.isBone) { bones.push(o.name); rest.set(o.name, o.quaternion.clone()); } });
+    const bones = [...rest.keys()];
     return { bones, clips: gltf.animations.map(a => a.name), height };
 };
 
-// Copies another model's pose onto this one by limb direction, so two rigs with different bone axes can share
-// a stance. from: { file, clip, clipTime, yawOffset, bones: [{ source: [bone, toward], target: [bone, toward],
-// sourceSide: [a, b], targetSide: [a, b] }, ...] }. Each target bone is turned so that the line from it to
-// "toward" points the way the source's does; the optional side pair (e.g. shoulder to shoulder, index to pinky)
-// then sets the twist around that line. Parents come first in the list, so children are matched after their
-// parent has moved.
-async function matchPose(target, from) {
-    const gltf = await new GLTFLoader().loadAsync(from.file);
+// Copies another model's poses onto this one by limb direction, so two rigs with different bone axes can share
+// a stance. from: { file, clip, clipTime, yawOffset, poses: { stand: rotations, crouch: rotations },
+// bones: [{ source: [bone, toward], target: [bone, toward], sourceSide: [a, b], targetSide: [a, b] }, ...] }.
+// The source is posed as for its own sprites (clip, then that pose's rotations), and each target bone is turned
+// so that the line from it to "toward" points the way the source's does; the optional side pair (e.g. shoulder
+// to shoulder, index to pinky) then sets the twist around that line. Parents come first in the list, so children
+// are matched after their parent has moved. Returns the target's rotations for each pose.
+async function matchPoses(target, from) {
+    const gltf = await loader.loadAsync(from.file);
     const source = gltf.scene;
     source.rotation.y = THREE.MathUtils.degToRad(from.yawOffset ?? 0);
     if (from.clip) {
@@ -96,11 +112,30 @@ async function matchPose(target, from) {
         mixer.setTime(from.clipTime ?? 0);
     }
     source.updateMatrixWorld(true);
+    const sourceRest = boneRotations(source);
+    const targetRest = boneRotations(target);
 
+    const poses = {};
+    for (const [name, rotations] of Object.entries(from.poses ?? { stand: null })) {
+        setRotations(source, sourceRest);
+        addRotations(source, rotations);
+        source.updateMatrixWorld(true);
+        setRotations(target, targetRest);
+        target.updateMatrixWorld(true);
+        matchPose(source, target, from.bones);
+        poses[name] = boneRotations(target);
+    }
+
+    setRotations(target, targetRest);
+    target.updateMatrixWorld(true);
+    return poses;
+}
+
+function matchPose(source, target, bones) {
     const worldPosition = o => o.getWorldPosition(new THREE.Vector3());
     const direction = (bone, child) => worldPosition(child).sub(worldPosition(bone)).normalize();
     const find = (model, names) => (names ?? []).map(n => model.getObjectByName(n));
-    for (const entry of from.bones) {
+    for (const entry of bones) {
         const s = find(source, entry.source), t = find(target, entry.target);
         const sSide = find(source, entry.sourceSide), tSide = find(target, entry.targetSide);
         if ([...s, ...t, ...sSide, ...tSide].includes(undefined)) {
@@ -127,14 +162,12 @@ async function matchPose(target, from) {
     }
 }
 
-// pose: { boneName: [x, y, z] degrees added to the rest rotation }; squash scales the height (crouch fallback).
-window.render = (yaw, pose, squash) => {
-    model.traverse(o => {
-        if (!o.isBone) return;
-        o.quaternion.copy(rest.get(o.name));
-        const r = pose?.[o.name];
-        if (r) o.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(...r.map(THREE.MathUtils.degToRad))));
-    });
+// name: the pose ("stand", "crouch") whose matched rotations apply, if any; pose: rotations added on top;
+// squash scales the height (crouch fallback).
+window.render = (yaw, name, pose, squash) => {
+    setRotations(model, rest);
+    if (matched[name]) setRotations(model, matched[name]);
+    addRotations(model, pose);
     root.rotation.y = THREE.MathUtils.degToRad(yaw);
     root.scale.set(1, squash ?? 1, 1);
     root.position.y = 0;

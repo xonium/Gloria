@@ -59,8 +59,19 @@ foreach (var team in new[] { "ct", "t" })
 
     await page.GotoAsync("http://gloria.sprites/render.html");
     await page.WaitForFunctionAsync("window.ready === true");
+    var setup = (JsonObject)options.DeepClone();
+    if (setup["matchFrom"] is JsonObject match && match["team"]?.GetValue<string>() is { } sourceTeam)
+    {
+        // Copy another team's stance: its model, clip and per-pose rotations, posed as its own sprites are.
+        var source = config[sourceTeam]?.AsObject() ?? [];
+        match["file"] = source["file"]?.DeepClone() ?? $"{sourceTeam}.glb";
+        foreach (var key in new[] { "clip", "clipTime", "yawOffset" })
+            match[key] = source[key]?.DeepClone();
+        match["poses"] = new JsonObject { ["stand"] = source["stand"]?.DeepClone(), ["crouch"] = source["crouch"]?.DeepClone() };
+    }
+
     var info = await page.EvaluateAsync<JsonElement>(
-        "([url, config]) => window.setup(url, JSON.parse(config))", new object[] { $"http://gloria.sprites/{file}", options.ToJsonString() });
+        "([url, config]) => window.setup(url, JSON.parse(config))", new object[] { $"http://gloria.sprites/{file}", setup.ToJsonString() });
     Console.WriteLine($"{team}: {file}, {info.GetProperty("height").GetDouble():0.##} model units tall");
     Console.WriteLine($"  clips: {string.Join(", ", info.GetProperty("clips").EnumerateArray().Select(c => c.GetString()))}");
     Console.WriteLine($"  bones: {string.Join(", ", info.GetProperty("bones").EnumerateArray().Select(b => b.GetString()))}");
@@ -69,12 +80,13 @@ foreach (var team in new[] { "ct", "t" })
     foreach (var pose in new[] { "stand", "crouch" })
     {
         var bones = options[pose];
-        double? squash = pose == "crouch" && bones is null ? 54.0 / 72 : null;
+        // Without crouch rotations of its own or copied from another model, crouch by squashing.
+        double? squash = pose == "crouch" && bones is null && options["matchFrom"] is null ? 54.0 / 72 : null;
         for (var yaw = 0; yaw < 360; yaw += step)
         {
             frame = await page.EvaluateAsync<JsonElement>(
-                "([yaw, pose, squash]) => window.render(yaw, pose ? JSON.parse(pose) : null, squash)",
-                new object?[] { yaw, bones?.ToJsonString(), squash });
+                "([yaw, name, pose, squash]) => window.render(yaw, name, pose ? JSON.parse(pose) : null, squash)",
+                new object?[] { yaw, pose, bones?.ToJsonString(), squash });
             if (yaw == 0 && frame.Value.TryGetProperty("height", out var height) && height.ValueKind == JsonValueKind.Number)
                 Console.WriteLine($"  {pose}: {height.GetDouble():0} units tall");
             var png = await page.Locator("canvas").ScreenshotAsync(new() { OmitBackground = true });
