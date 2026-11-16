@@ -18,12 +18,17 @@ if (options is null)
           report    Write report.md: label rates per feature bin, threshold scans, model metrics
           publish   Copy the latest trained models to src/Gloria/models/base/
           all       extract, train, report
+          reference Analyze one player in the demos of --demos into a reference the app bundles, in
+                    src/Gloria/Resources/Raw/references/ (e.g. --demos _demos/donk --player donk666)
 
         Options:
-          --demos <dir>     Demo folder (default: _demos)
-          --out <dir>       Output folder (default: artifacts/training)
-          --parallel <n>    Demos parsed at once (default: 2; each needs a few hundred MB)
-          --force           Re-extract demos that are already cached
+          --demos <dir>         Demo folder (default: _demos)
+          --out <dir>           Output folder (default: artifacts/training)
+          --parallel <n>        Demos parsed at once (default: 2; each needs a few hundred MB)
+          --force               Re-extract demos that are already cached
+          --player <id|name>    reference: the player's SteamID64, or a name they played under
+          --name <name>         reference: the name shown in the app (default: their latest name)
+          --description <text>  reference: a line about who they are (default: the demos' maps)
         """);
     return 1;
 }
@@ -45,6 +50,9 @@ try
                 break;
             case "publish":
                 PublishCommand.Run(options);
+                break;
+            case "reference":
+                await ReferenceCommand.RunAsync(options);
                 break;
         }
     }

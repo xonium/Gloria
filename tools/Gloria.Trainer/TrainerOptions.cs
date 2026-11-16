@@ -11,9 +11,12 @@ public sealed record TrainerOptions(
     string DemoDirectory,
     string OutputDirectory,
     int Parallelism,
-    bool Force)
+    bool Force,
+    string? Player = null,
+    string? Name = null,
+    string? Description = null)
 {
-    private static readonly string[] Known = ["extract", "train", "report", "publish"];
+    private static readonly string[] Known = ["extract", "train", "report", "publish", "reference"];
 
     public string FeatureDirectory => Path.Combine(OutputDirectory, "features");
 
@@ -23,6 +26,9 @@ public sealed record TrainerOptions(
     public string LatestModelFile => Path.Combine(ModelDirectory, "latest.txt");
 
     public string BaseModelDirectory => Path.Combine(RepoRoot, "src", "Gloria", "models", "base");
+
+    /// <summary>Where the app's bundled reference players live (a MauiAsset folder).</summary>
+    public string ReferenceDirectory => Path.Combine(RepoRoot, "src", "Gloria", "Resources", "Raw", "references");
 
     /// <summary>Cache key of the analysis code; a demo is re-extracted when any stage's version changes.</summary>
     public static string AnalysisVersion { get; } = new DemoAnalyzer().VersionKeyFor(new DemoFileDemoParser());
@@ -45,6 +51,7 @@ public sealed record TrainerOptions(
         string demos = Path.Combine(root, "_demos"), output = Path.Combine(root, "artifacts", "training");
         int parallel = 2;
         var force = false;
+        string? player = null, name = null, description = null;
         for (var i = 1; i < args.Length; i++)
         {
             switch (args[i])
@@ -53,11 +60,14 @@ public sealed record TrainerOptions(
                 case "--out": output = Path.GetFullPath(args[++i]); break;
                 case "--parallel": parallel = int.Parse(args[++i]); break;
                 case "--force": force = true; break;
+                case "--player": player = args[++i]; break;
+                case "--name": name = args[++i]; break;
+                case "--description": description = args[++i]; break;
                 default: return null;
             }
         }
 
-        return new TrainerOptions(commands, root, demos, output, Math.Max(1, parallel), force);
+        return new TrainerOptions(commands, root, demos, output, Math.Max(1, parallel), force, player, name, description);
     }
 
     private static string FindRepoRoot()

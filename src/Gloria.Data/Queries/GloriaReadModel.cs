@@ -219,6 +219,32 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
         return records;
     }
 
+    /// <summary>
+    /// One player's encounters in their latest demos analyzed by the current version, with what the stats and the
+    /// models need but no traces, for comparing with another player.
+    /// </summary>
+    /// <param name="lastDemos">How many of the latest demos to include; null for all.</param>
+    public async Task<ComparisonSide> ComparisonSideAsync(ulong steamId, string name, ComparisonKind kind, int? lastDemos = null, CancellationToken ct = default)
+    {
+        await using var db = dbFactory.CreateDbContext();
+        var demos = await db.DemoPlayers
+            .Where(p => p.SteamId == steamId && p.Demo!.AnalysisVersionKey == currentAnalysisVersion)
+            .Select(p => new { p.DemoId, p.Demo!.PlayedAt })
+            .ToListAsync(ct);
+        var ids = demos
+            .OrderByDescending(d => d.PlayedAt).ThenByDescending(d => d.DemoId)
+            .Take(lastDemos ?? int.MaxValue)
+            .Select(d => d.DemoId)
+            .ToList();
+        var encounters = new List<EncounterRecord>();
+        foreach (var chunk in ids.Chunk(500))
+            encounters.AddRange(await db.Encounters.AsNoTracking().Where(e => e.PlayerSteamId == steamId && chunk.Contains(e.DemoId)).ForFeatures().ToListAsync(ct));
+        return ComparisonSide.From(name, kind, ids.Count, encounters);
+    }
+
+    /// <summary>The counts over a set of one player's encounters, as the other queries make them.</summary>
+    public static EncounterStats Tally(IEnumerable<EncounterRecord> encounters) => Tally(encounters.Select(Facts.From).ToList());
+
     private static DemoStats StatsOf(DemoInfo d, PlayerData data)
     {
         var s = Tally(data.FactsOf(d.Id));
@@ -432,7 +458,33 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
         float PSmallFlick,
         float PMediumFlick,
         float PLargeFlick,
-        float? PreAimError);
+        float? PreAimError)
+    {
+        public static Facts From(EncounterRecord e) => new(
+            e.Id,
+            e.DemoId,
+            e.RoundNumber,
+            e.OpponentSteamId,
+            e.StartTick,
+            e.EndTick,
+            e.Outcome,
+            e.TimeToFirstShot,
+            e.FirstShotHit,
+            e.SpeedRatioAtFirstShot,
+            e.AngularErrorAtFirstShot,
+            e.FirstShotWeapon,
+            e.OpponentWeapon,
+            e.Flags,
+            e.OvershootProbability,
+            e.UndershootProbability,
+            e.MovingShotProbability,
+            e.HastyProbability,
+            e.SlowReactionProbability,
+            e.SmallFlickProbability,
+            e.MediumFlickProbability,
+            e.LargeFlickProbability,
+            e.PreAimErrorDegrees);
+    }
 
     private sealed record PlayerData(
         IReadOnlyList<DemoInfo> Demos,

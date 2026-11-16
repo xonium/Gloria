@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Gloria.Core\Gloria.Core.csproj" />
+    <ProjectReference Include="..\..\src\Gloria.Data\Gloria.Data.csproj" />
     <ProjectReference Include="..\..\src\Gloria.Ml\Gloria.Ml.csproj" />
   </ItemGroup>
 

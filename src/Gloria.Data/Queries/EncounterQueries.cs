@@ -5,8 +5,8 @@ namespace Gloria.Data.Queries;
 public static class EncounterQueries
 {
     /// <summary>
-    /// Encounters with the columns <see cref="EncounterRecord.ToFeatures"/> needs, but without the trace, which is
-    /// most of a row's size. The results are not tracked.
+    /// Encounters with the columns <see cref="EncounterRecord.ToFeatures"/> needs, their outcome labels and
+    /// classification, but without the trace, which is most of a row's size. The results are not tracked.
     /// </summary>
     public static IQueryable<EncounterRecord> ForFeatures(this IQueryable<EncounterRecord> encounters) =>
         encounters.Select(e => new EncounterRecord
@@ -16,6 +16,8 @@ public static class EncounterQueries
             PlayerSteamId = e.PlayerSteamId,
             OpponentSteamId = e.OpponentSteamId,
             RoundNumber = e.RoundNumber,
+            StartTick = e.StartTick,
+            EndTick = e.EndTick,
             Outcome = e.Outcome,
             TimeToFirstShot = e.TimeToFirstShot,
             TimeToOnTarget = e.TimeToOnTarget,
@@ -35,5 +37,18 @@ public static class EncounterQueries
             PlayerHealthAtStart = e.PlayerHealthAtStart,
             OpponentHealthAtStart = e.OpponentHealthAtStart,
             FiredFirst = e.FiredFirst,
+            FirstShotHit = e.FirstShotHit,
+            WonDuel = e.WonDuel,
+            Flags = e.Flags,
+            PrimaryCategory = e.PrimaryCategory,
+            ClassifierSource = e.ClassifierSource,
+            OvershootProbability = e.OvershootProbability,
+            UndershootProbability = e.UndershootProbability,
+            MovingShotProbability = e.MovingShotProbability,
+            HastyProbability = e.HastyProbability,
+            SlowReactionProbability = e.SlowReactionProbability,
+            SmallFlickProbability = e.SmallFlickProbability,
+            MediumFlickProbability = e.MediumFlickProbability,
+            LargeFlickProbability = e.LargeFlickProbability,
         });
 }
