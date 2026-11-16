@@ -23,6 +23,10 @@
                         <Label Style="{StaticResource Caption}" Text="Import keeps running in the background. You can pick your player as soon as the list looks right." />
                     </VerticalStackLayout>
                     <Label Text="No players yet. They appear here as demos are read." Style="{StaticResource Caption}" IsVisible="{Binding HasNoCandidates}" />
+                    <VerticalStackLayout Spacing="6" IsVisible="{Binding HasCandidates}">
+                        <Entry Text="{Binding Search}" Placeholder="Search by name or SteamID" ClearButtonVisibility="WhileEditing" SemanticProperties.Description="Search players" />
+                        <Label Text="{Binding ListText}" Style="{StaticResource Caption}" IsVisible="{Binding HasListText}" />
+                    </VerticalStackLayout>
                     <VerticalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Candidates}">
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:CandidateItem">

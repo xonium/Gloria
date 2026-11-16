@@ -50,11 +50,20 @@ public sealed class CandidateItem(PlayerCandidate candidate, int demoCount, bool
 
 public sealed partial class PlayerViewModel : ObservableObject
 {
+	/// <summary>Candidates shown before searching: the most frequent, which usually include the user.</summary>
+	private const int Shown = 12;
+
+	private const int MaxMatches = 50;
+
 	private readonly GloriaReadModel _readModel;
 	private readonly ImportQueue _queue;
 	private readonly ProfileState _profiles;
+	private IReadOnlyList<PlayerCandidate> _all = [];
+	private HashSet<ulong> _tracked = [];
+	private int _demoCount;
 	private CandidateItem? _selected;
 	private string _manualSteamId = "";
+	private string _search = "";
 	private string _message = "";
 
 	public PlayerViewModel(GloriaReadModel readModel, ImportQueue queue, ProfileState profiles)
@@ -107,35 +116,91 @@ public sealed partial class PlayerViewModel : ObservableObject
 
 	public double ReadingProgress => _queue.Items.Count == 0 ? 0 : (double)(_queue.Items.Count - _queue.Remaining) / _queue.Items.Count;
 
-	public bool HasNoCandidates => Candidates.Count == 0;
+	public bool HasNoCandidates => _all.Count == 0;
+
+	public bool HasCandidates => !HasNoCandidates;
+
+	/// <summary>Filters the players by name, earlier names or SteamID.</summary>
+	public string Search
+	{
+		get => _search;
+		set
+		{
+			if (Set(ref _search, value))
+				Show();
+		}
+	}
+
+	/// <summary>What the list holds, e.g. "Showing 12 of 140 players · search to find the rest".</summary>
+	public string ListText
+	{
+		get
+		{
+			var query = Search.Trim();
+			if (query.Length > 0)
+			{
+				var found = _all.Count(c => Matches(c, query));
+				return found switch
+				{
+					0 => $"No player matches \"{query}\".",
+					> MaxMatches => $"Showing {MaxMatches} of {found} matches · type more to narrow it down",
+					_ => found == 1 ? "1 match" : $"{found} matches",
+				};
+			}
+
+			return _all.Count > Shown ? $"Showing {Shown} of {_all.Count} players · search to find the rest" : "";
+		}
+	}
+
+	public bool HasListText => ListText.Length > 0;
 
 	public async Task RefreshAsync()
 	{
-		var demoCount = await _readModel.DemoCountAsync();
-		var candidates = await _readModel.PlayerCandidatesAsync();
-		var tracked = _profiles.Profiles.Select(p => p.SteamId).ToHashSet();
-		var keep = _selected?.SteamId;
-		Candidates.Clear();
-		foreach (var (c, i) in candidates.Take(12).Select((c, i) => (c, i)))
-		{
-			var item = new CandidateItem(c, demoCount, tracked.Contains(c.SteamId), Select)
-			{
-				Suggested = i == 0 && c.DemoCount == demoCount && demoCount > 1,
-			};
-			Candidates.Add(item);
-		}
+		_demoCount = await _readModel.DemoCountAsync();
+		_all = await _readModel.PlayerCandidatesAsync();
+		_tracked = _profiles.Profiles.Select(p => p.SteamId).ToHashSet();
+		Show();
 
-		_selected = Candidates.FirstOrDefault(c => c.SteamId == keep)
-			?? (_profiles.Current is null ? Candidates.FirstOrDefault(c => c.Suggested) : null);
-		if (_selected is not null)
-			_selected.IsSelected = true;
+		if (_selected is null && _profiles.Current is null && Candidates.FirstOrDefault(c => c.Suggested) is { } suggested)
+			Select(suggested);
 
 		OnPropertyChanged(nameof(HasNoCandidates));
-		OnPropertyChanged(nameof(StartText));
+		OnPropertyChanged(nameof(HasCandidates));
 		OnPropertyChanged(nameof(Title));
 		OnPropertyChanged(nameof(Intro));
 		OnQueueChanged();
 	}
+
+	/// <summary>Fills the list from all players: the most frequent, or those matching the search. Keeps the selection.</summary>
+	private void Show()
+	{
+		var query = Search.Trim();
+		var shown = query.Length == 0
+			? _all.Take(Shown)
+			: _all.Where(c => Matches(c, query)).Take(MaxMatches);
+		var keep = _selected?.SteamId;
+		Candidates.Clear();
+		foreach (var c in shown)
+		{
+			Candidates.Add(new CandidateItem(c, _demoCount, _tracked.Contains(c.SteamId), Select)
+			{
+				Suggested = c == _all[0] && c.DemoCount == _demoCount && _demoCount > 1,
+			});
+		}
+
+		_selected = Candidates.FirstOrDefault(c => c.SteamId == keep);
+		if (_selected is not null)
+			_selected.IsSelected = true;
+
+		OnPropertyChanged(nameof(StartText));
+		OnPropertyChanged(nameof(ListText));
+		OnPropertyChanged(nameof(HasListText));
+	}
+
+	private static bool Matches(PlayerCandidate candidate, string query) =>
+		candidate.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+		|| candidate.OtherNames.Any(n => n.Contains(query, StringComparison.OrdinalIgnoreCase))
+		|| candidate.SteamId.ToString().Contains(query, StringComparison.Ordinal);
 
 	private void Select(CandidateItem item)
 	{
@@ -150,7 +215,7 @@ public sealed partial class PlayerViewModel : ObservableObject
 	{
 		if (ParseSteamId(ManualSteamId) is { } manual)
 		{
-			var known = Candidates.FirstOrDefault(c => c.SteamId == manual);
+			var known = _all.FirstOrDefault(c => c.SteamId == manual);
 			await _profiles.SelectOrAddAsync(manual, known?.Name ?? manual.ToString());
 		}
 		else if (_selected is { } candidate)
@@ -164,6 +229,7 @@ public sealed partial class PlayerViewModel : ObservableObject
 		}
 
 		ManualSteamId = "";
+		Search = "";
 		await Shell.Current.GoToAsync("//overview");
 	}
 
