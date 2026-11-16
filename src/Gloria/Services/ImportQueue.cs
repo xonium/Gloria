@@ -127,6 +127,8 @@ public sealed class ImportQueue(DemoImporter importer, Data.Queries.GloriaReadMo
 			});
 
 			var result = await importer.ImportAsync(item.Path, progress);
+			if (result.Outcome == ImportStage.Failed)
+				LogFailure(item.Path, result);
 			await MainThread.InvokeOnMainThreadAsync(() =>
 			{
 				item.Stage = result.Outcome;
@@ -141,6 +143,24 @@ public sealed class ImportQueue(DemoImporter importer, Data.Queries.GloriaReadMo
 				if (result.Outcome == ImportStage.Done)
 					DemoImported?.Invoke(this, result);
 			});
+		}
+	}
+
+	/// <summary>
+	/// Keeps failures in <c>import-errors.log</c> in the data folder: the queue's status line is gone once the app
+	/// closes, and a demo that failed then is simply missing.
+	/// </summary>
+	private static void LogFailure(string path, ImportResult result)
+	{
+		try
+		{
+			Directory.CreateDirectory(Data.DatabaseLocation.DataDirectory);
+			File.AppendAllText(
+				System.IO.Path.Combine(Data.DatabaseLocation.DataDirectory, "import-errors.log"),
+				$"{DateTimeOffset.Now:O} {path}{Environment.NewLine}{result.Error ?? result.Message}{Environment.NewLine}{Environment.NewLine}");
+		}
+		catch (IOException)
+		{
 		}
 	}
 

@@ -25,7 +25,8 @@ public readonly record struct ImportProgress(ImportStage Stage, double Fraction)
 
 /// <param name="Outcome"><see cref="ImportStage.Done"/>, <see cref="ImportStage.Skipped"/> or <see cref="ImportStage.Failed"/>.</param>
 /// <param name="TraceBytes">Total size of the stored encounter traces.</param>
-public sealed record ImportResult(ImportStage Outcome, int? DemoId, string? Message, int Encounters, long TraceBytes, TimeSpan Elapsed);
+/// <param name="Error">The whole exception when the import failed, for the log.</param>
+public sealed record ImportResult(ImportStage Outcome, int? DemoId, string? Message, int Encounters, long TraceBytes, TimeSpan Elapsed, string? Error = null);
 
 /// <summary>
 /// Imports one demo: hashes it, skips it if already imported, then parses and analyzes it once for every
@@ -109,7 +110,7 @@ public sealed class DemoImporter(
         }
         catch (Exception ex)
         {
-            return new ImportResult(ImportStage.Failed, null, ex.Message, 0, 0, stopwatch.Elapsed);
+            return new ImportResult(ImportStage.Failed, null, ex.Message, 0, 0, stopwatch.Elapsed, ex.ToString());
         }
     }
 
