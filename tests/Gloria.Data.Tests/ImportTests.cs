@@ -108,7 +108,7 @@ public sealed class ImportTests : IDisposable
         var decoded = TraceCodec.Decode(buffer.ToArray())!;
 
         Assert.Null(decoded.Scene);
-        Assert.Equal([1.5f], decoded.BulletX);
+        Assert.Equal([1.5f], decoded.BulletX!);
         Assert.Equal([new TraceShot(500, true, 1, 0f)], decoded.Shots);
     }
 
