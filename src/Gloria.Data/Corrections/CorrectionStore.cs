@@ -91,7 +91,10 @@ public sealed class CorrectionStore(IDbContextFactory<GloriaDbContext> dbFactory
         return since is { } s ? all.Count(t => t > s) : all.Count;
     }
 
-    /// <summary>Every stored encounter, of every player, with the user's verdicts where there are any.</summary>
+    /// <summary>
+    /// Every stored encounter, of every player, with the user's verdicts where there are any. Encounters analyzed
+    /// before the pre-aim error was measured are left out: their stand-in value would teach the flick models wrong.
+    /// </summary>
     public async Task<IReadOnlyList<TrainingRow>> TrainingSetAsync(CancellationToken ct = default)
     {
         await using var db = dbFactory.CreateDbContext();
@@ -99,7 +102,7 @@ public sealed class CorrectionStore(IDbContextFactory<GloriaDbContext> dbFactory
         var byDemo = corrections.GroupBy(c => c.DemoHash).ToDictionary(g => g.Key, g => new CorrectionLookup(g));
 
         var hashes = await db.Demos.AsNoTracking().ToDictionaryAsync(d => d.Id, d => d.ContentHash, ct);
-        var records = await db.Encounters.AsNoTracking().OrderBy(e => e.Id).ForFeatures().ToListAsync(ct);
+        var records = await db.Encounters.AsNoTracking().Where(e => e.PreAimErrorDegrees != null).OrderBy(e => e.Id).ForFeatures().ToListAsync(ct);
         var rows = records.Select(r => (Hash: hashes[r.DemoId], Record: r));
 
         return rows

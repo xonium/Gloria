@@ -22,6 +22,7 @@ public sealed class MlEncounterRow
         nameof(PeakOvershootDegrees),
         nameof(CorrectionCount),
         nameof(FlickDistanceDegrees),
+        nameof(PreAimErrorDegrees),
         nameof(SpeedRatioAtFirstShot),
         nameof(ShotsWhileMovingRatio),
         nameof(DistanceToEnemy),
@@ -41,6 +42,7 @@ public sealed class MlEncounterRow
     public float PeakOvershootDegrees { get; set; }
     public float CorrectionCount { get; set; }
     public float FlickDistanceDegrees { get; set; }
+    public float PreAimErrorDegrees { get; set; }
     public float SpeedRatioAtFirstShot { get; set; }
     public float ShotsWhileMovingRatio { get; set; }
     public float DistanceToEnemy { get; set; }
@@ -69,6 +71,7 @@ public sealed class MlEncounterRow
         PeakOvershootDegrees = f.PeakOvershootDegrees,
         CorrectionCount = f.CorrectionCount,
         FlickDistanceDegrees = f.FlickDistanceDegrees,
+        PreAimErrorDegrees = f.PreAimErrorDegrees,
         SpeedRatioAtFirstShot = f.SpeedRatioAtFirstShot,
         ShotsWhileMovingRatio = f.ShotsWhileMovingRatio,
         DistanceToEnemy = f.DistanceToEnemy,

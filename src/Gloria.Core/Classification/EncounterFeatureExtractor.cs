@@ -26,5 +26,6 @@ public sealed class EncounterFeatureExtractor(IWeaponData? weapons = null) : IEn
         PlayerHealth: metrics.PlayerHealthAtStart,
         OpponentHealth: metrics.OpponentHealthAtStart,
         OpponentWeaponClass: _weapons.Classify(metrics.OpponentWeapon),
-        FiredFirst: metrics.FiredFirst);
+        FiredFirst: metrics.FiredFirst,
+        PreAimErrorDegrees: metrics.PreAimErrorDegrees);
 }

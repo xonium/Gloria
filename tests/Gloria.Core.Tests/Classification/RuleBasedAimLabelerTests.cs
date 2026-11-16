@@ -5,7 +5,7 @@ namespace Gloria.Core.Tests.Classification;
 
 public class RuleBasedAimLabelerTests
 {
-    // Stopped, on target, quick, no overshoot or corrections: nothing to flag.
+    // Pre-aimed, stopped, on target, quick, no overshoot or corrections: nothing to flag.
     private static readonly EncounterFeatures Clean = new(
         TimeToFirstShot: 0.3f,
         TimeToOnTarget: 0.25f,
@@ -22,7 +22,8 @@ public class RuleBasedAimLabelerTests
         PlayerHealth: 100,
         OpponentHealth: 100,
         OpponentWeaponClass: WeaponClass.Rifle,
-        FiredFirst: true);
+        FiredFirst: true,
+        PreAimErrorDegrees: 2f);
 
     [Fact]
     public void Label_IsEmpty_ForCleanEncounter()
@@ -81,6 +82,22 @@ public class RuleBasedAimLabelerTests
         var features = Clean with { TimeToFirstShot = 0.9f, TimeToOnTarget = 0.8f };
 
         Assert.Equal([AimCategory.SlowReaction], RuleBasedAimLabeler.Label(features));
+    }
+
+    [Theory]
+    [InlineData(4.9f, null)]
+    [InlineData(5f, AimCategory.SmallFlick)]
+    [InlineData(14.9f, AimCategory.SmallFlick)]
+    [InlineData(15f, AimCategory.MediumFlick)]
+    [InlineData(44.9f, AimCategory.MediumFlick)]
+    [InlineData(45f, AimCategory.LargeFlick)]
+    [InlineData(120f, AimCategory.LargeFlick)]
+    public void Flick_SizeFollowsThePreAimError_OneBandAtATime(float preAimError, AimCategory? expected)
+    {
+        var labels = RuleBasedAimLabeler.Label(Clean with { PreAimErrorDegrees = preAimError });
+
+        Assert.Equal(expected is { } c ? [c] : [], labels.Intersect(RuleBasedAimLabeler.Flicks));
+        Assert.True(labels.SetEquals(labels.Intersect(RuleBasedAimLabeler.Flicks)));
     }
 
     [Fact]

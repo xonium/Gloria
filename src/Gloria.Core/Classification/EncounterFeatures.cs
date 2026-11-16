@@ -14,6 +14,10 @@ namespace Gloria.Core.Classification;
 /// <param name="PlayerHealth">The player's HP at the start of the encounter.</param>
 /// <param name="OpponentHealth">The opponent's HP at the start of the encounter.</param>
 /// <param name="OpponentWeaponClass">What the opponent held when the player fired their first shot.</param>
+/// <param name="PreAimErrorDegrees">
+/// How far the crosshair was off the body when the view movement leading to the first shot began: the size of the
+/// flick the player needed. Small when they pre-aimed.
+/// </param>
 /// <param name="FiredFirst">The player's first shot came no later than the opponent's first shot at them (or the opponent never fired).</param>
 public sealed record EncounterFeatures(
     float TimeToFirstShot,
@@ -31,8 +35,9 @@ public sealed record EncounterFeatures(
     int PlayerHealth,
     int OpponentHealth,
     WeaponClass OpponentWeaponClass,
-    bool FiredFirst)
+    bool FiredFirst,
+    float PreAimErrorDegrees)
 {
     /// <summary>Bump when fields are added, removed or change meaning. Saved models with another version are refused.</summary>
-    public const int SchemaVersion = 2;
+    public const int SchemaVersion = 3;
 }

@@ -83,6 +83,8 @@ public sealed record EncounterDetail(
 /// <param name="MovingFirstShots">First shots above the weapon's accurate speed.</param>
 /// <param name="HabitCounts">Encounters flagged per <see cref="AimCategory"/>, indexed by the enum value.</param>
 /// <param name="Clean">Encounters with no habit flagged.</param>
+/// <param name="MedianPreAimError">Median crosshair error when the flick to the first shot began, in degrees.</param>
+/// <param name="PreAimed">Encounters with none of the flick categories flagged.</param>
 public sealed record EncounterStats(
     int Encounters,
     int Kills,
@@ -92,7 +94,9 @@ public sealed record EncounterStats(
     double? MedianTimeToFirstShot,
     int MovingFirstShots,
     int[] HabitCounts,
-    int Clean);
+    int Clean,
+    double? MedianPreAimError,
+    int PreAimed);
 
 /// <summary>The player's numbers with one class of weapon (what they fired first with).</summary>
 public sealed record WeaponClassStats(WeaponClass Class, EncounterStats Stats);
@@ -109,6 +113,8 @@ public sealed record ProgressData(
 
 /// <summary>One demo's numbers for one player, for trends.</summary>
 /// <param name="HabitCounts">Encounters flagged per <see cref="AimCategory"/>, indexed by the enum value.</param>
+/// <param name="MedianPreAimError">Median crosshair error when the flick to the first shot began, in degrees.</param>
+/// <param name="PreAimed">Encounters with none of the flick categories flagged.</param>
 public sealed record DemoStats(
     int DemoId,
     string MapName,
@@ -121,7 +127,9 @@ public sealed record DemoStats(
     double? MedianTimeToFirstShot,
     int MovingFirstShots,
     int[] HabitCounts,
-    int Clean);
+    int Clean,
+    double? MedianPreAimError,
+    int PreAimed);
 
 /// <param name="Recent">The latest demos, oldest first.</param>
 /// <param name="Previous">The demos before <paramref name="Recent"/>, oldest first.</param>

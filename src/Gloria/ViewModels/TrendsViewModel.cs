@@ -100,6 +100,8 @@ public sealed class TrendsViewModel : ObservableObject
 			("Median time to first shot", d => d.MedianTimeToFirstShot ?? double.NaN, v => $"{v:0.00} s"),
 			("Moving first shots", d => Ratio(d.MovingFirstShots, d.Encounters), Percent),
 			("Clean encounters", d => Ratio(d.Clean, d.Encounters), Percent),
+			("Pre-aimed", d => Ratio(d.PreAimed, d.Encounters), Percent),
+			("Median pre-aim error", d => d.MedianPreAimError ?? double.NaN, v => $"{v:0.0}°"),
 		};
 		// Moving shot is left out: it is the moving-first-shots line above, unless corrections change it.
 		foreach (var c in Enum.GetValues<AimCategory>().Where(c => c != AimCategory.MovingShot))

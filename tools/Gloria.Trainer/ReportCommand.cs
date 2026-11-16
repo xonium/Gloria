@@ -27,6 +27,7 @@ public static class ReportCommand
         new(nameof(EncounterFeatures.PeakOvershootDegrees), r => r.Features.PeakOvershootDegrees, [0, 0.01f, 0.5f, 1, 1.5f, 2, 3, 5]),
         new(nameof(EncounterFeatures.CorrectionCount), r => r.Features.CorrectionCount, [0, 1, 2, 3, 4]),
         new(nameof(EncounterFeatures.FlickDistanceDegrees), r => r.Features.FlickDistanceDegrees, [0, 0.5f, 2, 5, 10, 20, 45]),
+        new(nameof(EncounterFeatures.PreAimErrorDegrees), r => r.Features.PreAimErrorDegrees, [0, 2, 5, 10, 15, 20, 30, 45, 90]),
         new(nameof(EncounterFeatures.AngularErrorAtFirstVisible), r => r.Features.AngularErrorAtFirstVisible, [0, 1, 2, 5, 10, 20, 45]),
         new(nameof(EncounterFeatures.ShotsWhileMovingRatio), r => r.Features.ShotsWhileMovingRatio, [0, 0.01f, 0.25f, 0.5f, 0.75f, 1]),
         new(nameof(EncounterFeatures.DistanceToEnemy), r => r.Features.DistanceToEnemy, [0, 250, 500, 1000, 1500, 2000, 3000]),
@@ -185,6 +186,20 @@ public static class ReportCommand
             RuleBasedAimLabeler.UndershootCorrections, Steps(1, 5, 1));
         Scan("UndershootCorrections", "CorrectionCount → WonDuel", duel, r => r.Features.CorrectionCount, Won,
             RuleBasedAimLabeler.UndershootCorrections, Steps(1, 5, 1));
+        // Each flick cut is scanned among the encounters above the previous one, so each scan finds its own band's edge.
+        foreach (var (rule, current, above) in new[]
+                 {
+                     ("SmallFlickDegrees", RuleBasedAimLabeler.SmallFlickDegrees, 0f),
+                     ("MediumFlickDegrees", RuleBasedAimLabeler.MediumFlickDegrees, RuleBasedAimLabeler.SmallFlickDegrees),
+                     ("LargeFlickDegrees", RuleBasedAimLabeler.LargeFlickDegrees, RuleBasedAimLabeler.MediumFlickDegrees),
+                 })
+        {
+            var where = above > 0 ? $" (of those ≥ {above:0}°)" : "";
+            Scan(rule, $"PreAimErrorDegrees → FirstShotHit{where}", hit.Where(r => r.Features.PreAimErrorDegrees >= above).ToList(),
+                r => r.Features.PreAimErrorDegrees, Hit, current, Steps(above + 1, 90, 1));
+            Scan(rule, $"PreAimErrorDegrees → WonDuel{where}", duel.Where(r => r.Features.PreAimErrorDegrees >= above).ToList(),
+                r => r.Features.PreAimErrorDegrees, Won, current, Steps(above + 1, 90, 1));
+        }
         md.AppendLine();
     }
 

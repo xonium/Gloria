@@ -21,6 +21,17 @@ public static class RuleBasedAimLabeler
     public const float OnTargetBodyHalfWidths = 1f;
     public const float SlowReactionSeconds = 0.6f;
 
+    /// <summary>
+    /// Pre-aim error bands, in degrees: below <see cref="SmallFlickDegrees"/> the player pre-aimed. The flick
+    /// categories are mutually exclusive.
+    /// </summary>
+    public const float SmallFlickDegrees = 5f;
+    public const float MediumFlickDegrees = 15f;
+    public const float LargeFlickDegrees = 45f;
+
+    /// <summary>The flick categories, smallest first.</summary>
+    public static IReadOnlyList<AimCategory> Flicks { get; } = [AimCategory.SmallFlick, AimCategory.MediumFlick, AimCategory.LargeFlick];
+
     public static bool IsFlagged(EncounterFeatures features, AimCategory category) => category switch
     {
         AimCategory.Overshoot => features.PeakOvershootDegrees >= OvershootDegrees,
@@ -29,6 +40,9 @@ public static class RuleBasedAimLabeler
         AimCategory.MovingShot => features.SpeedRatioAtFirstShot > MovingSpeedRatio,
         AimCategory.Hasty => features.AngularErrorAtFirstShot > OnTargetDegreesAt(features.DistanceToEnemy),
         AimCategory.SlowReaction => features.TimeToFirstShot > SlowReactionSeconds,
+        AimCategory.SmallFlick => features.PreAimErrorDegrees is >= SmallFlickDegrees and < MediumFlickDegrees,
+        AimCategory.MediumFlick => features.PreAimErrorDegrees is >= MediumFlickDegrees and < LargeFlickDegrees,
+        AimCategory.LargeFlick => features.PreAimErrorDegrees >= LargeFlickDegrees,
         _ => throw new ArgumentOutOfRangeException(nameof(category), category, null),
     };
 

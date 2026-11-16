@@ -92,7 +92,36 @@ public sealed class CorrectionTests : IDisposable
         Assert.Equal(1, await _store.CountAsync(between, ct));
     }
 
-    private async Task<int> AddDemoAsync(string hash, float hastyProbability, int round = 3)
+    [Fact]
+    public async Task TrainingSet_LeavesOutEncountersAnalyzedBeforeThePreAimErrorWasMeasured()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await AddDemoAsync("old", hastyProbability: 0.9f, preAimError: null);
+        await AddDemoAsync("new", hastyProbability: 0.9f, preAimError: 20f);
+
+        var row = Assert.Single(await _store.TrainingSetAsync(ct));
+        Assert.Equal("new", row.DemoHash);
+        Assert.Equal(20f, row.Features.PreAimErrorDegrees);
+    }
+
+    [Fact]
+    public async Task Reclassify_StoresTheFlickScores()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var id = await AddDemoAsync("dd", hastyProbability: 0f, preAimError: 30f);
+
+        await _store.ReclassifyAsync(new RuleBasedAimClassifier(), ct: ct);
+
+        await using var db = _factory.CreateDbContext();
+        var e = await db.Encounters.SingleAsync(x => x.Id == id, ct);
+        Assert.Equal(1f, e.MediumFlickProbability);
+        Assert.Equal(0f, e.SmallFlickProbability);
+        Assert.Equal(0f, e.LargeFlickProbability);
+        Assert.True(e.Has(AimCategory.MediumFlick));
+        Assert.Equal(30f, e.PreAimErrorDegrees);
+    }
+
+    private async Task<int> AddDemoAsync(string hash, float hastyProbability, int round = 3, float? preAimError = 2f)
     {
         var encounter = new EncounterRecord
         {
@@ -107,6 +136,7 @@ public sealed class CorrectionTests : IDisposable
             OpponentWeapon = "m4a1",
             ShotCount = 1,
             HastyProbability = hastyProbability,
+            PreAimErrorDegrees = preAimError,
             ClassifierSource = "model test",
         };
         encounter.ApplyCorrections(null);

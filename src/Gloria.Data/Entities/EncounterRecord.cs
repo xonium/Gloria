@@ -57,6 +57,15 @@ public sealed class EncounterRecord
 
     public float FlickDistanceDegrees { get; set; }
 
+    /// <summary>Where the view movement that led to the first shot began.</summary>
+    public int ApproachStartTick { get; set; }
+
+    /// <summary>
+    /// The crosshair's error to the body at <see cref="ApproachStartTick"/> (the flick the player needed).
+    /// Null for encounters analyzed before it was measured.
+    /// </summary>
+    public float? PreAimErrorDegrees { get; set; }
+
     public float DistanceAtFirstShot { get; set; }
 
     public int PlayerHealthAtStart { get; set; }
@@ -87,6 +96,12 @@ public sealed class EncounterRecord
 
     public float SlowReactionProbability { get; set; }
 
+    public float SmallFlickProbability { get; set; }
+
+    public float MediumFlickProbability { get; set; }
+
+    public float LargeFlickProbability { get; set; }
+
     /// <summary>The encoded <see cref="Core.Analysis.EncounterTrace"/>; see <see cref="Import.TraceCodec"/>.</summary>
     public byte[]? Trace { get; set; }
 
@@ -106,6 +121,9 @@ public sealed class EncounterRecord
         MovingShotProbability = classification[AimCategory.MovingShot].Probability;
         HastyProbability = classification[AimCategory.Hasty].Probability;
         SlowReactionProbability = classification[AimCategory.SlowReaction].Probability;
+        SmallFlickProbability = classification[AimCategory.SmallFlick].Probability;
+        MediumFlickProbability = classification[AimCategory.MediumFlick].Probability;
+        LargeFlickProbability = classification[AimCategory.LargeFlick].Probability;
         ApplyCorrections(corrections);
     }
 
@@ -134,7 +152,8 @@ public sealed class EncounterRecord
     /// <summary>
     /// The features this encounter was classified from, rebuilt from the stored metrics, so models can be run
     /// on it without the demo. Matches <see cref="EncounterFeatureExtractor"/>, except that the moving-shot ratio
-    /// counts every attributed shot rather than only those with a recorded speed.
+    /// counts every attributed shot rather than only those with a recorded speed. Encounters analyzed before the
+    /// pre-aim error was measured use the error at first contact in its place.
     /// </summary>
     public EncounterFeatures ToFeatures(IWeaponData? weapons = null)
     {
@@ -155,7 +174,8 @@ public sealed class EncounterRecord
             PlayerHealth: PlayerHealthAtStart,
             OpponentHealth: OpponentHealthAtStart,
             OpponentWeaponClass: weapons.Classify(OpponentWeapon),
-            FiredFirst: FiredFirst);
+            FiredFirst: FiredFirst,
+            PreAimErrorDegrees: PreAimErrorDegrees ?? AngularErrorAtStart);
     }
 
     public float Probability(AimCategory category) => category switch
@@ -165,6 +185,9 @@ public sealed class EncounterRecord
         AimCategory.MovingShot => MovingShotProbability,
         AimCategory.Hasty => HastyProbability,
         AimCategory.SlowReaction => SlowReactionProbability,
+        AimCategory.SmallFlick => SmallFlickProbability,
+        AimCategory.MediumFlick => MediumFlickProbability,
+        AimCategory.LargeFlick => LargeFlickProbability,
         _ => 0f,
     };
 }

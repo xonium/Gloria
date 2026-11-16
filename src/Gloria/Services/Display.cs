@@ -55,6 +55,9 @@ public static class Display
 		AimCategory.MovingShot => "Moving shot",
 		AimCategory.Hasty => "Hasty",
 		AimCategory.SlowReaction => "Slow reaction",
+		AimCategory.SmallFlick => "Small flick",
+		AimCategory.MediumFlick => "Medium flick",
+		AimCategory.LargeFlick => "Large flick",
 		_ => category.ToString(),
 	};
 
@@ -65,6 +68,9 @@ public static class Display
 		AimCategory.MovingShot => "First shot above the weapon's accurate speed",
 		AimCategory.Hasty => "Fired before the crosshair was on the body",
 		AimCategory.SlowReaction => "First shot more than 0.6 s after sighting",
+		AimCategory.SmallFlick => "Crosshair started 5–15° off the body: pre-aim a little off",
+		AimCategory.MediumFlick => "Crosshair started 15–45° off the body: poor pre-aim",
+		AimCategory.LargeFlick => "Crosshair started 45° or more off the body: no pre-aim",
 		_ => "",
 	};
 

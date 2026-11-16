@@ -13,10 +13,14 @@ Gloria tags every frag and death with **aim categories**. ML.NET learns those ca
 | MovingShot | The first shot was fired above the weapon's accurate speed (no counter-strafe) | `SpeedRatioAtFirstShot > 1` |
 | Hasty | The first shot was fired before the crosshair was on the body | `AngularErrorAtFirstShot` above one body half-width at the target's distance, `atan(16 / DistanceToEnemy)` |
 | SlowReaction | The first shot came late after first visibility | `TimeToFirstShot > 0.6 s` |
+| SmallFlick | The crosshair started a little off the enemy: pre-aim slightly off | `PreAimErrorDegrees` in [5°, 15°) |
+| MediumFlick | The crosshair started well off the enemy: poor pre-aim | `PreAimErrorDegrees` in [15°, 45°) |
+| LargeFlick | The crosshair started far off the enemy: no pre-aim | `PreAimErrorDegrees >= 45°` |
 
 - An encounter can have several categories at once, for example a moving, hasty death. One with none is **clean**.
 - The UI's "primary" category is the flagged category with the highest probability.
 - The thresholds were checked against outcomes in the real demos; see "Training on the real demos" below. Only the Hasty tolerance changed: it used to be a fixed 2°.
+- The three flick categories are mutually exclusive, and together they measure pre-aim: an encounter with none of them was pre-aimed (crosshair within 5° of the body before the flick). The UI shows the pre-aimed share and the median pre-aim error on Overview and Progress.
 
 ## Packages
 
@@ -57,6 +61,8 @@ Concatenate(MlEncounterRow.FeatureNames -> "Features")
   - A shot is evaluated at the tick before its fire tick.
   - The **approach window** starts where the view movement that led to the first shot began, at most 1 s earlier. It does not start at first visibility, because the spotted state lags by up to half a second. Overshoot, corrections and flick distance are measured in this window. A pre-aimed shot has an empty approach.
   - `AngularErrorAtFirstVisible` and `TimeToFirstShot` are measured from the encounter start (first contact).
+  - `PreAimErrorDegrees` (schema 3) is the crosshair's error to the body axis at the start of the approach window: the flick the player needed. A pre-aimed shot has an empty approach, so it is the error at the shot. It differs from `FlickDistanceDegrees`, the view rotation in the window, which also counts tracking a moving target and stops short when the first shot misses.
+    - When the view never rested in the last second before the shot, the window is capped at 1 s, and the error is read in the middle of a movement. That happens in 19% of encounters and 41% of medium and large flicks, e.g. a player who was on target, looked away at a grenade and came back.
   - Context features (schema 2):
     - `PlayerHealth` and `OpponentHealth` are the HP one tick before the encounter start.
     - `OpponentWeaponClass` is what the opponent held one tick before the player's first shot.
@@ -210,6 +216,10 @@ The first run used 6 demos; 17 more were added the same day. Every conclusion be
 - **MovingSpeedRatio.** The game's threshold of 1 lowers the hit rate from 35% to 21% (error < 2°). The best cut is 1.1 (1.6 on 6 demos), so the constant stays 1, which also matches the game's accuracy mechanics.
 - **Overshoot and corrections.** Two or more corrections lower the hit rate (23% → 17%) and the win rate (64% → 55%), and 2 is the best cut for both labels. Overshoot has only a weak link to the outcomes (chi-square ≤ 18) and is flagged on 23% of encounters; target movement probably inflates it, so it needs the most work.
 - **Bias.** Deaths where the player never fired at the killer are dropped (about 60 per demo), so WonDuel is above 50%. The report counts them.
+- **Pre-aim (2026-11-16, schema 3).** The flick categories flag 26% / 20% / 6% of encounters (small / medium / large).
+  - The first-shot hit rate falls from 38% under 2° of pre-aim error to 27% at 2–5°, then slowly to 20% above 45°. The best single cut for FirstShotHit is about 1–2°, below the 5° "pre-aimed" line.
+  - Win rates: 64% for small flicks (no different from the rest), 61% vs 64% for medium, 54% vs 64% for large. The best WonDuel cut is around 24–31°.
+  - The cuts stay at 5 / 15 / 45° for now; they are labels for coaching, not the best splits of the outcomes.
 - **SlowReaction.** Still no meaningful link between `TimeToFirstShot` and winning (chi-square 15 at a 0.05 s cut, rates 67% vs 61%); the constant stays 0.6 s.
 
 ### Next steps

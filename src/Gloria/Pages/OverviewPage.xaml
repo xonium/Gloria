@@ -35,10 +35,11 @@
                 <Label Text="{Binding EmptyText}" Style="{StaticResource Sub}" />
             </Border>
 
-            <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Tiles}" IsVisible="{Binding HasData}">
+            <!-- One column per tile; a FlexLayout with a percentage basis clipped the cards at narrower widths. -->
+            <Grid ColumnDefinitions="*,*,*,*,*" ColumnSpacing="14" BindableLayout.ItemsSource="{Binding Tiles}" IsVisible="{Binding HasData}">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="vm:TileItem">
-                        <Border Style="{StaticResource Card}" Padding="18,16,18,12" FlexLayout.Basis="23%" FlexLayout.Grow="1" MinimumWidthRequest="220" Margin="0,0,14,14">
+                        <Border Style="{StaticResource Card}" Padding="18,16,18,12" Grid.Column="{Binding Column}">
                             <VerticalStackLayout Spacing="8">
                                 <Label Text="{Binding Label}" Style="{StaticResource Sub}" FontSize="13" />
                                 <Label Text="{Binding Value}" Style="{StaticResource BigNumber}" FontSize="32" />
@@ -49,7 +50,7 @@
                         </Border>
                     </DataTemplate>
                 </BindableLayout.ItemTemplate>
-            </FlexLayout>
+            </Grid>
 
             <Grid ColumnDefinitions="3*,2*" ColumnSpacing="16" IsVisible="{Binding HasData}">
                 <Border Style="{StaticResource Card}" VerticalOptions="Start">

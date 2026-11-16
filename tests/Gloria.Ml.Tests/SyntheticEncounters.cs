@@ -43,7 +43,8 @@ public static class SyntheticEncounters
         PlayerHealth: 100,
         OpponentHealth: 100,
         OpponentWeaponClass: WeaponClass.Rifle,
-        FiredFirst: true);
+        FiredFirst: true,
+        PreAimErrorDegrees: 2f);
 
     private static EncounterFeatures Features(Random random, WeaponClass[] weapons)
     {
@@ -65,7 +66,8 @@ public static class SyntheticEncounters
             PlayerHealth: random.NextDouble() < 0.6 ? 100 : random.Next(1, 100),
             OpponentHealth: random.NextDouble() < 0.6 ? 100 : random.Next(1, 100),
             OpponentWeaponClass: weapons[random.Next(weapons.Length)],
-            FiredFirst: random.NextDouble() < 0.5);
+            FiredFirst: random.NextDouble() < 0.5,
+            PreAimErrorDegrees: Uniform(random, 0f, 60f));
     }
 
     private static float Uniform(Random random, float min, float max) => min + (float)random.NextDouble() * (max - min);

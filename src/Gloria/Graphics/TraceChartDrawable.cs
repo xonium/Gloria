@@ -34,6 +34,11 @@ public sealed class TraceChartDrawable : IDrawable
 
 	public IReadOnlyList<(int Index, bool Hit)> Shots { get; set; } = [];
 
+	/// <summary>Sample index of a labeled moment, e.g. where the flick started, or negative for none.</summary>
+	public int Mark { get; set; } = -1;
+
+	public string? MarkLabel { get; set; }
+
 	/// <summary>Sample index of the playhead, or negative for none.</summary>
 	public float Playhead { get; set; } = -1;
 
@@ -88,6 +93,20 @@ public sealed class TraceChartDrawable : IDrawable
 			canvas.StrokeDashPattern = [4, 4];
 			canvas.DrawLine(X(0), plot.Top, X(0), plot.Bottom);
 			canvas.StrokeDashPattern = null;
+		}
+
+		if (Mark >= 0 && Mark < Values.Length)
+		{
+			var x = X(Seconds[Mark]);
+			canvas.StrokeColor = Display.Warn;
+			canvas.StrokeDashPattern = [2, 3];
+			canvas.DrawLine(x, plot.Top, x, plot.Bottom);
+			canvas.StrokeDashPattern = null;
+			if (MarkLabel is not null)
+			{
+				canvas.FontColor = Display.Warn;
+				canvas.DrawString(MarkLabel, x + 4, plot.Top, 120, 14, HorizontalAlignment.Left, VerticalAlignment.Top);
+			}
 		}
 
 		canvas.StrokeColor = Display.Accent;

@@ -76,6 +76,7 @@ public static class FeatureCsv
         (nameof(EncounterFeatures.OpponentHealth), r => I(r.Features.OpponentHealth)),
         (nameof(EncounterFeatures.OpponentWeaponClass), r => r.Features.OpponentWeaponClass.ToString()),
         (nameof(EncounterFeatures.FiredFirst), r => B(r.Features.FiredFirst)),
+        (nameof(EncounterFeatures.PreAimErrorDegrees), r => F(r.Features.PreAimErrorDegrees)),
         ("ErrorAtFirstShotTick", r => F(r.ErrorAtFirstShotTick)),
         ("ErrorAtTickBeforeFirstShot", r => F(r.ErrorAtTickBeforeFirstShot)),
         ("ErrorTwoTicksBeforeFirstShot", r => F(r.ErrorTwoTicksBeforeFirstShot)),
@@ -174,7 +175,8 @@ public static class FeatureCsv
                 PlayerHealth: PI(C(nameof(EncounterFeatures.PlayerHealth))),
                 OpponentHealth: PI(C(nameof(EncounterFeatures.OpponentHealth))),
                 OpponentWeaponClass: Enum.Parse<WeaponClass>(C(nameof(EncounterFeatures.OpponentWeaponClass))),
-                FiredFirst: C(nameof(EncounterFeatures.FiredFirst)) == "1");
+                FiredFirst: C(nameof(EncounterFeatures.FiredFirst)) == "1",
+                PreAimErrorDegrees: PF(C(nameof(EncounterFeatures.PreAimErrorDegrees))));
             yield return new FeatureRow(
                 C("DemoHash"), C("Map"), PI(C("Round")),
                 ulong.Parse(C("Player"), Invariant), ulong.Parse(C("Opponent"), Invariant),

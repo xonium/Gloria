@@ -35,6 +35,7 @@ public class AimMetricsCalculatorTests
         Assert.Equal(0, m.CorrectionCount);
         Assert.InRange(m.AngularErrorAtStart, 19.5f, 20.5f);
         Assert.InRange(m.FlickDistanceDegrees, 19.5f, 20.5f);
+        Assert.InRange(m.PreAimErrorDegrees, 19.5f, 20.5f);
         Assert.True(m.AngularErrorAtFirstShot < 0.1f);
         Assert.InRange(m.DistanceAtFirstShot, 990f, 1010f);
     }
@@ -115,7 +116,25 @@ public class AimMetricsCalculatorTests
 
         Assert.Equal(120, m.ApproachStartTick);
         Assert.Equal(0f, m.FlickDistanceDegrees, 3);
+        Assert.Equal(m.AngularErrorAtFirstShot, m.PreAimErrorDegrees);
+        Assert.True(m.PreAimErrorDegrees < 1f);
         Assert.Equal(0.0, m.TimeToOnTarget);
+    }
+
+    [Fact]
+    public void FlickThatStopsShortOfTheBody_StillMeasuresTheWholePreAimError()
+    {
+        // The crosshair rested 30° off, then flicked to 4° off and fired: the flick was 26°, the pre-aim error 30°.
+        var demo = Duel()
+            .AimPath(A, B, (0, 30), (100, 30), (110, 4))
+            .Spotted(B, by: A, 100, 130)
+            .Fire(115, A)
+            .Build(300);
+
+        var m = MetricsFor(demo);
+
+        Assert.InRange(m.PreAimErrorDegrees, 29.5f, 30.5f);
+        Assert.InRange(m.FlickDistanceDegrees, 25.5f, 26.5f);
     }
 
     [Fact]

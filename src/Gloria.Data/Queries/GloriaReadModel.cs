@@ -223,12 +223,14 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
     {
         var s = Tally(data.FactsOf(d.Id));
         return new DemoStats(d.Id, d.MapName, d.PlayedAt, s.Encounters, s.Kills, s.Deaths, s.FirstShotHits, s.FirstShotKnown,
-            s.MedianTimeToFirstShot, s.MovingFirstShots, s.HabitCounts, s.Clean);
+            s.MedianTimeToFirstShot, s.MovingFirstShots, s.HabitCounts, s.Clean, s.MedianPreAimError, s.PreAimed);
     }
 
     private static EncounterStats Tally(IReadOnlyList<Facts> facts)
     {
         var times = facts.Where(f => f.TimeToFirstShot is not null).Select(f => f.TimeToFirstShot!.Value).Order().ToList();
+        var preAim = facts.Where(f => f.PreAimError is not null).Select(f => f.PreAimError!.Value).Order().ToList();
+        var flicks = RuleBasedAimLabeler.Flicks.Aggregate(0, (mask, c) => mask | 1 << (int)c);
         var habits = new int[Enum.GetValues<AimCategory>().Length];
         foreach (var f in facts)
         {
@@ -248,7 +250,9 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
             times.Count == 0 ? null : times[times.Count / 2],
             facts.Count(f => f.SpeedRatio > 1f),
             habits,
-            facts.Count(f => f.Flags == 0));
+            facts.Count(f => f.Flags == 0),
+            preAim.Count == 0 ? null : preAim[preAim.Count / 2],
+            facts.Count(f => (f.Flags & flicks) == 0));
     }
 
     private static async Task<PlayerData> LoadAsync(GloriaDbContext db, ulong steamId, int? demoId, CancellationToken ct)
@@ -295,7 +299,11 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
                 e.UndershootProbability,
                 e.MovingShotProbability,
                 e.HastyProbability,
-                e.SlowReactionProbability))
+                e.SlowReactionProbability,
+                e.SmallFlickProbability,
+                e.MediumFlickProbability,
+                e.LargeFlickProbability,
+                e.PreAimErrorDegrees))
             .ToListAsync(ct);
 
         var names = await db.DemoPlayers
@@ -355,7 +363,8 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
     {
         var freezeEnd = data.RoundsOf(demo.Id).FirstOrDefault(r => r.Number == f.RoundNumber)?.FreezeEndTick ?? f.StartTick;
         var rate = Math.Max(demo.TickRate, 1);
-        float[] probabilities = [f.POvershoot, f.PUndershoot, f.PMovingShot, f.PHasty, f.PSlowReaction];
+        // Indexed by AimCategory.
+        float[] probabilities = [f.POvershoot, f.PUndershoot, f.PMovingShot, f.PHasty, f.PSlowReaction, f.PSmallFlick, f.PMediumFlick, f.PLargeFlick];
         var score = Enum.GetValues<AimCategory>()
             .Where(c => (f.Flags & (1 << (int)c)) != 0)
             .Sum(c => probabilities[(int)c]);
@@ -419,7 +428,11 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
         float PUndershoot,
         float PMovingShot,
         float PHasty,
-        float PSlowReaction);
+        float PSlowReaction,
+        float PSmallFlick,
+        float PMediumFlick,
+        float PLargeFlick,
+        float? PreAimError);
 
     private sealed record PlayerData(
         IReadOnlyList<DemoInfo> Demos,

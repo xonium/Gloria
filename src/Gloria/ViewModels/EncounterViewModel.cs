@@ -173,6 +173,7 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 	private EncounterTrace? _trace;
 	private int _startIndex;
 	private float _accurateSpeed = 1;
+	private int _tickRate = 64;
 	private double _position;
 	private double _maxPosition = 1;
 	private double _speed = 0.5;
@@ -389,6 +390,7 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 			+ (e.FiredFirst ? " · you fired first" : " · they fired first");
 
 		_accurateSpeed = StaticWeaponData.Instance.Find(e.FirstShotWeapon)?.AccurateSpeedThreshold ?? 0;
+		_tickRate = Math.Max(d.TickRate, 1);
 		BuildVerdicts(e);
 		BuildScores(e);
 		BuildOutlook(e);
@@ -429,6 +431,10 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 		ErrorChart.Threshold = 0;
 		ErrorChart.ThresholdLabel = "On the body";
 		ErrorChart.Shots = shots;
+		// Pre-aimed shots have no flick; an approach that began before the trace isn't drawn either.
+		var flickStarts = e.ApproachStartTick > 0 && e.ApproachStartTick < e.FirstShotTick && e.ApproachStartTick >= trace.StartTick;
+		ErrorChart.Mark = flickStarts ? trace.IndexOf(e.ApproachStartTick) : -1;
+		ErrorChart.MarkLabel = flickStarts ? "Flick start" : null;
 
 		SpeedChart.Seconds = seconds;
 		SpeedChart.Values = trace.Speed;
@@ -625,6 +631,16 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 			: e.Has(AimCategory.Undershoot) ? "Undershoot"
 			: e.Approach == AimApproach.Unknown ? "Unclear"
 			: "On target";
+		var flick = RuleBasedAimLabeler.Flicks.Where(e.Has).Select(c => (AimCategory?)c).LastOrDefault();
+		var preAimError = e.PreAimErrorDegrees ?? e.AngularErrorAtStart;
+		var flickSeconds = (e.FirstShotTick - e.ApproachStartTick) / (double)_tickRate;
+		var preAim = e.PreAimErrorDegrees is null
+			? $"Your crosshair was {preAimError:0.0}° off the body at first contact. Re-analyze this demo to measure the flick itself."
+			: e.ApproachStartTick >= e.FirstShotTick
+				? $"Your crosshair was already resting {preAimError:0.0}° off the body when you fired, without a flick."
+				: $"Your crosshair was {preAimError:0.0}° off the body when your flick started, {flickSeconds:0.00} s before the first shot.";
+		Verdicts.Add(new VerdictItem("Pre-aim", flick is { } f ? Display.Habit(f) : "Pre-aimed", flick is not null, preAim));
+
 		Verdicts.Add(new VerdictItem("Overshoot or undershoot", approachVerdict, e.Has(AimCategory.Overshoot) || e.Has(AimCategory.Undershoot), approach));
 
 		var weapon = Display.Weapon(e.FirstShotWeapon);

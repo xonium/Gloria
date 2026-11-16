@@ -2,7 +2,7 @@ namespace Gloria.Core.Classification;
 
 /// <summary>
 /// Aim faults a frag or death can be tagged with. An encounter can have several;
-/// one with none is "clean".
+/// one with none is "clean". The values are stored (as bit positions and in corrections), so new ones go at the end.
 /// </summary>
 public enum AimCategory
 {
@@ -20,4 +20,13 @@ public enum AimCategory
 
     /// <summary>The first shot came late after the enemy became visible.</summary>
     SlowReaction,
+
+    /// <summary>The crosshair started 5–15° off the enemy: the pre-aim was a little off.</summary>
+    SmallFlick,
+
+    /// <summary>The crosshair started 15–45° off the enemy: poor pre-aim.</summary>
+    MediumFlick,
+
+    /// <summary>The crosshair started 45° or more off the enemy: no pre-aim at all.</summary>
+    LargeFlick,
 }

@@ -150,6 +150,9 @@ namespace Gloria.Data.Migrations
                     b.Property<int>("Approach")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("ApproachStartTick")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("ClassifierSource")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -188,6 +191,12 @@ namespace Gloria.Data.Migrations
                     b.Property<float>("HastyProbability")
                         .HasColumnType("REAL");
 
+                    b.Property<float>("LargeFlickProbability")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("MediumFlickProbability")
+                        .HasColumnType("REAL");
+
                     b.Property<float>("MovingShotProbability")
                         .HasColumnType("REAL");
 
@@ -216,6 +225,9 @@ namespace Gloria.Data.Migrations
                     b.Property<ulong>("PlayerSteamId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<float?>("PreAimErrorDegrees")
+                        .HasColumnType("REAL");
+
                     b.Property<int?>("PrimaryCategory")
                         .HasColumnType("INTEGER");
 
@@ -229,6 +241,9 @@ namespace Gloria.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<float>("SlowReactionProbability")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("SmallFlickProbability")
                         .HasColumnType("REAL");
 
                     b.Property<float>("SpeedAtFirstShot")

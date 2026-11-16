@@ -55,7 +55,7 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
     private readonly IWeaponData _weapons = weapons ?? StaticWeaponData.Instance;
     private readonly AimMetricsOptions _options = options ?? new AimMetricsOptions();
 
-    public int Version => 5;
+    public int Version => 6;
 
     public EncounterMetrics? Calculate(ParsedDemo demo, Encounter encounter)
     {
@@ -97,6 +97,10 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
         var timeToOnTarget = TimeToOnTarget(timeline, encounter, rate);
         var approachStart = ApproachStartTick(timeline, player, first.Tick, rate);
         timeline.TryGet(player, approachStart, out var meAtApproach);
+        var errorAtShot = BodyModel.AngularError(me, them);
+        var preAimError = approachStart < first.Tick && timeline.TryGet(opponent, approachStart, out var themAtApproach)
+            ? BodyModel.AngularError(meAtApproach, themAtApproach)
+            : errorAtShot;
         var (peakOvershoot, corrections) = Approach(timeline, encounter, approachStart, first.Tick, rate);
         var approach = peakOvershoot >= 1.5f ? AimApproach.Overshoot
             : corrections >= 2 ? AimApproach.Undershoot
@@ -114,7 +118,7 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
             first.Weapon,
             [.. shots.Select(s => s.Tick)],
             errorAtStart,
-            BodyModel.AngularError(me, them),
+            errorAtShot,
             peakOvershoot,
             corrections,
             FlickDistanceDegrees: AimMath.AngleBetween(meAtApproach.Yaw, meAtApproach.Pitch, me.Yaw, me.Pitch),
@@ -124,6 +128,7 @@ public sealed class AimMetricsCalculator(IWeaponData? weapons = null, AimMetrics
             ErrorAt(first.Tick - 1),
             ErrorAt(first.Tick - 2),
             approachStart,
+            preAimError,
             HealthBefore(timeline, player, encounter.StartTick),
             HealthBefore(timeline, opponent, encounter.StartTick),
             timeline.TryGet(opponent, first.Tick - 1, out var themBeforeShot) ? themBeforeShot.ActiveWeapon : them.ActiveWeapon,

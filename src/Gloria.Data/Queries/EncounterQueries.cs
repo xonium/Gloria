@@ -30,6 +30,7 @@ public static class EncounterQueries
             PeakOvershootDegrees = e.PeakOvershootDegrees,
             CorrectionCount = e.CorrectionCount,
             FlickDistanceDegrees = e.FlickDistanceDegrees,
+            PreAimErrorDegrees = e.PreAimErrorDegrees,
             DistanceAtFirstShot = e.DistanceAtFirstShot,
             PlayerHealthAtStart = e.PlayerHealthAtStart,
             OpponentHealthAtStart = e.OpponentHealthAtStart,

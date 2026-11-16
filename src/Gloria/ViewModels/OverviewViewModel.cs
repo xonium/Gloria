@@ -9,7 +9,8 @@ using Gloria.Services;
 
 namespace Gloria.ViewModels;
 
-public sealed record TileItem(string Label, string Value, string Delta, Color DeltaColor, SparklineDrawable Spark, string Foot);
+/// <param name="Column">Position in the row of tiles.</param>
+public sealed record TileItem(string Label, string Value, string Delta, Color DeltaColor, SparklineDrawable Spark, string Foot, int Column);
 
 /// <param name="Bar">Proportional bounds of this period's bar.</param>
 /// <param name="Previous">Proportional x of the previous period's marker.</param>
@@ -161,9 +162,13 @@ public sealed class OverviewViewModel : ObservableObject
 				d => Ratio(d.MovingFirstShots, d.Encounters),
 				s => Ratio(s.Sum(d => d.MovingFirstShots), s.Sum(d => d.Encounters)),
 				v => $"{v:P0}"),
+			("Pre-aimed", "Within 5° of the body before the flick", true,
+				d => Ratio(d.PreAimed, d.Encounters),
+				s => Ratio(s.Sum(d => d.PreAimed), s.Sum(d => d.Encounters)),
+				v => $"{v:P0}"),
 		};
 
-		foreach (var m in metrics)
+		foreach (var (m, column) in metrics.Select((m, i) => (m, i)))
 		{
 			var now = m.Total(data.Recent);
 			var before = data.Previous.Count == 0 ? double.NaN : m.Total(data.Previous);
@@ -179,7 +184,8 @@ public sealed class OverviewViewModel : ObservableObject
 				deltaText,
 				double.IsNaN(delta) || Math.Abs(delta) < 1e-9 ? Display.Muted : better ? Display.Good : Color.FromArgb("#ec835a"),
 				new SparklineDrawable { Values = data.Recent.Select(m.PerDemo).ToList() },
-				m.Foot);
+				m.Foot,
+				column);
 		}
 	}
 

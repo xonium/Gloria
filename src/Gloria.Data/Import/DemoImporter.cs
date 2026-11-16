@@ -205,6 +205,8 @@ public sealed class DemoImporter(
                 PeakOvershootDegrees = m.PeakOvershootDegrees,
                 CorrectionCount = m.CorrectionCount,
                 FlickDistanceDegrees = m.FlickDistanceDegrees,
+                ApproachStartTick = m.ApproachStartTick,
+                PreAimErrorDegrees = m.PreAimErrorDegrees,
                 DistanceAtFirstShot = m.DistanceAtFirstShot,
                 PlayerHealthAtStart = m.PlayerHealthAtStart,
                 OpponentHealthAtStart = m.OpponentHealthAtStart,

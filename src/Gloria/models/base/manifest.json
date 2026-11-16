@@ -1,8 +1,8 @@
 {
   "FormatVersion": 1,
-  "FeatureSchemaVersion": 2,
-  "ModelVersion": "20261115T231845Z",
-  "TrainedAt": "2026-11-15T23:18:45.3247759+00:00",
+  "FeatureSchemaVersion": 3,
+  "ModelVersion": "20261116T083742Z",
+  "TrainedAt": "2026-11-16T08:37:42.7319761+00:00",
   "Categories": [
     {
       "Category": "Overshoot",
@@ -33,13 +33,37 @@
       "TrainingRows": 6976,
       "PositiveRows": 3346,
       "CorrectedRows": 0,
-      "Auc": 0.9991160795528402,
-      "F1": 0.9799196787148594
+      "Auc": 0.9991810737033667,
+      "F1": 0.9778672032193159
     },
     {
       "Category": "SlowReaction",
       "TrainingRows": 6976,
       "PositiveRows": 740,
+      "CorrectedRows": 0,
+      "Auc": 1,
+      "F1": 1
+    },
+    {
+      "Category": "SmallFlick",
+      "TrainingRows": 6976,
+      "PositiveRows": 1824,
+      "CorrectedRows": 0,
+      "Auc": 1,
+      "F1": 0.9935897435897436
+    },
+    {
+      "Category": "MediumFlick",
+      "TrainingRows": 6976,
+      "PositiveRows": 1412,
+      "CorrectedRows": 0,
+      "Auc": 0.999980025567274,
+      "F1": 0.9955555555555555
+    },
+    {
+      "Category": "LargeFlick",
+      "TrainingRows": 6976,
+      "PositiveRows": 398,
       "CorrectedRows": 0,
       "Auc": 1,
       "F1": 1
