@@ -1,0 +1,32 @@
+{
+  "ct": {
+    "clip": "tools_preview",
+    "clipTime": 0,
+    "crouch": {
+      "leg_upper_l_74": [-70, 0, 0],
+      "leg_lower_l_71": [110, 0, 0],
+      "leg_upper_r_81": [70, 0, 0],
+      "leg_lower_r_77": [-110, 0, 0]
+    }
+  },
+  "t": {
+    "stand": {
+      "pasted__pasted__upperarm_l_024": [0, 15, -60],
+      "pasted__pasted__lowerarm_l_025": [0, 0, -35],
+      "pasted__pasted__upperarm_r_049": [0, 30, -35],
+      "pasted__pasted__lowerarm_r_050": [0, 0, -85]
+    },
+    "crouch": {
+      "pasted__pasted__upperarm_l_024": [0, 15, -60],
+      "pasted__pasted__lowerarm_l_025": [0, 0, -35],
+      "pasted__pasted__upperarm_r_049": [0, 30, -35],
+      "pasted__pasted__lowerarm_r_050": [0, 0, -85],
+      "pasted__pasted__upperleg_l_074": [0, 0, 75],
+      "pasted__pasted__lowerleg_l_075": [0, 0, -115],
+      "pasted__pasted__foot_l_076": [0, 0, 40],
+      "pasted__pasted__upperleg_r_081": [0, 0, 75],
+      "pasted__pasted__lowerleg_r_082": [0, 0, -115],
+      "pasted__pasted__foot_r_083": [0, 0, 40]
+    }
+  }
+}

@@ -4,7 +4,7 @@ Renders the agent models into the sprites the Encounter replay draws for the opp
 - one PNG per team (`ct`, `t`), pose (`stand`, `crouch`) and 10° of yaw
 - `agents.json`, which tells the replay how to place each frame to scale
 
-Until those files exist, the replay draws a plain body.
+They are committed. Without them, the replay draws a plain body.
 
 ## Importing the models
 
@@ -33,7 +33,7 @@ Each run prints the model's bone and animation clip names. It also writes a cont
 - **The 0° frame faces the camera.** If it doesn't, set `yawOffset`. A model that faces −Z needs 180.
 - **The pose looks natural.** If the model loads in a T-pose, pick an animation clip, or set bone rotations for each pose.
 
-Both settings go in `_assets/models/agents.json`. For example:
+Both settings go in `tools/Gloria.Sprites/agents.json`, which is committed so renders can be repeated; `--config` points elsewhere. For example:
 
 ```json
 {

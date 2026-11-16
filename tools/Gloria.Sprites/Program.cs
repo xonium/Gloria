@@ -6,8 +6,8 @@ using Microsoft.Playwright;
 //
 //   dotnet run --project tools/Gloria.Sprites -- [--models _assets/models] [--out src/Gloria/Resources/Raw/agents] [--step 10]
 //
-// The models folder holds ct.glb and t.glb (downloaded by hand from Sketchfab; not in git) and optionally
-// agents.json, which per team can set "file", "yawOffset" (degrees, so yaw 0 faces the camera), an animation
+// The models folder holds ct.glb and t.glb (downloaded by hand from Sketchfab; not in git). agents.json next to
+// this file can set, per team, "file", "yawOffset" (degrees, so yaw 0 faces the camera), an animation
 // "clip"/"clipTime" to pose from, and "stand"/"crouch" bone rotations ({ "boneName": [x, y, z] } in degrees).
 // Without a crouch pose the standing model is squashed to crouch height. The bone and clip names are printed
 // on each run, and a contact sheet per team goes to artifacts/sprites/ to check the result.
@@ -20,9 +20,9 @@ var sheetDir = Path.Combine(root, "artifacts", "sprites");
 var step = int.Parse(Arg("--step", "10"));
 var channel = Arg("--channel", "msedge");
 
-var config = File.Exists(Path.Combine(modelsDir, "agents.json"))
-    ? JsonNode.Parse(File.ReadAllText(Path.Combine(modelsDir, "agents.json")))!.AsObject()
-    : [];
+// The pose settings are committed next to the tool so renders can be repeated; --config overrides them.
+var configPath = Arg("--config", Path.Combine(root, "tools", "Gloria.Sprites", "agents.json"));
+var config = File.Exists(configPath) ? JsonNode.Parse(File.ReadAllText(configPath))!.AsObject() : [];
 Directory.CreateDirectory(outDir);
 Directory.CreateDirectory(sheetDir);
 
@@ -75,6 +75,8 @@ foreach (var team in new[] { "ct", "t" })
             frame = await page.EvaluateAsync<JsonElement>(
                 "([yaw, pose, squash]) => window.render(yaw, pose ? JSON.parse(pose) : null, squash)",
                 new object?[] { yaw, bones?.ToJsonString(), squash });
+            if (yaw == 0 && frame.Value.TryGetProperty("height", out var height) && height.ValueKind == JsonValueKind.Number)
+                Console.WriteLine($"  {pose}: {height.GetDouble():0} units tall");
             var png = await page.Locator("canvas").ScreenshotAsync(new() { OmitBackground = true });
             await File.WriteAllBytesAsync(Path.Combine(outDir, $"{team}_{pose}_{yaw:000}.png"), png);
             sheet.Add(($"{pose} {yaw}°", png));

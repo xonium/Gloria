@@ -70,7 +70,9 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
   - **Zero-hit kills:** these turned out to be an attribution bug. `player_hurt` names an M4A1-S hit `m4a1` and a USP-S hit `hkp2000`, so those hits never matched their shot. Segmenter version 3 fixes it; every gun hurt in the first demo now has a shot (86 of 646 didn't).
   - **Trace format 3:** adds a `TraceScene`, about 33 bytes a tick instead of 14. The table shows both players' health, the last hit, and each player's weapon with an icon. The timeline lists utility and damage taken, and names the kill weapon.
   - **Map:** a panel left of the replay draws the radar, both paths, view cones and shot positions. Two-level maps switch radar by the player's altitude.
-  - **Agent models:** pre-rendered sprites from the Sketchfab GLBs (`tools/Gloria.Sprites`), drawn to scale and turned to the opponent's facing. Until sprites are rendered, the replay keeps the drawn body.
+  - **Agent models:** pre-rendered sprites from the Sketchfab GLBs (`tools/Gloria.Sprites`), drawn to scale and turned to the opponent's facing. That's 144 frames, 3.9 MB.
+    - Both models load facing the camera, in an A-pose. The CT's `tools_preview` clip gives a rifle-ready stance; the T's arms are posed by hand.
+    - The crouch bends the legs, and the tool re-grounds the feet. Bone axes differ per rig: the CT's legs are mirrored, so left and right need opposite signs.
   - **MAUI:** `MauiImage TintColor` doesn't recolor PNGs, so the weapon icons are recolored in `fetch-assets.ps1`. In the app project, `IImage` is ambiguous between `Microsoft.Maui.IImage` and `Microsoft.Maui.Graphics.IImage`; alias the graphics one.
 - **Corrections:** done since the spike.
   - The encounter screen has Yes/No per category. Answers override the model in every screen and feed the user's model, which retrains after 10 new answers or on "Retrain now".
@@ -110,5 +112,4 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
 
 ## Suggested next steps
 
-1. Import the two agent models and render the replay sprites (`tools/Gloria.Sprites/README.md`). They need a Sketchfab login, so they aren't in the repo yet, and the replay still draws a plain body.
-2. Click through the pickers, drag and drop and the CS2 replays lookup by hand, ideally on a clean machine.
+1. Click through the pickers, drag and drop and the CS2 replays lookup by hand, ideally on a clean machine.

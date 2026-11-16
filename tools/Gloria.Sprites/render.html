@@ -33,11 +33,11 @@ const camera = new THREE.OrthographicCamera(-frame.halfWidth, frame.halfWidth, f
 camera.position.set(0, 0, 300);
 
 const scene = new THREE.Scene();
-scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30343a, 1.6));
-const key = new THREE.DirectionalLight(0xffffff, 2.2);
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x40444c, 2.4));
+const key = new THREE.DirectionalLight(0xffffff, 3.0);
 key.position.set(-120, 160, 200);
 scene.add(key);
-const rim = new THREE.DirectionalLight(0x9cc6f5, 1.6);
+const rim = new THREE.DirectionalLight(0x9cc6f5, 2.2);
 rim.position.set(150, 120, -200);
 scene.add(rim);
 
@@ -88,8 +88,21 @@ window.render = (yaw, pose, squash) => {
     });
     root.rotation.y = THREE.MathUtils.degToRad(yaw);
     root.scale.set(1, squash ?? 1, 1);
+    root.position.y = 0;
+
+    // A posed crouch bends the legs, which would lift the feet: put them back on the ground. Rendering once
+    // updates the skeletons, so the skinned bounding boxes follow the pose.
     renderer.render(scene, camera);
-    return frame;
+    root.updateMatrixWorld(true);
+    const box = new THREE.Box3();
+    model.traverse(o => {
+        if (!o.isSkinnedMesh) return;
+        o.computeBoundingBox();
+        box.union(o.boundingBox.clone().applyMatrix4(o.matrixWorld));
+    });
+    if (!box.isEmpty()) root.position.y = -box.min.y;
+    renderer.render(scene, camera);
+    return { ...frame, height: box.isEmpty() ? null : box.max.y - box.min.y };
 };
 
 window.ready = true;
