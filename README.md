@@ -1,5 +1,11 @@
 # Gloria
 
+<p align="center"><img src="docs/media/replay.gif" width="880" alt="Replaying a duel: the crosshair path, where each bullet went, both players' health and the radar"></p>
+<p align="center">
+  <a href="docs/media/overview.gif"><img src="docs/media/overview.gif" width="430" alt="The Overview page: trends, aim habits and recent matches"></a>
+  <a href="docs/media/compare.gif"><img src="docs/media/compare.gif" width="430" alt="The Compare page: your numbers against donk's"></a>
+</p>
+
 Gloria is an aim coach for Counter-Strike 2. Load your demos, pick yourself by SteamID, and Gloria breaks every match into rounds and duels. For each duel it shows whether you overshot or undershot the target, whether you had stopped moving when you fired, and whether you shot too early or reacted too late. Across many demos it shows whether you are getting better.
 
 ## Install

@@ -37,7 +37,7 @@
                 </HorizontalStackLayout>
             </Grid>
 
-            <Border Style="{StaticResource Card}" IsVisible="{Binding HasTrace}">
+            <Border x:Name="ReplayCard" Style="{StaticResource Card}" IsVisible="{Binding HasTrace}">
                 <VerticalStackLayout Spacing="12">
                     <Grid ColumnDefinitions="*,Auto">
                         <Label Text="Replay" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />

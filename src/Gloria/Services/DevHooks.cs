@@ -8,6 +8,8 @@ namespace Gloria.Services;
 /// <item>GLORIA_CAPTURE saves a PNG of that screen after it has rendered; GLORIA_CAPTURE_SHELL=1 includes the sidebar.
 /// Desktop screenshot tools see WinUI content as black, so this is how to check the UI from a script.</item>
 /// <item>GLORIA_CAPTURE_SCROLL scrolls the page down by that many pixels before the capture, to check what is below the fold.</item>
+/// <item>GLORIA_RECORD records the scene named by GLORIA_RECORD_SCENE (replay, overview or compare) as frames into that
+/// folder, then quits; see <see cref="DevRecorder"/>.</item>
 /// </list>
 /// Combine with GLORIA_DATA_DIR to run against a scratch database.
 /// </summary>
@@ -32,6 +34,12 @@ public static class DevHooks
 
 		if (Environment.GetEnvironmentVariable("GLORIA_START_ROUTE") is { Length: > 0 } route)
 			await shell.GoToAsync(route);
+
+		if (Environment.GetEnvironmentVariable("GLORIA_RECORD") is { Length: > 0 } folder)
+		{
+			await DevRecorder.RunAsync(shell, folder, Environment.GetEnvironmentVariable("GLORIA_RECORD_SCENE") ?? "");
+			return;
+		}
 
 		if (Environment.GetEnvironmentVariable("GLORIA_CAPTURE") is not { Length: > 0 } path)
 			return;

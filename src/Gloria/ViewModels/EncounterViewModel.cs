@@ -349,6 +349,14 @@ public sealed class EncounterViewModel : ObservableObject, IQueryAttributable
 
 	public string PlayText => IsPlaying ? "Pause" : "Play";
 
+	/// <summary>Trace sample of the first sighting.</summary>
+	public int SightingIndex => _startIndex;
+
+	public int TickRate => _trace?.TickRate ?? _tickRate;
+
+	/// <summary>Shows the controls as playing without running the timer, for <see cref="Services.DevRecorder"/>, which steps the replay itself.</summary>
+	public void ShowPlaying(bool playing) => IsPlaying = playing;
+
 	/// <summary>Sample index into the trace, fractional while playing.</summary>
 	public double Position
 	{
