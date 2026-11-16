@@ -18,6 +18,8 @@
 		<ApplicationId>com.gloria.app</ApplicationId>
 		<ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
 		<ApplicationVersion>1</ApplicationVersion>
+		<!-- MauiIcon only sets the window icon when unpackaged; this one is embedded in Gloria.exe. -->
+		<ApplicationIcon>Resources\AppIcon\gloria.ico</ApplicationIcon>
 
 		<!-- Velopack: unpackaged (no MSIX) and self-contained, including the Windows App SDK. -->
 		<WindowsPackageType>None</WindowsPackageType>
@@ -30,11 +32,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+		<!-- App Icon, cropped from _assets/icon/gloria_icon.png by build/make-icon.ps1 -->
+		<MauiIcon Include="Resources\AppIcon\appicon.png" Color="#000000" />
 
 		<!-- Splash Screen -->
-		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#000000" BaseSize="128,128" />
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />

@@ -9,7 +9,9 @@
         <VerticalStackLayout Padding="48,48,48,32" Spacing="36" MaximumWidthRequest="1080" HorizontalOptions="Fill">
 
             <HorizontalStackLayout Spacing="12">
-                <Ellipse WidthRequest="26" HeightRequest="26" Stroke="{StaticResource Accent}" StrokeThickness="2" VerticalOptions="Center" />
+                <Border StrokeThickness="0" StrokeShape="RoundRectangle 7" VerticalOptions="Center">
+                    <Image Source="logo.png" WidthRequest="34" HeightRequest="34" />
+                </Border>
                 <Label Text="Gloria" FontFamily="OpenSansSemibold" FontSize="22" VerticalOptions="Center" />
             </HorizontalStackLayout>
 

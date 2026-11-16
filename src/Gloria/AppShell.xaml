@@ -14,7 +14,9 @@
     <Shell.FlyoutContent>
         <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="18" Padding="14,20">
             <HorizontalStackLayout Spacing="10" Padding="8,4">
-                <Ellipse WidthRequest="22" HeightRequest="22" Stroke="{StaticResource Accent}" StrokeThickness="2" VerticalOptions="Center" />
+                <Border StrokeThickness="0" StrokeShape="RoundRectangle 6" VerticalOptions="Center">
+                    <Image Source="logo.png" WidthRequest="30" HeightRequest="30" />
+                </Border>
                 <Label Text="Gloria" FontFamily="OpenSansSemibold" FontSize="20" VerticalOptions="Center" />
             </HorizontalStackLayout>
 

@@ -29,7 +29,7 @@ try {
     dotnet publish src/Gloria/Gloria.csproj -c Release -r $Runtime --self-contained -p:ApplicationDisplayVersion=$Version -o $publishDir
     if ($LASTEXITCODE) { throw 'dotnet publish failed' }
 
-    dotnet vpk pack --packId Gloria --packVersion $Version --packDir $publishDir --mainExe Gloria.exe --packTitle Gloria --outputDir $OutputDir
+    dotnet vpk pack --packId Gloria --packVersion $Version --packDir $publishDir --mainExe Gloria.exe --packTitle Gloria --icon src/Gloria/Resources/AppIcon/gloria.ico --outputDir $OutputDir
     if ($LASTEXITCODE) { throw 'vpk pack failed' }
 }
 finally {
