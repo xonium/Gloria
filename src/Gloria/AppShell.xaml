@@ -77,6 +77,7 @@
     <ShellContent Route="overview" Title="Overview" ContentTemplate="{DataTemplate pages:OverviewPage}" />
     <ShellContent Route="matches" Title="Matches" ContentTemplate="{DataTemplate pages:MatchesPage}" />
     <ShellContent Route="trends" Title="Progress" ContentTemplate="{DataTemplate pages:TrendsPage}" />
+    <ShellContent Route="compare" Title="Compare" ContentTemplate="{DataTemplate pages:ComparePage}" />
     <ShellContent Route="import" Title="Import" ContentTemplate="{DataTemplate pages:ImportPage}" />
     <ShellContent Route="player" Title="Player" ContentTemplate="{DataTemplate pages:PlayerPage}" />
 

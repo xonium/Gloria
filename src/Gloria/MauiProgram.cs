@@ -78,6 +78,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<ImportQueue>();
 		builder.Services.AddSingleton<ProfileState>();
 		builder.Services.AddSingleton<GameArt>();
+		builder.Services.AddSingleton<ReferencePlayers>();
 		builder.Services.AddSingleton<UpdateService>();
 		builder.Services.AddSingleton<UpdateNotifier>();
 
@@ -89,6 +90,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<OverviewViewModel>();
 		builder.Services.AddSingleton<MatchesViewModel>();
 		builder.Services.AddSingleton<TrendsViewModel>();
+		builder.Services.AddSingleton<CompareViewModel>();
 		builder.Services.AddTransient<MatchViewModel>();
 		builder.Services.AddTransient<EncounterViewModel>();
 		builder.Services.AddTransient<WelcomePage>();
@@ -97,6 +99,7 @@ public static class MauiProgram
 		builder.Services.AddTransient<OverviewPage>();
 		builder.Services.AddTransient<MatchesPage>();
 		builder.Services.AddTransient<TrendsPage>();
+		builder.Services.AddTransient<ComparePage>();
 		builder.Services.AddTransient<MatchPage>();
 		builder.Services.AddTransient<EncounterPage>();
 
