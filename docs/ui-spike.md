@@ -110,4 +110,5 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
 
 ## Suggested next steps
 
-1. Click through the pickers, drag and drop and the CS2 replays lookup by hand, ideally on a clean machine.
+1. Import the two agent models and render the replay sprites (`tools/Gloria.Sprites/README.md`). They need a Sketchfab login, so they aren't in the repo yet, and the replay still draws a plain body.
+2. Click through the pickers, drag and drop and the CS2 replays lookup by hand, ideally on a clean machine.
