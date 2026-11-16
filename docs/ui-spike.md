@@ -71,7 +71,7 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
   - **Trace format 3:** adds a `TraceScene`, about 33 bytes a tick instead of 14. The table shows both players' health, the last hit, and each player's weapon with an icon. The timeline lists utility and damage taken, and names the kill weapon.
   - **Map:** a panel left of the replay draws the radar, both paths, view cones and shot positions. Two-level maps switch radar by the player's altitude.
   - **Agent models:** pre-rendered sprites from the Sketchfab GLBs (`tools/Gloria.Sprites`), drawn to scale and turned to the opponent's facing. That's 144 frames, 3.9 MB.
-    - Both models load facing the camera, in an A-pose. The CT's `tools_preview` clip gives a rifle-ready stance; the T's arms are posed by hand.
+    - Both models load facing the camera, in an A-pose. The CT's `tools_preview` clip gives a rifle-ready stance. The T copies the CT's torso and arms by limb direction, with a side line (shoulders, index to pinky) for the twist. Hand-set arm angles didn't read as well.
     - The crouch bends the legs, and the tool re-grounds the feet. Bone axes differ per rig: the CT's legs are mirrored, so left and right need opposite signs.
   - **MAUI:** `MauiImage TintColor` doesn't recolor PNGs, so the weapon icons are recolored in `fetch-assets.ps1`. In the app project, `IImage` is ambiguous between `Microsoft.Maui.IImage` and `Microsoft.Maui.Graphics.IImage`; alias the graphics one.
 - **Corrections:** done since the spike.

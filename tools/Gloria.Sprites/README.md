@@ -32,6 +32,7 @@ The tool drives the installed Microsoft Edge through Playwright, with `--channel
 Each run prints the model's bone and animation clip names. It also writes a contact sheet per team to `artifacts/sprites/`. On the contact sheet, check two things:
 - **The 0° frame faces the camera.** If it doesn't, set `yawOffset`. A model that faces −Z needs 180.
 - **The pose looks natural.** If the model loads in a T-pose, pick an animation clip, or set bone rotations for each pose.
+- **Both teams share a stance.** The T has no usable clip, so `matchFrom` copies the CT's torso and arms onto it. It turns each T bone until the line to the next bone points the way the CT's does, with an optional side line to set the twist. Bone axes differ between the rigs, so copying angles wouldn't work.
 
 Both settings go in `tools/Gloria.Sprites/agents.json`, which is committed so renders can be repeated; `--config` points elsewhere. For example:
 

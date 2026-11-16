@@ -62,6 +62,8 @@ window.setup = async (url, config) => {
     }
 
     model.updateMatrixWorld(true);
+    if (config.matchFrom) await matchPose(model, config.matchFrom);
+
     const box = new THREE.Box3().setFromObject(model);
     const height = box.max.y - box.min.y;
     const scale = 72 / height;
@@ -77,6 +79,53 @@ window.setup = async (url, config) => {
     model.traverse(o => { if (o.isBone) { bones.push(o.name); rest.set(o.name, o.quaternion.clone()); } });
     return { bones, clips: gltf.animations.map(a => a.name), height };
 };
+
+// Copies another model's pose onto this one by limb direction, so two rigs with different bone axes can share
+// a stance. from: { file, clip, clipTime, yawOffset, bones: [{ source: [bone, toward], target: [bone, toward],
+// sourceSide: [a, b], targetSide: [a, b] }, ...] }. Each target bone is turned so that the line from it to
+// "toward" points the way the source's does; the optional side pair (e.g. shoulder to shoulder, index to pinky)
+// then sets the twist around that line. Parents come first in the list, so children are matched after their
+// parent has moved.
+async function matchPose(target, from) {
+    const gltf = await new GLTFLoader().loadAsync(from.file);
+    const source = gltf.scene;
+    source.rotation.y = THREE.MathUtils.degToRad(from.yawOffset ?? 0);
+    if (from.clip) {
+        const mixer = new THREE.AnimationMixer(source);
+        mixer.clipAction(gltf.animations.find(a => a.name === from.clip) ?? gltf.animations[0]).play();
+        mixer.setTime(from.clipTime ?? 0);
+    }
+    source.updateMatrixWorld(true);
+
+    const worldPosition = o => o.getWorldPosition(new THREE.Vector3());
+    const direction = (bone, child) => worldPosition(child).sub(worldPosition(bone)).normalize();
+    const find = (model, names) => (names ?? []).map(n => model.getObjectByName(n));
+    for (const entry of from.bones) {
+        const s = find(source, entry.source), t = find(target, entry.target);
+        const sSide = find(source, entry.sourceSide), tSide = find(target, entry.targetSide);
+        if ([...s, ...t, ...sSide, ...tSide].includes(undefined)) {
+            console.log(`matchPose: missing a bone in ${JSON.stringify(entry)}`);
+            continue;
+        }
+
+        const bone = t[0];
+        const axis = direction(...s);
+        const turn = new THREE.Quaternion().setFromUnitVectors(direction(...t), axis);
+        if (sSide.length === 2 && tSide.length === 2) {
+            // Twist about the matched axis so the side lines agree too, both projected off the axis.
+            const flat = v => v.sub(axis.clone().multiplyScalar(v.dot(axis))).normalize();
+            const want = flat(direction(...sSide));
+            const have = flat(direction(...tSide).applyQuaternion(turn));
+            const angle = Math.atan2(axis.dot(new THREE.Vector3().crossVectors(have, want)), have.dot(want));
+            turn.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, angle));
+        }
+
+        const world = bone.getWorldQuaternion(new THREE.Quaternion());
+        const parent = bone.parent.getWorldQuaternion(new THREE.Quaternion());
+        bone.quaternion.copy(parent.invert().multiply(turn.multiply(world)));
+        target.updateMatrixWorld(true);
+    }
+}
 
 // pose: { boneName: [x, y, z] degrees added to the rest rotation }; squash scales the height (crouch fallback).
 window.render = (yaw, pose, squash) => {

@@ -10,17 +10,23 @@
     }
   },
   "t": {
-    "stand": {
-      "pasted__pasted__upperarm_l_024": [0, 15, -60],
-      "pasted__pasted__lowerarm_l_025": [0, 0, -35],
-      "pasted__pasted__upperarm_r_049": [0, 30, -35],
-      "pasted__pasted__lowerarm_r_050": [0, 0, -85]
+    "matchFrom": {
+      "file": "ct.glb",
+      "clip": "tools_preview",
+      "clipTime": 0,
+      "bones": [
+        { "source": ["spine_0_68", "neck_0_3"], "target": ["pasted__pasted__spine_01_03", "pasted__pasted__neck_06"], "sourceSide": ["arm_upper_r_58", "arm_upper_l_30"], "targetSide": ["pasted__pasted__upperarm_r_049", "pasted__pasted__upperarm_l_024"] },
+        { "source": ["clavicle_l_31", "arm_upper_l_30"], "target": ["pasted__pasted__shoulder_l_023", "pasted__pasted__upperarm_l_024"] },
+        { "source": ["arm_upper_l_30", "arm_lower_l_27"], "target": ["pasted__pasted__upperarm_l_024", "pasted__pasted__lowerarm_l_025"] },
+        { "source": ["arm_lower_l_27", "hand_l_24"], "target": ["pasted__pasted__lowerarm_l_025", "pasted__pasted__hand_l_026"], "sourceSide": ["finger_index_0_l_18", "finger_pinky_0_l_11"], "targetSide": ["pasted__pasted__index_01_l_030", "pasted__pasted__pinky_01_l_042"] },
+        { "source": ["hand_l_24", "finger_middle_0_l_7"], "target": ["pasted__pasted__hand_l_026", "pasted__pasted__middle_01_l_034"], "sourceSide": ["finger_index_0_l_18", "finger_pinky_0_l_11"], "targetSide": ["pasted__pasted__index_01_l_030", "pasted__pasted__pinky_01_l_042"] },
+        { "source": ["clavicle_r_59", "arm_upper_r_58"], "target": ["pasted__pasted__shoulder_r_048", "pasted__pasted__upperarm_r_049"] },
+        { "source": ["arm_upper_r_58", "arm_lower_r_55"], "target": ["pasted__pasted__upperarm_r_049", "pasted__pasted__lowerarm_r_050"] },
+        { "source": ["arm_lower_r_55", "hand_r_52"], "target": ["pasted__pasted__lowerarm_r_050", "pasted__pasted__hand_r_051"], "sourceSide": ["finger_index_0_r_43", "finger_pinky_0_r_39"], "targetSide": ["pasted__pasted__index_01_r_056", "pasted__pasted__pinky_01_r_068"] },
+        { "source": ["hand_r_52", "finger_middle_0_r_35"], "target": ["pasted__pasted__hand_r_051", "pasted__pasted__middle_01_r_060"], "sourceSide": ["finger_index_0_r_43", "finger_pinky_0_r_39"], "targetSide": ["pasted__pasted__index_01_r_056", "pasted__pasted__pinky_01_r_068"] }
+      ]
     },
     "crouch": {
-      "pasted__pasted__upperarm_l_024": [0, 15, -60],
-      "pasted__pasted__lowerarm_l_025": [0, 0, -35],
-      "pasted__pasted__upperarm_r_049": [0, 30, -35],
-      "pasted__pasted__lowerarm_r_050": [0, 0, -85],
       "pasted__pasted__upperleg_l_074": [0, 0, 75],
       "pasted__pasted__lowerleg_l_075": [0, 0, -115],
       "pasted__pasted__foot_l_076": [0, 0, 40],
