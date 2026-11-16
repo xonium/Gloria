@@ -10,6 +10,24 @@
     }
   },
   "t": {
+    "reskinCrotch": {
+      "hip": "pasted__pasted__hip_02",
+      "from": [
+        "pasted__pasted__root_01",
+        "pasted__pasted__hip_02",
+        "pasted__pasted__upperleg_l_074",
+        "pasted__pasted__upperleg_r_081",
+        "pasted__pasted__upperleg_twist_l_080",
+        "pasted__pasted__upperleg_twist_r_087"
+      ],
+      "left": "pasted__pasted__upperleg_l_074",
+      "right": "pasted__pasted__upperleg_r_081",
+      "spine": "pasted__pasted__spine_01_03",
+      "depth": {
+        "stand": 1,
+        "crouch": 2
+      }
+    },
     "matchFrom": {
       "team": "ct",
       "bones": [
@@ -23,12 +41,12 @@
         { "source": ["arm_upper_r_58", "arm_lower_r_55"], "target": ["pasted__pasted__upperarm_r_049", "pasted__pasted__lowerarm_r_050"] },
         { "source": ["arm_lower_r_55", "hand_r_52"], "target": ["pasted__pasted__lowerarm_r_050", "pasted__pasted__hand_r_051"], "sourceSide": ["finger_index_0_r_43", "finger_pinky_0_r_39"], "targetSide": ["pasted__pasted__index_01_r_056", "pasted__pasted__pinky_01_r_068"] },
         { "source": ["hand_r_52", "finger_middle_0_r_35"], "target": ["pasted__pasted__hand_r_051", "pasted__pasted__middle_01_r_060"], "sourceSide": ["finger_index_0_r_43", "finger_pinky_0_r_39"], "targetSide": ["pasted__pasted__index_01_r_056", "pasted__pasted__pinky_01_r_068"] },
-        { "source": ["leg_upper_l_74", "leg_lower_l_71"], "target": ["pasted__pasted__upperleg_l_074", "pasted__pasted__lowerleg_l_075"] },
-        { "source": ["leg_lower_l_71", "ankle_l_70"], "target": ["pasted__pasted__lowerleg_l_075", "pasted__pasted__foot_l_076"] },
-        { "source": ["ankle_l_70", "ball_l_69"], "target": ["pasted__pasted__foot_l_076", "pasted__pasted__foot_end_l_078"] },
-        { "source": ["leg_upper_r_81", "leg_lower_r_77"], "target": ["pasted__pasted__upperleg_r_081", "pasted__pasted__lowerleg_r_082"] },
-        { "source": ["leg_lower_r_77", "ankle_r_76"], "target": ["pasted__pasted__lowerleg_r_082", "pasted__pasted__foot_r_083"] },
-        { "source": ["ankle_r_76", "ball_r_75"], "target": ["pasted__pasted__foot_r_083", "pasted__pasted__foot_end_r_085"] }
+        { "source": ["leg_upper_l_74", "leg_lower_l_71"], "target": ["pasted__pasted__upperleg_l_074", "pasted__pasted__lowerleg_l_075"], "sourceSide": ["ankle_l_70", "ball_l_69"], "targetSide": ["pasted__pasted__foot_l_076", "pasted__pasted__ball_l_077"] },
+        { "source": ["leg_lower_l_71", "ankle_l_70"], "target": ["pasted__pasted__lowerleg_l_075", "pasted__pasted__foot_l_076"], "sourceSide": ["ankle_l_70", "ball_l_69"], "targetSide": ["pasted__pasted__foot_l_076", "pasted__pasted__ball_l_077"] },
+        { "source": ["ankle_l_70", "ball_l_69"], "target": ["pasted__pasted__foot_l_076", "pasted__pasted__ball_l_077"] },
+        { "source": ["leg_upper_r_81", "leg_lower_r_77"], "target": ["pasted__pasted__upperleg_r_081", "pasted__pasted__lowerleg_r_082"], "sourceSide": ["ankle_r_76", "ball_r_75"], "targetSide": ["pasted__pasted__foot_r_083", "pasted__pasted__ball_r_084"] },
+        { "source": ["leg_lower_r_77", "ankle_r_76"], "target": ["pasted__pasted__lowerleg_r_082", "pasted__pasted__foot_r_083"], "sourceSide": ["ankle_r_76", "ball_r_75"], "targetSide": ["pasted__pasted__foot_r_083", "pasted__pasted__ball_r_084"] },
+        { "source": ["ankle_r_76", "ball_r_75"], "target": ["pasted__pasted__foot_r_083", "pasted__pasted__ball_r_084"] }
       ]
     }
   }

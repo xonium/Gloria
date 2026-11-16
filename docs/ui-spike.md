@@ -72,6 +72,7 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
   - **Map:** a panel left of the replay draws the radar, both paths, view cones and shot positions. Two-level maps switch radar by the player's altitude.
   - **Agent models:** pre-rendered sprites from the Sketchfab GLBs (`tools/Gloria.Sprites`), drawn to scale and turned to the opponent's facing. That's 144 frames, 3.9 MB.
     - Both models load facing the camera, in an A-pose. The CT's `tools_preview` clip gives a rifle-ready stance. The T copies the CT's whole stance (hips, torso, arms and legs) by limb direction, once per pose, with a side line (hips, shoulders, index to pinky) for the twist. Hand-set angles didn't read as well.
+    - The T's pants are weighted to the root and hips at the crotch, and partly to the opposite thigh, so the CT's stride stretched them into a web between the legs. `reskinCrotch` hands that weight to the nearer thigh below the hip, more slowly for the crouch, where a quick handover tears the cloth.
     - The crouch bends the legs, and the tool re-grounds the feet. Bone axes differ per rig: the CT's legs are mirrored, so left and right need opposite signs.
   - **MAUI:** `MauiImage TintColor` doesn't recolor PNGs, so the weapon icons are recolored in `fetch-assets.ps1`. In the app project, `IImage` is ambiguous between `Microsoft.Maui.IImage` and `Microsoft.Maui.Graphics.IImage`; alias the graphics one.
 - **Corrections:** done since the spike.

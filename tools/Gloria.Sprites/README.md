@@ -32,7 +32,8 @@ The tool drives the installed Microsoft Edge through Playwright, with `--channel
 Each run prints the model's bone and animation clip names. It also writes a contact sheet per team to `artifacts/sprites/`. On the contact sheet, check two things:
 - **The 0° frame faces the camera.** If it doesn't, set `yawOffset`. A model that faces −Z needs 180.
 - **The pose looks natural.** If the model loads in a T-pose, pick an animation clip, or set bone rotations for each pose.
-- **Both teams share a stance.** The T has no usable clip, so `matchFrom` with `"team": "ct"` copies the CT's stance onto it (hips, torso, arms and legs), once standing and once crouched, posed as the CT's own sprites are. It turns each T bone until the line to the next bone points the way the CT's does, with an optional side line to set the twist. Bone axes differ between the rigs, so copying angles wouldn't work.
+- **Both teams share a stance.** The T has no usable clip, so `matchFrom` with `"team": "ct"` copies the CT's stance onto it (hips, torso, arms and legs), once standing and once crouched, posed as the CT's own sprites are.
+- **Clothes follow the legs.** If cloth between the legs stretches into a web when they spread, the crotch is weighted to the hips. `reskinCrotch` hands that weight, listed in `from`, to the nearer thigh below the hip joint. Its `depth` is set per pose: how far below the hip the handover completes, as a fraction of the hip-to-spine length. It turns each T bone until the line to the next bone points the way the CT's does, with an optional side line to set the twist. Bone axes differ between the rigs, so copying angles wouldn't work.
 
 Both settings go in `tools/Gloria.Sprites/agents.json`, which is committed so renders can be repeated; `--config` points elsewhere. For example:
 

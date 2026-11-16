@@ -46,6 +46,7 @@ let model = null;     // the loaded scene, normalized to 72 units tall
 let mixer = null;
 let rest = new Map(); // bone name -> rest quaternion
 let matched = {};     // pose name -> Map(bone name -> quaternion) copied from another model, see matchPoses
+let reskinned = null; // { skins: [{ attributes, original, poses: { name: weights } }] }, see reskinCrotch
 
 const loader = new GLTFLoader();
 const boneRotations = m => { const r = new Map(); m.traverse(o => { if (o.isBone) r.set(o.name, o.quaternion.clone()); }); return r; };
@@ -72,6 +73,7 @@ window.setup = async (url, config) => {
     }
 
     model.updateMatrixWorld(true);
+    if (config.reskinCrotch) reskinCrotch(model, config.reskinCrotch);
     rest = boneRotations(model);
     if (config.matchFrom) {
         matched = await matchPoses(model, config.matchFrom);
@@ -91,13 +93,90 @@ window.setup = async (url, config) => {
     model.position.z -= center.z;
     model.position.y -= scaled.min.y;
 
-    const bones = [...rest.keys()];
+    const bones = [];
+    model.traverse(o => { if (o.isBone) bones.push(o.parent?.isBone ? `${o.name} <- ${o.parent.name}` : o.name); });
     return { bones, clips: gltf.animations.map(a => a.name), height };
 };
 
+// Some rigs weight the crotch of the pants to the hips (or the root above them, or partly the opposite thigh), so
+// it stays behind as a web of cloth when the thighs spread. This hands that weight on vertices below the hip joint
+// to the thighs: more the lower the vertex, split between left and right by which side of the middle it is on.
+// Positions are taken in the bind pose. options: { hip, left, right, spine, from, depth }: bone names (from: the
+// bones whose weight is handed over), and per pose ({ stand: 1, crouch: 2 }) the depth below the hip, as a fraction
+// of the hip-to-spine length, at which it is fully handed over. A deep crouch tears if it is handed over too soon.
+function reskinCrotch(target, options) {
+    reskinned = { skins: [] };
+    target.traverse(mesh => {
+        if (!mesh.isSkinnedMesh) return;
+        const bones = mesh.skeleton.bones;
+        const index = name => bones.findIndex(b => b.name === name);
+        const [hip, left, right, spine] = [options.hip, options.left, options.right, options.spine].map(index);
+        const from = (options.from ?? [options.hip]).map(index);
+        if ([hip, left, right, spine, ...from].includes(-1)) return;
+
+        const bindPosition = i => new THREE.Vector3().setFromMatrixPosition(mesh.skeleton.boneInverses[i].clone().invert());
+        const hipAt = bindPosition(hip);
+        const up = bindPosition(spine).sub(hipAt);
+        const length = up.length();
+        up.normalize();
+        const across = bindPosition(left).sub(bindPosition(right));
+        const half = across.length() / 2;
+        across.normalize();
+
+        const position = mesh.geometry.attributes.position;
+        const attributes = [mesh.geometry.attributes.skinIndex, mesh.geometry.attributes.skinWeight];
+        const [skinIndex, skinWeight] = attributes;
+        const original = attributes.map(a => a.array.slice());
+        const poses = {};
+        for (const [pose, depth] of Object.entries(options.depth)) {
+            attributes.forEach((a, k) => a.array.set(original[k]));
+            const full = length * depth;
+            const v = new THREE.Vector3();
+            for (let i = 0; i < position.count; i++) {
+                const slots = [0, 1, 2, 3].map(k => ({ bone: skinIndex.getComponent(i, k), weight: skinWeight.getComponent(i, k) }));
+                if (!slots.some(s => from.includes(s.bone) && s.weight > 0)) continue;
+
+                v.fromBufferAttribute(position, i).applyMatrix4(mesh.bindMatrix).sub(hipAt);
+                const below = -v.dot(up);
+                if (below <= 0) continue;
+
+                // Free the handed-over share, then give it to the thighs: the nearer one first, and if the other
+                // has no slot left, the nearer one takes its share too.
+                const fraction = Math.min(below / full, 1);
+                let moved = 0;
+                for (const slot of slots) {
+                    if (!from.includes(slot.bone) || slot.weight <= 0) continue;
+                    moved += slot.weight * fraction;
+                    slot.weight -= slot.weight * fraction;
+                }
+
+                const toLeft = THREE.MathUtils.smoothstep(v.dot(across), -half * 0.5, half * 0.5);
+                const sides = toLeft >= 0.5 ? [[left, toLeft], [right, 1 - toLeft]] : [[right, 1 - toLeft], [left, toLeft]];
+                let first = null;
+                for (const [bone, share] of sides) {
+                    const slot = slots.find(s => s.bone === bone && s.weight > 0)
+                        ?? slots.find(s => s.weight === 0)
+                        ?? first
+                        ?? slots.find(s => from.includes(s.bone)); // no room at all: it stays where it was
+                    if (slot.weight === 0) slot.bone = bone;
+                    slot.weight += moved * share;
+                    first ??= slot;
+                }
+
+                slots.forEach((s, k) => { skinIndex.setComponent(i, k, s.bone); skinWeight.setComponent(i, k, s.weight); });
+            }
+
+            poses[pose] = attributes.map(a => a.array.slice());
+        }
+
+        attributes.forEach((a, k) => a.array.set(original[k]));
+        reskinned.skins.push({ attributes, original, poses });
+    });
+}
+
 // Copies another model's poses onto this one by limb direction, so two rigs with different bone axes can share
 // a stance. from: { file, clip, clipTime, yawOffset, poses: { stand: rotations, crouch: rotations },
-// bones: [{ source: [bone, toward], target: [bone, toward], sourceSide: [a, b], targetSide: [a, b] }, ...] }.
+// bones: [{ source: [bone, toward], target: [bone, toward], sourceSide: [a, b], targetSide: [a, b], weight }, ...] }.
 // The source is posed as for its own sprites (clip, then that pose's rotations), and each target bone is turned
 // so that the line from it to "toward" points the way the source's does; the optional side pair (e.g. shoulder
 // to shoulder, index to pinky) then sets the twist around that line. Parents come first in the list, so children
@@ -155,6 +234,9 @@ function matchPose(source, target, bones) {
             turn.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, angle));
         }
 
+        // A weight below 1 takes only part of the turn, e.g. a shorter stride where the mesh would stretch.
+        if (entry.weight !== undefined) turn.slerp(new THREE.Quaternion(), 1 - entry.weight);
+
         const world = bone.getWorldQuaternion(new THREE.Quaternion());
         const parent = bone.parent.getWorldQuaternion(new THREE.Quaternion());
         bone.quaternion.copy(parent.invert().multiply(turn.multiply(world)));
@@ -166,6 +248,10 @@ function matchPose(source, target, bones) {
 // squash scales the height (crouch fallback).
 window.render = (yaw, name, pose, squash) => {
     setRotations(model, rest);
+    for (const skin of reskinned?.skins ?? []) {
+        const weights = skin.poses[name] ?? skin.original;
+        skin.attributes.forEach((attribute, k) => { attribute.array.set(weights[k]); attribute.needsUpdate = true; });
+    }
     if (matched[name]) setRotations(model, matched[name]);
     addRotations(model, pose);
     root.rotation.y = THREE.MathUtils.degToRad(yaw);
