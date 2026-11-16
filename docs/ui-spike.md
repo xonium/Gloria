@@ -48,6 +48,7 @@ Storing every player's encounters and traces is cheap, so the "analyze once, no 
 7. **Numbers follow the Windows locale by default.** On sv-SE they showed as "63 %" and "0,19 s". The UI is in English, so `Display.UseCulture()` now sets an invariant culture with "63%" for every thread at startup.
 8. **MAUI `Preferences` live in a per-app store, not next to the database,** so `GLORIA_DATA_DIR` didn't isolate them. Saved folders and the current profile are now in the `Settings` table (`AppSettings`). `LegacyPreferences` moves old values over once, for the default data folder only.
 9. **Unpackaged, MAUI's per-app storage is `%LocalAppData%\Gloria\Gloria`, inside the Velopack install folder.** `Setup.exe` cleared it on install, and uninstall deletes it. Don't use `Preferences` or `FileSystem.AppDataDirectory` for anything that must last; use the database or `DatabaseLocation.DataDirectory`.
+10. **MAUI has no cursor API, and on Windows buttons don't react to hover.** The button handler sets the WinUI hover brush to the normal background. `Services/ClickableHover` hooks every view's handler: buttons, pickers and anything with a `TapGestureRecognizer` get the hand cursor (`UIElement.ProtectedCursor`, through reflection) and a slightly lighter `Background` while hovered. `Background` takes precedence over `BackgroundColor`, so bound background colors keep working. Clickable labels brighten and underline instead, and they must set `TextColor` directly, not through a binding, because it is restored by value.
 
 ## Running against scratch data
 
