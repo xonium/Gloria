@@ -12,6 +12,14 @@ public partial class App : Application
 	}
 
 	// The shell is resolved here, not injected, so its XAML can use the app's resources loaded above.
+	// The empty TitleBar hides the caption text (the sidebar already says Gloria); Title still names the
+	// window in the taskbar and Alt+Tab.
 	protected override Window CreateWindow(IActivationState? activationState) =>
-		new(_services.GetRequiredService<AppShell>()) { Title = "Gloria", MinimumWidth = 960, MinimumHeight = 640 };
+		new(_services.GetRequiredService<AppShell>())
+		{
+			Title = "Gloria",
+			TitleBar = new TitleBar(),
+			MinimumWidth = 960,
+			MinimumHeight = 640,
+		};
 }
