@@ -12,9 +12,14 @@ public sealed record PlayerCandidate(ulong SteamId, string Name, int DemoCount, 
 
 /// <summary>One demo as seen by one player.</summary>
 /// <param name="StartingSide">'T', 'C' or '-' in the first live round.</param>
+/// <param name="DuelKills">Encounters the player won by killing the opponent.</param>
+/// <param name="DuelDeaths">Encounters the player lost by dying.</param>
 /// <param name="FirstShotKnown">Encounters where it is known whether the first shot hit.</param>
 /// <param name="MainHabit">The aim category flagged most often in this demo, if any.</param>
 /// <param name="IsCurrentVersion">Analyzed by the current analysis version.</param>
+/// <param name="Kills">Scoreboard kills, from every death in the demo; null when imported before they were recorded.</param>
+/// <param name="Damage">Health taken from enemies, utility included; null when imported before it was recorded.</param>
+/// <param name="RoundsPlayed">Live rounds in which the player's side is known.</param>
 public sealed record MatchSummary(
     int DemoId,
     string MapName,
@@ -25,13 +30,24 @@ public sealed record MatchSummary(
     int RoundsLost,
     char StartingSide,
     int Encounters,
-    int Kills,
-    int Deaths,
+    int DuelKills,
+    int DuelDeaths,
     int FirstShotHits,
     int FirstShotKnown,
     AimCategory? MainHabit,
     bool IsCurrentVersion,
-    string ContentHash);
+    string ContentHash,
+    int? Kills,
+    int? Deaths,
+    int? Damage,
+    int RoundsPlayed)
+{
+    /// <summary>Kills per death; the kills alone when the player never died. Null without scoreboard numbers.</summary>
+    public double? KillDeathRatio => Kills is { } k && Deaths is { } d ? (double)k / Math.Max(d, 1) : null;
+
+    /// <summary>Average damage per round played. Null without scoreboard numbers or rounds.</summary>
+    public double? DamagePerRound => Damage is { } dmg && RoundsPlayed > 0 ? (double)dmg / RoundsPlayed : null;
+}
 
 /// <param name="Won">Null when the player's side in the round is unknown.</param>
 public sealed record RoundSummary(int Number, char Side, bool? Won, IReadOnlyList<EncounterOutcome> Outcomes);

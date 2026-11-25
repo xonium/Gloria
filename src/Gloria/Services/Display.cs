@@ -18,6 +18,7 @@ public static class Display
 	public static readonly Color Bullet = Color.FromArgb("#eb6834");
 	public static readonly Color Warn = Color.FromArgb("#fab219");
 	public static readonly Color Good = Color.FromArgb("#0ca30c");
+	public static readonly Color GoodText = Color.FromArgb("#a8dca8");
 	public static readonly Color Bg = Color.FromArgb("#0f1012");
 	public static readonly Color Panel = Color.FromArgb("#17191c");
 	public static readonly Color Panel2 = Color.FromArgb("#1e2125");
@@ -99,6 +100,18 @@ public static class Display
 		date?.ToLocalTime().ToString("d MMM", Culture) ?? "—";
 
 	public static string Percent(int part, int whole) => whole == 0 ? "—" : $"{100.0 * part / whole:0}%";
+
+	public static string KillDeathRatio(double? ratio) => ratio is { } r ? r.ToString("0.00", Culture) : "—";
+
+	/// <summary>Green at one kill per death or better, orange below, plain when unknown.</summary>
+	public static Color KillDeathColor(double? ratio) => ratio switch
+	{
+		null => Text2,
+		>= 1 => GoodText,
+		_ => LossText,
+	};
+
+	public static string DamagePerRound(double? adr) => adr is { } a ? a.ToString("0", Culture) : "—";
 
 	public static string Clock(double seconds)
 	{

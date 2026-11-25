@@ -15,5 +15,15 @@ public sealed class DemoPlayerRecord
     /// </summary>
     public string TeamsByRound { get; set; } = "";
 
+    // Scoreboard numbers from every kill, death and hit (PlayerMatchStats). Null for demos imported before they were recorded.
+    public int? Kills { get; set; }
+
+    public int? Deaths { get; set; }
+
+    /// <summary>Health taken from enemies, utility included.</summary>
+    public int? Damage { get; set; }
+
+    public int? HeadshotKills { get; set; }
+
     public DemoRecord? Demo { get; set; }
 }

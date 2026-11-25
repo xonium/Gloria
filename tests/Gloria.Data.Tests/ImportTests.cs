@@ -220,6 +220,34 @@ public sealed class ImportTests : IDisposable
     }
 
     [Fact]
+    public async Task Matches_ReportScoreboardNumbersAndNullForOlderImports()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        const ulong player = 76561198000000001;
+        await using (var db = _factory.CreateDbContext())
+        {
+            var counted = new DemoRecord { ContentHash = "new", FileName = "new.dem", ImportedAt = DateTimeOffset.UnixEpoch, PlayedAt = DateTimeOffset.UnixEpoch.AddDays(2) };
+            // Joined after round 1: 4 rounds played.
+            counted.Players.Add(new DemoPlayerRecord { SteamId = player, Name = "p", TeamsByRound = "-TTCC", Kills = 6, Deaths = 3, Damage = 340, HeadshotKills = 2 });
+            var older = new DemoRecord { ContentHash = "old", FileName = "old.dem", ImportedAt = DateTimeOffset.UnixEpoch, PlayedAt = DateTimeOffset.UnixEpoch.AddDays(1) };
+            older.Players.Add(new DemoPlayerRecord { SteamId = player, Name = "p", TeamsByRound = "TT" });
+            db.Demos.AddRange(counted, older);
+            await db.SaveChangesAsync(ct);
+        }
+
+        var matches = await new GloriaReadModel(_factory, "v").MatchesAsync(player, ct);
+
+        Assert.Equal(2, matches.Count);
+        var (m, old) = (matches[0], matches[1]);
+        Assert.Equal((6, 3, 340, 4), (m.Kills, m.Deaths, m.Damage, m.RoundsPlayed));
+        Assert.Equal(2.0, m.KillDeathRatio);
+        Assert.Equal(85.0, m.DamagePerRound);
+        Assert.Null(old.Kills);
+        Assert.Null(old.KillDeathRatio);
+        Assert.Null(old.DamagePerRound);
+    }
+
+    [Fact]
     [Trait("Category", "Demo")]
     public async Task Import_RealDemo_StoresEveryPlayerOnceAndSkipsReimport()
     {
@@ -256,6 +284,16 @@ public sealed class ImportTests : IDisposable
         var match = Assert.Single(await readModel.MatchesAsync(candidate.SteamId, ct));
         Assert.True(match.RoundsWon + match.RoundsLost > 0);
         Assert.Equal((userDate, PlayedAtSource.User), (match.PlayedAt, match.PlayedAtSource));
+        Assert.True(match.Kills + match.Deaths > 0);
+        Assert.InRange(match.DamagePerRound ?? -1, 20, 200);
+
+        // Most rounds have a death and none more than 10, and everyone who played a full match dealt some damage.
+        var rounds = match.RoundsWon + match.RoundsLost;
+        var stored = await db.DemoPlayers.Where(p => p.TeamsByRound.Length >= 10).ToListAsync(ct);
+        Assert.InRange(stored.Sum(p => p.Deaths ?? 0), rounds / 2, 10 * rounds);
+        Assert.All(stored, p => Assert.InRange((double)(p.Damage ?? 0) / p.TeamsByRound.Length, 5, 250));
+        TestContext.Current.SendDiagnosticMessage(string.Join(", ", stored.Select(p =>
+            $"{p.Name} {p.Kills}-{p.Deaths} ADR {(double)(p.Damage ?? 0) / Math.Max(p.TeamsByRound.Count(c => c != '-'), 1):0}")));
 
         var detail = await readModel.MatchDetailAsync(match.DemoId, candidate.SteamId, ct);
         Assert.NotNull(detail);

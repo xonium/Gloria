@@ -126,36 +126,40 @@
                         <Label Text="Recent matches" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
                         <Button Grid.Column="1" Text="All matches" Style="{StaticResource GhostButton}" Command="{Binding AllMatchesCommand}" MinimumHeightRequest="34" FontSize="13" />
                     </Grid>
-                    <Grid ColumnDefinitions="80,*,110,90,90,100,130" ColumnSpacing="8" Padding="8,6">
+                    <Grid ColumnDefinitions="64,*,96,52,44,84,80,76,110" ColumnSpacing="6" Padding="8,6">
                         <Label Text="Date" Style="{StaticResource Overline}" />
                         <Label Grid.Column="1" Text="Map" Style="{StaticResource Overline}" />
                         <Label Grid.Column="2" Text="Score" Style="{StaticResource Overline}" />
-                        <Label Grid.Column="3" Text="Encounters" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
-                        <Label Grid.Column="4" Text="Duels won" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
-                        <Label Grid.Column="5" Text="First shot" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
-                        <Label Grid.Column="6" Text="Main habit" Style="{StaticResource Overline}" />
+                        <Label Grid.Column="3" Text="K/D" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="4" Text="ADR" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="5" Text="Encounters" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="6" Text="Duels won" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="7" Text="First shot" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
+                        <Label Grid.Column="8" Text="Main habit" Style="{StaticResource Overline}" />
                     </Grid>
                     <VerticalStackLayout BindableLayout.ItemsSource="{Binding Matches}">
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:MatchRow">
                                 <VerticalStackLayout>
                                     <BoxView Style="{StaticResource Divider}" />
-                                    <Grid ColumnDefinitions="80,*,110,90,90,100,130" ColumnSpacing="8" Padding="8,12">
+                                    <Grid ColumnDefinitions="64,*,96,52,44,84,80,76,110" ColumnSpacing="6" Padding="8,12">
                                         <Grid.GestureRecognizers>
                                             <TapGestureRecognizer Command="{Binding Open}" />
                                         </Grid.GestureRecognizers>
                                         <Label Text="{Binding Date}" TextColor="{StaticResource Text2}" />
-                                        <Label Grid.Column="1" Text="{Binding Map}" FontFamily="OpenSansSemibold" />
+                                        <Label Grid.Column="1" Text="{Binding Map}" FontFamily="OpenSansSemibold" LineBreakMode="TailTruncation" MaxLines="1" />
                                         <HorizontalStackLayout Grid.Column="2" Spacing="8">
                                             <Border BackgroundColor="{Binding ResultBackground}" StrokeThickness="0" StrokeShape="RoundRectangle 4" Padding="6,0">
                                                 <Label Text="{Binding Result}" TextColor="{Binding ResultForeground}" FontFamily="OpenSansSemibold" FontSize="12" />
                                             </Border>
                                             <Label Text="{Binding Score}" />
                                         </HorizontalStackLayout>
-                                        <Label Grid.Column="3" Text="{Binding Encounters}" HorizontalTextAlignment="End" />
-                                        <Label Grid.Column="4" Text="{Binding Duels}" HorizontalTextAlignment="End" />
-                                        <Label Grid.Column="5" Text="{Binding FirstShot}" HorizontalTextAlignment="End" />
-                                        <Label Grid.Column="6" Text="{Binding Habit}" TextColor="#d6d7da" />
+                                        <Label Grid.Column="3" Text="{Binding KillDeathRatio}" TextColor="{Binding KillDeathColor}" FontFamily="OpenSansSemibold" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="4" Text="{Binding DamagePerRound}" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="5" Text="{Binding Encounters}" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="6" Text="{Binding Duels}" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="7" Text="{Binding FirstShot}" HorizontalTextAlignment="End" />
+                                        <Label Grid.Column="8" Text="{Binding Habit}" TextColor="#d6d7da" />
                                     </Grid>
                                 </VerticalStackLayout>
                             </DataTemplate>

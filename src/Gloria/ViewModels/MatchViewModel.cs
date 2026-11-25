@@ -198,8 +198,12 @@ public sealed class MatchViewModel(GloriaReadModel readModel, ProfileState profi
 		var times = d.Encounters.Where(e => e.TimeToFirstShot is not null).Select(e => e.TimeToFirstShot!.Value).Order().ToList();
 		var moving = d.Encounters.Count(e => e.SpeedRatio > 1);
 		Stats.Clear();
+		Stats.Add(new StatItem(
+			"Kills / deaths",
+			m.Kills is { } k && m.Deaths is { } dt ? $"{k} / {dt}" : "—",
+			m.Kills is null ? "Re-analyze to count" : $"{Display.KillDeathRatio(m.KillDeathRatio)} K/D · {Display.DamagePerRound(m.DamagePerRound)} ADR"));
 		Stats.Add(new StatItem("Encounters", m.Encounters.ToString(), $"{d.Opponents.Count} opponents"));
-		Stats.Add(new StatItem("Duels won", $"{m.Kills} / {m.Kills + m.Deaths}", Display.Percent(m.Kills, m.Kills + m.Deaths)));
+		Stats.Add(new StatItem("Duels won", $"{m.DuelKills} / {m.DuelKills + m.DuelDeaths}", Display.Percent(m.DuelKills, m.DuelKills + m.DuelDeaths)));
 		Stats.Add(new StatItem("First-shot hit", $"{m.FirstShotHits} / {m.FirstShotKnown}", Display.Percent(m.FirstShotHits, m.FirstShotKnown)));
 		Stats.Add(new StatItem("Median first shot", times.Count == 0 ? "—" : $"{times[times.Count / 2]:0.00} s", "after first sighting"));
 		Stats.Add(new StatItem("Moving first shots", moving.ToString(), $"{Display.Percent(moving, m.Encounters)} of encounters"));

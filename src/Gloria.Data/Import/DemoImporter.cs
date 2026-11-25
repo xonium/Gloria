@@ -156,13 +156,19 @@ public sealed class DemoImporter(
             AnalysisVersionKey = AnalysisVersionKey,
         };
 
+        var stats = PlayerMatchStats.Compute(demo);
         foreach (var player in demo.Players.DistinctBy(p => p.SteamId))
         {
+            var s = stats.GetValueOrDefault(player.SteamId);
             record.Players.Add(new DemoPlayerRecord
             {
                 SteamId = player.SteamId,
                 Name = player.Name,
                 TeamsByRound = new string(demo.Rounds.Select(r => SideAt(demo, player.SteamId, r)).ToArray()),
+                Kills = s?.Kills ?? 0,
+                Deaths = s?.Deaths ?? 0,
+                Damage = s?.Damage ?? 0,
+                HeadshotKills = s?.HeadshotKills ?? 0,
             });
         }
 

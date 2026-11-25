@@ -55,15 +55,15 @@ public sealed class SyntheticDemoBuilder
         return this;
     }
 
-    public SyntheticDemoBuilder Hurt(int tick, ulong victim, ulong attacker, string weapon = "ak47", int damage = 27)
+    public SyntheticDemoBuilder Hurt(int tick, ulong victim, ulong? attacker, string weapon = "ak47", int damage = 27, int? healthAfter = null)
     {
-        _events.Add(new PlayerHurtEvent(tick, victim, attacker, weapon, damage, 2));
+        _events.Add(new PlayerHurtEvent(tick, victim, attacker, weapon, damage, 2, healthAfter));
         return this;
     }
 
-    public SyntheticDemoBuilder Death(int tick, ulong victim, ulong attacker, string weapon = "ak47")
+    public SyntheticDemoBuilder Death(int tick, ulong victim, ulong? attacker, string weapon = "ak47", bool headshot = false)
     {
-        _events.Add(new PlayerDeathEvent(tick, victim, attacker, weapon, false));
+        _events.Add(new PlayerDeathEvent(tick, victim, attacker, weapon, headshot));
         return this;
     }
 

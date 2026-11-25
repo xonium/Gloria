@@ -65,6 +65,18 @@ namespace Gloria.Data.Migrations
                     b.Property<ulong>("SteamId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("Damage")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Deaths")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("HeadshotKills")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Kills")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");

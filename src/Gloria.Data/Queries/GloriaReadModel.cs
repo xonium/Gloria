@@ -294,7 +294,10 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
                 p.Demo.TickRate,
                 p.Demo.AnalysisVersionKey,
                 p.Demo.ContentHash,
-                p.TeamsByRound))
+                p.TeamsByRound,
+                p.Kills,
+                p.Deaths,
+                p.Damage))
             .ToListAsync(ct);
         var ids = demos.Select(d => d.Id).ToList();
 
@@ -382,7 +385,11 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
             facts.Count(f => f.FirstShotHit is not null),
             habit,
             d.AnalysisVersionKey == currentAnalysisVersion,
-            d.ContentHash);
+            d.ContentHash,
+            d.Kills,
+            d.Deaths,
+            d.Damage,
+            d.Teams.Count(c => c is 'T' or 'C'));
     }
 
     private static EncounterRow Row(Facts f, DemoInfo demo, PlayerData data)
@@ -431,7 +438,10 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
         int TickRate,
         string AnalysisVersionKey,
         string ContentHash,
-        string Teams);
+        string Teams,
+        int? Kills,
+        int? Deaths,
+        int? Damage);
 
     private sealed record RoundInfoRow(int DemoId, int Number, int FreezeEndTick, Team Winner);
 

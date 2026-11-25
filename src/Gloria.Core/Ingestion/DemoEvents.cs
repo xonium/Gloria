@@ -5,13 +5,16 @@ public abstract record DemoEvent(int Tick);
 
 public sealed record WeaponFireEvent(int Tick, ulong ShooterSteamId, string Weapon) : DemoEvent(Tick);
 
+/// <param name="DamageHealth">The damage the game reports. It can be off by one and isn't capped at the health left.</param>
+/// <param name="HealthAfter">The victim's health after the hit, when the parser read it.</param>
 public sealed record PlayerHurtEvent(
     int Tick,
     ulong VictimSteamId,
     ulong? AttackerSteamId,
     string Weapon,
     int DamageHealth,
-    int HitGroup) : DemoEvent(Tick);
+    int HitGroup,
+    int? HealthAfter = null) : DemoEvent(Tick);
 
 public sealed record PlayerDeathEvent(
     int Tick,

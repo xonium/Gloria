@@ -151,6 +151,7 @@ Keep these layers separate. Parsing is slow, and analysis heuristics will change
     - `player_hurt` names the base item, not the variant: an M4A1-S hit says `m4a1` and a USP-S hit `hkp2000`, while `weapon_fire` and `player_death` say `m4a1_silencer` / `usp_silencer`. Match fires to hurts with `StaticWeaponData.SameGun`. Before segmenter version 3 every M4A1-S and USP-S hit counted as a miss.
     - The pawn's active item name (`ActiveWeapon`) does name the variant, so `TraceDamage` takes the attacker's held weapon when it is the same gun.
   - **Damage:** `dmg_health` is not exact: an 18-damage hit can kill at 19 HP. Use the per-tick `Health` for health, and `dmg_health` only as the hit's reported damage.
+  - **Scoreboard numbers:** `Analysis/PlayerMatchStats` counts kills, deaths and damage for every player at import and stores them on `DemoPlayerRecord` (null for demos imported before parser version 6). Kills follow the scoreboard (a team kill is −1); damage is the health removed from enemies, from the hurt event's remaining `health` (parser version 6), utility included; ADR divides by the rounds with a known side in `TeamsByRound`.
   - **Maps:** radar pixel = ((x − pos_x) / scale, (pos_y − y) / scale) on the 1024 px radar. Nuke, Vertigo and Train have a lower level, below `lowerBelow` altitude in `maps.json`.
   - **API pitfall:** `parser.GameRules` throws until the game rules entity exists.
   - **First round:**

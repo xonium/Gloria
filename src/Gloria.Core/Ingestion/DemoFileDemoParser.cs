@@ -12,7 +12,8 @@ public sealed class DemoFileDemoParser : IDemoParser
     private const uint OnGroundFlag = 1;
 
     // 5: the first live round is no longer dropped when the match start is announced during it.
-    public int Version => 5;
+    // 6: hurt events carry the victim's remaining health, for damage per round.
+    public int Version => 6;
 
     public async Task<ParsedDemo> ParseAsync(Stream demo, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
     {
@@ -73,7 +74,7 @@ public sealed class DemoFileDemoParser : IDemoParser
         {
             if (SteamIdOf(e.Player) is { } victim)
             {
-                events.Add(new PlayerHurtEvent(Tick(), victim, SteamIdOf(e.Attacker), e.Weapon, e.DmgHealth, e.Hitgroup));
+                events.Add(new PlayerHurtEvent(Tick(), victim, SteamIdOf(e.Attacker), e.Weapon, e.DmgHealth, e.Hitgroup, e.Health));
             }
         };
         parser.Source1GameEvents.PlayerDeath += e =>
