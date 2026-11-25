@@ -375,12 +375,7 @@ public sealed class CompareViewModel : ObservableObject
 		_ => "",
 	};
 
-	private static string Format(MetricGap g, double value) => g.Unit switch
-	{
-		MetricUnit.Seconds => $"{value:0.00} s",
-		MetricUnit.Degrees => $"{value:0.0}°",
-		_ => $"{value:P0}",
-	};
+	private static string Format(MetricGap g, double value) => Display.Metric(g.Unit, value);
 
 	/// <summary>The user's value minus the other's, e.g. "+5 pts, worse".</summary>
 	private static string Difference(MetricGap g)
@@ -389,13 +384,7 @@ public sealed class CompareViewModel : ObservableObject
 		if (Math.Abs(g.Gap) < 1e-9)
 			return "Same";
 
-		var size = g.Unit switch
-		{
-			MetricUnit.Seconds => $"{Math.Abs(delta):0.00} s",
-			MetricUnit.Degrees => $"{Math.Abs(delta):0.0}°",
-			_ => $"{Math.Abs(delta) * 100:0} pts",
-		};
-		return $"{(delta > 0 ? "+" : "−")}{size}, {(g.Gap > 0 ? "worse" : "better")}";
+		return $"{Display.MetricChange(g.Unit, delta)}, {(g.Gap > 0 ? "worse" : "better")}";
 	}
 
 	private static Color DifferenceColor(MetricGap g) =>

@@ -145,7 +145,12 @@ public sealed record DemoStats(
     int[] HabitCounts,
     int Clean,
     double? MedianPreAimError,
-    int PreAimed);
+    int PreAimed)
+{
+    /// <summary>The same counts as <see cref="EncounterStats"/>, for <see cref="Comparison.Metrics"/>.</summary>
+    public EncounterStats Stats => new(Encounters, Kills, Deaths, FirstShotHits, FirstShotKnown, MedianTimeToFirstShot,
+        MovingFirstShots, HabitCounts, Clean, MedianPreAimError, PreAimed);
+}
 
 /// <param name="Recent">The latest demos, oldest first.</param>
 /// <param name="Previous">The demos before <paramref name="Recent"/>, oldest first.</param>

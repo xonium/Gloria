@@ -77,6 +77,12 @@ public enum MetricUnit
 /// </param>
 public sealed record MetricGap(string Name, AimCategory? Habit, MetricUnit Unit, bool HigherIsBetter, bool DependsOnOpposition, double You, double Them, double Gap);
 
+/// <summary>One number shown for a player, worked out from their <see cref="EncounterStats"/>.</summary>
+/// <param name="Habit">The aim habit whose share this is; null for the headline numbers.</param>
+/// <param name="DependsOnOpposition">See <see cref="MetricGap.DependsOnOpposition"/>.</param>
+/// <param name="Value">NaN when the stats don't give a value, e.g. no encounters.</param>
+public sealed record MetricDefinition(string Name, AimCategory? Habit, MetricUnit Unit, bool HigherIsBetter, bool DependsOnOpposition, Func<EncounterStats, double> Value);
+
 public static class Comparison
 {
     /// <summary>
@@ -85,19 +91,23 @@ public static class Comparison
     /// </summary>
     public const double RelativeWeight = 0.3;
 
-    private static readonly (string Name, AimCategory? Habit, MetricUnit Unit, bool HigherIsBetter, bool DependsOnOpposition, Func<EncounterStats, double> Value)[] Metrics =
+    /// <summary>
+    /// Every metric the comparison and the Progress page show, in a fixed order: the headline numbers, then the share
+    /// of encounters with each habit.
+    /// </summary>
+    public static IReadOnlyList<MetricDefinition> Metrics { get; } =
     [
-        ("Duels won", null, MetricUnit.Share, true, true, s => Ratio(s.Kills, s.Kills + s.Deaths)),
-        ("First-shot hit", null, MetricUnit.Share, true, false, s => Ratio(s.FirstShotHits, s.FirstShotKnown)),
-        ("Median time to first shot", null, MetricUnit.Seconds, false, true, s => s.MedianTimeToFirstShot ?? double.NaN),
-        ("Moving first shots", null, MetricUnit.Share, false, false, s => Ratio(s.MovingFirstShots, s.Encounters)),
-        ("Clean encounters", null, MetricUnit.Share, true, false, s => Ratio(s.Clean, s.Encounters)),
-        ("Pre-aimed", null, MetricUnit.Share, true, false, s => Ratio(s.PreAimed, s.Encounters)),
-        ("Median pre-aim error", null, MetricUnit.Degrees, false, false, s => s.MedianPreAimError ?? double.NaN),
+        new("Duels won", null, MetricUnit.Share, true, true, s => Ratio(s.Kills, s.Kills + s.Deaths)),
+        new("First-shot hit", null, MetricUnit.Share, true, false, s => Ratio(s.FirstShotHits, s.FirstShotKnown)),
+        new("Median time to first shot", null, MetricUnit.Seconds, false, true, s => s.MedianTimeToFirstShot ?? double.NaN),
+        new("Moving first shots", null, MetricUnit.Share, false, false, s => Ratio(s.MovingFirstShots, s.Encounters)),
+        new("Clean encounters", null, MetricUnit.Share, true, false, s => Ratio(s.Clean, s.Encounters)),
+        new("Pre-aimed", null, MetricUnit.Share, true, false, s => Ratio(s.PreAimed, s.Encounters)),
+        new("Median pre-aim error", null, MetricUnit.Degrees, false, false, s => s.MedianPreAimError ?? double.NaN),
         .. Enum.GetValues<AimCategory>()
             // Moving shot is the moving-first-shots line above, unless corrections change it.
             .Where(c => c != AimCategory.MovingShot)
-            .Select(c => (c.ToString(), (AimCategory?)c, MetricUnit.Share, false, c == AimCategory.SlowReaction, (Func<EncounterStats, double>)(s => Ratio(s.HabitCounts[(int)c], s.Encounters)))),
+            .Select(c => new MetricDefinition(c.ToString(), c, MetricUnit.Share, false, c == AimCategory.SlowReaction, s => Ratio(s.HabitCounts[(int)c], s.Encounters))),
     ];
 
     /// <summary>

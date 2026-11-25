@@ -2,6 +2,7 @@ using System.Globalization;
 using Gloria.Core.Classification;
 using Gloria.Core.Encounters;
 using Gloria.Core.Weapons;
+using Gloria.Data.Queries;
 
 namespace Gloria.Services;
 
@@ -27,6 +28,20 @@ public static class Display
 	public static readonly Color Text = Color.FromArgb("#eeeeea");
 	public static readonly Color Text2 = Color.FromArgb("#b9bbc0");
 	public static readonly Color Muted = Color.FromArgb("#8b8f97");
+
+	/// <summary>
+	/// Colors for players shown together, e.g. lines on the Progress charts: the viewed profile is <see cref="Accent"/>,
+	/// the others take these in order. Kept apart from the loss and health colors.
+	/// </summary>
+	public static readonly IReadOnlyList<Color> SeriesColors =
+	[
+		Accent,
+		Color.FromArgb("#e0b33a"),
+		Color.FromArgb("#3fbfb0"),
+		Color.FromArgb("#b58cf0"),
+		Color.FromArgb("#e877a8"),
+		Color.FromArgb("#d6d7da"),
+	];
 
 	/// <summary>
 	/// The UI is in English, so numbers are too, whatever the Windows locale: "63%", "0.19 s", "1,420".
@@ -98,6 +113,26 @@ public static class Display
 
 	public static string ShortDate(DateTimeOffset? date) =>
 		date?.ToLocalTime().ToString("d MMM", Culture) ?? "—";
+
+	/// <summary>A metric's value: "54%", "0.42 s" or "3.1°".</summary>
+	public static string Metric(MetricUnit unit, double value) => unit switch
+	{
+		MetricUnit.Seconds => $"{value:0.00} s",
+		MetricUnit.Degrees => $"{value:0.0}°",
+		_ => $"{value:P0}",
+	};
+
+	/// <summary>A change in a metric, with its sign: "+6 pts", "−0.08 s" or "−1.2°".</summary>
+	public static string MetricChange(MetricUnit unit, double change)
+	{
+		var size = unit switch
+		{
+			MetricUnit.Seconds => $"{Math.Abs(change):0.00} s",
+			MetricUnit.Degrees => $"{Math.Abs(change):0.0}°",
+			_ => $"{Math.Abs(change) * 100:0} pts",
+		};
+		return $"{(change < 0 ? "−" : "+")}{size}";
+	}
 
 	public static string Percent(int part, int whole) => whole == 0 ? "—" : $"{100.0 * part / whole:0}%";
 

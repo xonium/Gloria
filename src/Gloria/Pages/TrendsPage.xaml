@@ -9,8 +9,27 @@
     <ScrollView>
         <VerticalStackLayout Padding="40,32,40,48" Spacing="20">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-                <VerticalStackLayout Spacing="6">
+                <VerticalStackLayout Spacing="10">
                     <Label Text="Progress" Style="{StaticResource H1}" SemanticProperties.HeadingLevel="Level1" />
+                    <FlexLayout Wrap="Wrap" AlignItems="Center">
+                        <HorizontalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding Players}" IsVisible="{Binding IsMulti}" Margin="0,0,8,0">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PlayerChip">
+                                    <Border BackgroundColor="#111316" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 9" Padding="{Binding ChipPadding}" HeightRequest="38">
+                                        <HorizontalStackLayout Spacing="8">
+                                            <Ellipse Fill="{Binding Color}" WidthRequest="10" HeightRequest="10" VerticalOptions="Center" />
+                                            <Label Text="{Binding Name}" FontFamily="OpenSansSemibold" FontSize="13" VerticalOptions="Center" />
+                                            <Label Text="{Binding Detail}" Style="{StaticResource Caption}" VerticalOptions="Center" />
+                                            <Button Text="✕" IsVisible="{Binding CanRemove}" Command="{Binding RemoveCommand}" BackgroundColor="Transparent" TextColor="{StaticResource Muted}" BorderWidth="0" FontSize="12" Padding="8,0" MinimumWidthRequest="0" MinimumHeightRequest="30" VerticalOptions="Center"
+                                                    SemanticProperties.Description="{Binding RemoveDescription}" />
+                                        </HorizontalStackLayout>
+                                    </Border>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </HorizontalStackLayout>
+                        <Button Text="+ Add player" Style="{StaticResource GhostButton}" Command="{Binding AddCommand}" IsVisible="{Binding CanAdd}" MinimumHeightRequest="36" FontSize="13" VerticalOptions="Center" Margin="0,1"
+                                SemanticProperties.Description="Add a player to compare" />
+                    </FlexLayout>
                     <Label Text="{Binding Subtitle}" Style="{StaticResource Sub}" FontSize="15" />
                 </VerticalStackLayout>
                 <Border Grid.Column="1" BackgroundColor="#111316" Stroke="{StaticResource Line}" StrokeShape="RoundRectangle 9" Padding="3" VerticalOptions="End">
@@ -32,9 +51,18 @@
                             <VerticalStackLayout Spacing="6">
                                 <Grid ColumnDefinitions="*,Auto">
                                     <Label Text="{Binding Title}" Style="{StaticResource H3}" />
-                                    <Label Grid.Column="1" Text="{Binding Now}" Style="{StaticResource BigNumber}" FontSize="22" />
+                                    <Label Grid.Column="1" Text="{Binding Now}" Style="{StaticResource BigNumber}" FontSize="22" IsVisible="{Binding IsSingle}" />
                                 </Grid>
-                                <Label Text="{Binding Range}" Style="{StaticResource Caption}" />
+                                <Label Text="{Binding Range}" Style="{StaticResource Caption}" IsVisible="{Binding IsSingle}" />
+                                <Grid ColumnDefinitions="Auto,8,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4" IsVisible="{Binding IsMulti}">
+                                    <Label Text="Current leader" Style="{StaticResource Overline}" VerticalOptions="Center" />
+                                    <Ellipse Grid.Column="1" Fill="{Binding LeaderDot}" WidthRequest="8" HeightRequest="8" VerticalOptions="Center" />
+                                    <Label Grid.Column="2" Text="{Binding Leader}" FontSize="13" FontFamily="OpenSansSemibold" LineBreakMode="TailTruncation" VerticalOptions="Center" />
+                                    <Label Grid.Row="1" Text="Most improved" Style="{StaticResource Overline}" VerticalOptions="Center" />
+                                    <Ellipse Grid.Row="1" Grid.Column="1" Fill="{Binding ImprovedDot}" WidthRequest="8" HeightRequest="8" VerticalOptions="Center" />
+                                    <Label Grid.Row="1" Grid.Column="2" Text="{Binding Improved}" FontSize="13" FontFamily="OpenSansSemibold" LineBreakMode="TailTruncation" VerticalOptions="Center" />
+                                </Grid>
+                                <Label Text="{Binding Note}" Style="{StaticResource Caption}" IsVisible="{Binding HasNote}" />
                                 <GraphicsView Drawable="{Binding Chart}" HeightRequest="120" SemanticProperties.Description="{Binding Title}" />
                             </VerticalStackLayout>
                         </Border>
@@ -45,7 +73,7 @@
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="8">
                     <Label Text="By weapon" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
-                    <Label Text="Grouped by the weapon you fired first with." Style="{StaticResource Caption}" FontSize="13" />
+                    <Label Text="{Binding WeaponsNote}" Style="{StaticResource Caption}" FontSize="13" />
                     <Grid ColumnDefinitions="*,100,130,100,130,110,190" ColumnSpacing="8" Padding="8,6">
                         <Label Text="Weapon" Style="{StaticResource Overline}" />
                         <Label Grid.Column="1" Text="Encounters" Style="{StaticResource Overline}" HorizontalTextAlignment="End" />
@@ -59,9 +87,14 @@
                         <BindableLayout.ItemTemplate>
                             <DataTemplate x:DataType="vm:WeaponRow">
                                 <VerticalStackLayout>
-                                    <BoxView Style="{StaticResource Divider}" />
-                                    <Grid ColumnDefinitions="*,100,130,100,130,110,190" ColumnSpacing="8" Padding="8,12">
-                                        <Label Text="{Binding Name}" FontFamily="OpenSansSemibold" />
+                                    <BoxView Style="{StaticResource Divider}" IsVisible="{Binding HasDivider}" />
+                                    <Label Text="{Binding Name}" FontFamily="OpenSansSemibold" Padding="8,12,8,0" IsVisible="{Binding IsHeader}" />
+                                    <Grid ColumnDefinitions="*,100,130,100,130,110,190" ColumnSpacing="8" Padding="{Binding RowPadding}" IsVisible="{Binding IsDataRow}">
+                                        <Label Text="{Binding Name}" FontFamily="OpenSansSemibold" IsVisible="{Binding IsClassRow}" />
+                                        <HorizontalStackLayout Spacing="8" Padding="14,0,0,0" IsVisible="{Binding HasPlayer}">
+                                            <Ellipse Fill="{Binding PlayerDot}" WidthRequest="8" HeightRequest="8" VerticalOptions="Center" />
+                                            <Label Text="{Binding Player}" TextColor="#d6d7da" VerticalOptions="Center" />
+                                        </HorizontalStackLayout>
                                         <Label Grid.Column="1" Text="{Binding Encounters}" HorizontalTextAlignment="End" />
                                         <Label Grid.Column="2" Text="{Binding Duels}" HorizontalTextAlignment="End" />
                                         <Label Grid.Column="3" Text="{Binding FirstShot}" HorizontalTextAlignment="End" />
@@ -78,9 +111,30 @@
 
             <Border Style="{StaticResource Card}">
                 <VerticalStackLayout Spacing="12">
-                    <Label Text="What cost your lost duels" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
+                    <Label Text="{Binding CausesTitle}" Style="{StaticResource H2}" SemanticProperties.HeadingLevel="Level2" />
                     <Label Text="{Binding CausesNote}" Style="{StaticResource Caption}" FontSize="13" />
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="32" IsVisible="{Binding HasCauses}">
+                    <VerticalStackLayout Spacing="12" BindableLayout.ItemsSource="{Binding CompareCauses}" IsVisible="{Binding ShowCompareCauses}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CauseCompareRow">
+                                <Grid ColumnDefinitions="260,*" ColumnSpacing="16">
+                                    <Label Text="{Binding Name}" FontSize="13" TextColor="#d6d7da" VerticalOptions="Center" />
+                                    <VerticalStackLayout Grid.Column="1" Spacing="3" BindableLayout.ItemsSource="{Binding Bars}">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:CauseBar">
+                                                <Grid ColumnDefinitions="*,48" ColumnSpacing="8">
+                                                    <AbsoluteLayout HeightRequest="6" VerticalOptions="Center" BackgroundColor="#24272c">
+                                                        <BoxView Color="{Binding Color}" AbsoluteLayout.LayoutFlags="All" AbsoluteLayout.LayoutBounds="{Binding Bar}" />
+                                                    </AbsoluteLayout>
+                                                    <Label Grid.Column="1" Text="{Binding Percent}" FontSize="12" TextColor="{Binding Color}" HorizontalTextAlignment="End" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="32" IsVisible="{Binding ShowSingleCauses}">
                         <VerticalStackLayout Spacing="10">
                             <Label Text="Largest factor" Style="{StaticResource Overline}" />
                             <VerticalStackLayout Spacing="10" BindableLayout.ItemsSource="{Binding Causes}">

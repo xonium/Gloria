@@ -1,40 +1,122 @@
 using System.Collections.ObjectModel;
+using System.Windows.Input;
 using Gloria.Core.Aggregation;
 using Gloria.Core.Classification;
 using Gloria.Core.Weapons;
 using Gloria.Data;
+using Gloria.Data.Entities;
 using Gloria.Data.Queries;
 using Gloria.Graphics;
 using Gloria.Services;
 
 namespace Gloria.ViewModels;
 
-public sealed record TrendItem(string Title, string Now, string Range, SparklineDrawable Chart);
+/// <summary>One metric's chart card.</summary>
+/// <param name="Now">The latest median, with one player.</param>
+/// <param name="Range">Where the median started and its low and high, with one player.</param>
+/// <param name="IsMulti">Several players: <paramref name="Leader"/> and <paramref name="Improved"/> replace <paramref name="Now"/> and <paramref name="Range"/>.</param>
+/// <param name="Note">A caveat about the metric, e.g. that it depends on the opposition; empty for none.</param>
+public sealed record TrendItem(
+	string Title,
+	string Now,
+	string Range,
+	SparklineDrawable Chart,
+	bool IsMulti = false,
+	string Leader = "",
+	Color? LeaderColor = null,
+	string Improved = "",
+	Color? ImprovedColor = null,
+	string Note = "")
+{
+	public bool IsSingle => !IsMulti;
 
-public sealed record WeaponRow(string Name, string Encounters, string Duels, string FirstShot, string MedianFirstShot, string Moving, string Habit);
+	public bool HasNote => Note.Length > 0;
+
+	public Color LeaderDot => LeaderColor ?? Colors.Transparent;
+
+	public Color ImprovedDot => ImprovedColor ?? Colors.Transparent;
+}
+
+/// <summary>
+/// A row of the by-weapon table. With several players, each weapon class gets a header row (<paramref name="IsHeader"/>)
+/// followed by one row per player.
+/// </summary>
+/// <param name="Player">The player's name on a player row; empty with one player and on header rows.</param>
+public sealed record WeaponRow(
+	string Name,
+	string Encounters,
+	string Duels,
+	string FirstShot,
+	string MedianFirstShot,
+	string Moving,
+	string Habit,
+	bool IsHeader = false,
+	string Player = "",
+	Color? PlayerColor = null)
+{
+	public bool HasPlayer => Player.Length > 0;
+
+	public bool IsClassRow => !IsHeader && !HasPlayer;
+
+	public bool IsDataRow => !IsHeader;
+
+	/// <summary>Player rows sit under their class's header, without a line between them.</summary>
+	public bool HasDivider => !HasPlayer;
+
+	public Thickness RowPadding => HasPlayer ? new Thickness(8, 6) : new Thickness(8, 12);
+
+	public Color PlayerDot => PlayerColor ?? Colors.Transparent;
+}
 
 /// <param name="Bar">Proportional bounds of the bar.</param>
 public sealed record CauseRow(string Name, string Tag, string Percent, Rect Bar, Color Color);
 
+/// <summary>One player's share for a cause of lost duels.</summary>
+/// <param name="Bar">Proportional bounds of the bar.</param>
+public sealed record CauseBar(string Percent, Rect Bar, Color Color);
+
+/// <summary>A cause of lost duels with a bar per player.</summary>
+public sealed record CauseCompareRow(string Name, IReadOnlyList<CauseBar> Bars);
+
+/// <summary>A player shown on the Progress page, in their line color.</summary>
+public sealed record PlayerChip(string Name, string Detail, Color Color, bool CanRemove, ICommand RemoveCommand)
+{
+	public string RemoveDescription => $"Remove {Name}";
+
+	/// <summary>Room for the remove button on the right, or the same margin as on the left without one.</summary>
+	public Thickness ChipPadding => CanRemove ? new Thickness(12, 0, 4, 0) : new Thickness(12, 0);
+}
+
 /// <summary>
 /// Trends across demos: per-demo values with a rolling median, the numbers per weapon class, and what cost the
-/// duels the player lost, over a chosen number of recent demos.
+/// duels lost, over a chosen number of recent demos. Shows the viewed profile, and other tracked profiles added to
+/// compare with: then each player gets a colored line, and each chart names the current leader and who improved most.
 /// </summary>
 public sealed class TrendsViewModel : ObservableObject
 {
 	/// <summary>Demos in each rolling median. Odd, so the median is one demo's value.</summary>
 	public const int RollingWindow = 5;
 
+	/// <summary>Players on the page at once, the viewed profile included: one per color.</summary>
+	public static readonly int MaxPlayers = Display.SeriesColors.Count;
+
 	private const string PeriodKey = "progress-period";
+	private const string PlayersKey = "progress-players";
 
 	private readonly GloriaReadModel _readModel;
 	private readonly ProfileState _profiles;
 	private readonly DuelOutcomes _outcomes;
 	private readonly AppSettings _settings;
+	private readonly List<ulong> _added;
+	private readonly List<ProfileRecord> _addable = [];
 	private int? _period;
 	private string _subtitle = "";
 	private string _causesNote = "";
+	private string _causesTitle = "";
+	private string _weaponsNote = "";
 	private bool _hasCauses;
+	private bool _isMulti;
+	private bool _canAdd;
 	private int _refresh;
 
 	public TrendsViewModel(GloriaReadModel readModel, ProfileState profiles, DuelOutcomes outcomes, AppSettings settings)
@@ -44,11 +126,22 @@ public sealed class TrendsViewModel : ObservableObject
 		_outcomes = outcomes;
 		_settings = settings;
 		_period = ChoiceOption.LoadPeriod(_settings, PeriodKey, fallback: null);
+		_added = (_settings.Get(PlayersKey) ?? "")
+			.Split(',', StringSplitOptions.RemoveEmptyEntries)
+			.Select(s => ulong.TryParse(s, out var id) ? id : 0)
+			.Where(id => id != 0)
+			.Distinct()
+			.ToList();
 		Periods = ChoiceOption.Periods([20, 50, null], _period, SelectPeriod);
+		AddCommand = new Command(async () => await AddAsync());
 		_profiles.CurrentChanged += async (_, _) => await RefreshAsync();
+		_profiles.Profiles.CollectionChanged += async (_, _) => await RefreshAsync();
 	}
 
 	public IReadOnlyList<ChoiceOption> Periods { get; }
+
+	/// <summary>The players shown, the viewed profile first; also the charts' legend.</summary>
+	public ObservableCollection<PlayerChip> Players { get; } = [];
 
 	public ObservableCollection<TrendItem> Charts { get; } = [];
 
@@ -58,13 +151,58 @@ public sealed class TrendsViewModel : ObservableObject
 
 	public ObservableCollection<CauseRow> AimCauses { get; } = [];
 
+	public ObservableCollection<CauseCompareRow> CompareCauses { get; } = [];
+
+	/// <summary>Asks which tracked profile to add, then shows it.</summary>
+	public ICommand AddCommand { get; }
+
+	public bool CanAdd { get => _canAdd; private set => Set(ref _canAdd, value); }
+
+	public bool IsMulti
+	{
+		get => _isMulti;
+		private set
+		{
+			if (Set(ref _isMulti, value))
+			{
+				OnPropertyChanged(nameof(IsSingle));
+				OnPropertyChanged(nameof(ChartNote));
+				OnPropertyChanged(nameof(ShowSingleCauses));
+				OnPropertyChanged(nameof(ShowCompareCauses));
+			}
+		}
+	}
+
+	public bool IsSingle => !IsMulti;
+
 	public string Subtitle { get => _subtitle; private set => Set(ref _subtitle, value); }
+
+	public string CausesTitle { get => _causesTitle; private set => Set(ref _causesTitle, value); }
 
 	public string CausesNote { get => _causesNote; private set => Set(ref _causesNote, value); }
 
-	public bool HasCauses { get => _hasCauses; private set => Set(ref _hasCauses, value); }
+	public string WeaponsNote { get => _weaponsNote; private set => Set(ref _weaponsNote, value); }
 
-	public string ChartNote => $"Dots are single demos; the line is the median of the last {RollingWindow} demos, so one odd match doesn't swing it.";
+	public bool HasCauses
+	{
+		get => _hasCauses;
+		private set
+		{
+			if (Set(ref _hasCauses, value))
+			{
+				OnPropertyChanged(nameof(ShowSingleCauses));
+				OnPropertyChanged(nameof(ShowCompareCauses));
+			}
+		}
+	}
+
+	public bool ShowSingleCauses => HasCauses && !IsMulti;
+
+	public bool ShowCompareCauses => HasCauses && IsMulti;
+
+	public string ChartNote => IsMulti
+		? $"Each line is one player's median of their last {RollingWindow} demos. Everyone's latest demo is at the right edge, so the same spot can be a different day for each player."
+		: $"Dots are single demos; the line is the median of the last {RollingWindow} demos, so one odd match doesn't swing it.";
 
 	public async Task RefreshAsync()
 	{
@@ -73,92 +211,230 @@ public sealed class TrendsViewModel : ObservableObject
 
 		// A newer refresh (another period, another profile) wins over one still loading.
 		var refresh = ++_refresh;
-		var data = await _readModel.ProgressAsync(profile.SteamId, _period);
+		var players = SelectedPlayers(profile);
+		RebuildAddOptions(players);
+		var data = await Task.WhenAll(players.Select(p => _readModel.ProgressAsync(p.SteamId, _period)));
 		if (refresh != _refresh)
 			return;
 
-		var demos = data.Demos;
-		Subtitle = demos.Count == 0
-			? $"{profile.Name} · no demos yet"
-			: $"{profile.Name} · {demos.Count} demos · {Display.ShortDate(demos[0].PlayedAt)} – {Display.ShortDate(demos[^1].PlayedAt)} · {demos.Sum(d => d.Encounters)} encounters"
-				+ (data.OlderVersionDemos > 0 ? $" · {data.OlderVersionDemos} older-version demos left out" : "");
+		IsMulti = players.Count > 1;
+		RebuildChips(players, data);
+		if (IsMulti)
+		{
+			var older = data.Sum(d => d.OlderVersionDemos);
+			Subtitle = $"{players.Count} players · {(_period is { } n ? $"each one's last {n} demos" : "all their demos")}"
+				+ (older > 0 ? $" · {older} older-version demos left out" : "");
+		}
+		else
+		{
+			var demos = data[0].Demos;
+			Subtitle = demos.Count == 0
+				? $"{profile.Name} · no demos yet"
+				: $"{profile.Name} · {demos.Count} demos · {Display.ShortDate(demos[0].PlayedAt)} – {Display.ShortDate(demos[^1].PlayedAt)} · {demos.Sum(d => d.Encounters)} encounters"
+					+ (data[0].OlderVersionDemos > 0 ? $" · {data[0].OlderVersionDemos} older-version demos left out" : "");
+		}
 
-		BuildCharts(demos);
-		BuildWeapons(data.WeaponClasses);
-		await BuildCausesAsync(data.DeathIds, refresh);
+		BuildCharts(players, data);
+		BuildWeapons(players, data);
+		await BuildCausesAsync(players, data, refresh);
 	}
 
-	private void BuildCharts(IReadOnlyList<DemoStats> demos)
+	/// <summary>The viewed profile, then the added ones still tracked, up to <see cref="MaxPlayers"/>.</summary>
+	private List<ProfileRecord> SelectedPlayers(ProfileRecord current)
 	{
-		static double Ratio(int a, int b) => b == 0 ? double.NaN : (double)a / b;
-		static string Percent(double v) => $"{v:P0}";
-
-		var metrics = new List<(string Title, Func<DemoStats, double> Value, Func<double, string> Format)>
+		var players = new List<ProfileRecord> { current };
+		foreach (var id in _added)
 		{
-			("Duels won", d => Ratio(d.Kills, d.Kills + d.Deaths), Percent),
-			("First-shot hit", d => Ratio(d.FirstShotHits, d.FirstShotKnown), Percent),
-			("Median time to first shot", d => d.MedianTimeToFirstShot ?? double.NaN, v => $"{v:0.00} s"),
-			("Moving first shots", d => Ratio(d.MovingFirstShots, d.Encounters), Percent),
-			("Clean encounters", d => Ratio(d.Clean, d.Encounters), Percent),
-			("Pre-aimed", d => Ratio(d.PreAimed, d.Encounters), Percent),
-			("Median pre-aim error", d => d.MedianPreAimError ?? double.NaN, v => $"{v:0.0}°"),
-		};
-		// Moving shot is left out: it is the moving-first-shots line above, unless corrections change it.
-		foreach (var c in Enum.GetValues<AimCategory>().Where(c => c != AimCategory.MovingShot))
-			metrics.Add((Display.Habit(c), d => Ratio(d.HabitCounts[(int)c], d.Encounters), Percent));
+			if (id != current.SteamId && _profiles.Profiles.FirstOrDefault(p => p.SteamId == id) is { } p && players.Count < MaxPlayers)
+				players.Add(p);
+		}
 
-		Charts.Clear();
-		foreach (var (title, value, format) in metrics)
+		return players;
+	}
+
+	private void RebuildAddOptions(IReadOnlyList<ProfileRecord> players)
+	{
+		_addable.Clear();
+		_addable.AddRange(_profiles.Profiles.Where(p => players.All(s => s.SteamId != p.SteamId)).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase));
+		CanAdd = _addable.Count > 0 && players.Count < MaxPlayers;
+	}
+
+	private async Task AddAsync()
+	{
+		if (_addable.Count == 0 || Shell.Current?.CurrentPage is not { } page)
+			return;
+
+		// The sheet answers with the label, so two profiles with the same name get their SteamID added.
+		var candidates = _addable.ToList();
+		var labels = candidates
+			.Select(p => candidates.Count(o => o.Name == p.Name) > 1 ? $"{p.Name} ({p.SteamId})" : p.Name)
+			.ToList();
+		var choice = await page.DisplayActionSheetAsync("Add a player to compare", "Cancel", null, [.. labels]);
+		var index = choice is null ? -1 : labels.IndexOf(choice);
+		if (index < 0)
+			return;
+
+		if (!_added.Contains(candidates[index].SteamId))
+			_added.Add(candidates[index].SteamId);
+		SaveAdded();
+		await RefreshAsync();
+	}
+
+	private void RebuildChips(IReadOnlyList<ProfileRecord> players, IReadOnlyList<ProgressData> data)
+	{
+		Players.Clear();
+		if (players.Count == 1)
+			return;
+
+		for (var i = 0; i < players.Count; i++)
 		{
-			var values = demos.Select(value).ToList();
-			var trend = Rolling.Median(values, RollingWindow);
-			var known = trend.Where(v => !double.IsNaN(v)).ToList();
-			var range = known.Count switch
-			{
-				0 => "Not enough demos yet",
-				1 => "Just enough demos for one median",
-				_ => $"Started at {format(known[0])} · low {format(known.Min())} · high {format(known.Max())}",
-			};
-			Charts.Add(new TrendItem(title, known.Count == 0 ? "—" : format(known[^1]), range, new SparklineDrawable { Values = values, Trend = trend }));
+			var id = players[i].SteamId;
+			var demos = data[i].Demos.Count;
+			Players.Add(new PlayerChip(
+				players[i].Name,
+				demos == 1 ? "1 demo" : $"{demos} demos",
+				Display.SeriesColors[i],
+				CanRemove: i > 0,
+				new Command(async () => await RemoveAsync(id))));
 		}
 	}
 
-	private void BuildWeapons(IReadOnlyList<WeaponClassStats> classes)
+	private async Task RemoveAsync(ulong id)
+	{
+		_added.Remove(id);
+		SaveAdded();
+		await RefreshAsync();
+	}
+
+	private void SaveAdded() => _settings.Set(PlayersKey, _added.Count == 0 ? null : string.Join(',', _added));
+
+	private void BuildCharts(IReadOnlyList<ProfileRecord> players, IReadOnlyList<ProgressData> data)
+	{
+		Charts.Clear();
+		foreach (var metric in Comparison.Metrics)
+		{
+			var title = metric.Habit is { } h ? Display.Habit(h) : metric.Name;
+			string Format(double v) => Display.Metric(metric.Unit, v);
+			var values = data.Select(d => d.Demos.Select(s => metric.Value(s.Stats)).ToList()).ToList();
+			var trends = values.Select(v => (IReadOnlyList<double>)Rolling.Median(v, RollingWindow)).ToList();
+
+			if (players.Count == 1)
+			{
+				var known = trends[0].Where(v => !double.IsNaN(v)).ToList();
+				var range = known.Count switch
+				{
+					0 => "Not enough demos yet",
+					1 => "Just enough demos for one median",
+					_ => $"Started at {Format(known[0])} · low {Format(known.Min())} · high {Format(known.Max())}",
+				};
+				Charts.Add(new TrendItem(title, known.Count == 0 ? "—" : Format(known[^1]), range, new SparklineDrawable { Values = values[0], Trend = trends[0] }));
+				continue;
+			}
+
+			var standing = ProgressRace.Rank(trends, metric.HigherIsBetter, RollingWindow);
+			var leader = standing.Leaders.Count == 0
+				? "Not enough demos yet"
+				: $"{string.Join(" & ", standing.Leaders.Select(i => players[i].Name))} · {Format(standing.Best!.Value)}";
+			var improved = standing.Improvement switch
+			{
+				Improvement.Improved => $"{players[standing.MostImproved!.Value].Name} · {Display.MetricChange(metric.Unit, standing.Change!.Value)}",
+				Improvement.NoOneImproved => "No one improved",
+				_ => "Not enough demos yet",
+			};
+			var chart = new SparklineDrawable { Series = trends.Select((t, i) => new SparkSeries(t, Display.SeriesColors[i])).ToList() };
+			Charts.Add(new TrendItem(
+				title,
+				"",
+				"",
+				chart,
+				IsMulti: true,
+				leader,
+				standing.Leaders.Count == 1 ? Display.SeriesColors[standing.Leaders[0]] : null,
+				improved,
+				standing.MostImproved is { } m ? Display.SeriesColors[m] : null,
+				metric.DependsOnOpposition ? "Depends on who they play against" : ""));
+		}
+	}
+
+	private void BuildWeapons(IReadOnlyList<ProfileRecord> players, IReadOnlyList<ProgressData> data)
 	{
 		Weapons.Clear();
-		foreach (var (weapon, s) in classes)
+		if (players.Count == 1)
 		{
-			var habit = Enum.GetValues<AimCategory>()
-				.Where(c => s.HabitCounts[(int)c] > 0)
-				.OrderByDescending(c => s.HabitCounts[(int)c])
-				.Select(c => $"{Display.Habit(c)} {Display.Percent(s.HabitCounts[(int)c], s.Encounters)}")
-				.FirstOrDefault() ?? "—";
-			Weapons.Add(new WeaponRow(
-				Display.WeaponClass(weapon),
-				s.Encounters.ToString("N0"),
-				$"{Display.Percent(s.Kills, s.Kills + s.Deaths)} of {s.Kills + s.Deaths}",
-				Display.Percent(s.FirstShotHits, s.FirstShotKnown),
-				s.MedianTimeToFirstShot is { } t ? $"{t:0.00} s" : "—",
-				Display.Percent(s.MovingFirstShots, s.Encounters),
-				habit));
+			WeaponsNote = "Grouped by the weapon you fired first with.";
+			foreach (var (weapon, s) in data[0].WeaponClasses)
+				Weapons.Add(Row(Display.WeaponClass(weapon), s));
+			return;
+		}
+
+		WeaponsNote = "Grouped by the weapon each player fired first with.";
+		var classes = data
+			.SelectMany(d => d.WeaponClasses)
+			.GroupBy(w => w.Class)
+			.OrderByDescending(g => g.Sum(w => w.Stats.Encounters))
+			.Select(g => g.Key);
+		foreach (var weapon in classes)
+		{
+			Weapons.Add(new WeaponRow(Display.WeaponClass(weapon), "", "", "", "", "", "", IsHeader: true));
+			for (var i = 0; i < players.Count; i++)
+			{
+				if (data[i].WeaponClasses.FirstOrDefault(w => w.Class == weapon) is { } stats)
+					Weapons.Add(Row("", stats.Stats) with { Player = players[i].Name, PlayerColor = Display.SeriesColors[i] });
+			}
 		}
 	}
 
-	private async Task BuildCausesAsync(IReadOnlyList<int> deathIds, int refresh)
+	private static WeaponRow Row(string name, EncounterStats s)
+	{
+		var habit = Enum.GetValues<AimCategory>()
+			.Where(c => s.HabitCounts[(int)c] > 0)
+			.OrderByDescending(c => s.HabitCounts[(int)c])
+			.Select(c => $"{Display.Habit(c)} {Display.Percent(s.HabitCounts[(int)c], s.Encounters)}")
+			.FirstOrDefault() ?? "—";
+		return new WeaponRow(
+			name,
+			s.Encounters.ToString("N0"),
+			$"{Display.Percent(s.Kills, s.Kills + s.Deaths)} of {s.Kills + s.Deaths}",
+			Display.Percent(s.FirstShotHits, s.FirstShotKnown),
+			s.MedianTimeToFirstShot is { } t ? $"{t:0.00} s" : "—",
+			Display.Percent(s.MovingFirstShots, s.Encounters),
+			habit);
+	}
+
+	private async Task BuildCausesAsync(IReadOnlyList<ProfileRecord> players, IReadOnlyList<ProgressData> data, int refresh)
 	{
 		Causes.Clear();
 		AimCauses.Clear();
-		if (!_outcomes.IsAvailable || deathIds.Count == 0)
+		CompareCauses.Clear();
+		CausesTitle = players.Count == 1 ? "What cost your lost duels" : "What cost their lost duels";
+		var deaths = data.Sum(d => d.DeathIds.Count);
+		if (!_outcomes.IsAvailable || deaths == 0)
 		{
 			HasCauses = false;
 			CausesNote = _outcomes.IsAvailable ? "No lost duels in these demos." : "No outcome model is available, so lost duels can't be explained.";
 			return;
 		}
 
-		CausesNote = $"Explaining {deathIds.Count:N0} lost duels…";
-		var records = await _readModel.FeatureRecordsAsync(deathIds);
-		var causes = await Task.Run(() => _outcomes.ExplainLosses(records));
-		if (refresh != _refresh || causes is null)
+		HasCauses = false;
+		CausesNote = $"Explaining {deaths:N0} lost duels…";
+		var explained = new List<LossCauses?>();
+		foreach (var d in data)
+		{
+			IReadOnlyList<EncounterRecord> records = d.DeathIds.Count == 0 ? [] : await _readModel.FeatureRecordsAsync(d.DeathIds);
+			explained.Add(records.Count == 0 ? null : await Task.Run(() => _outcomes.ExplainLosses(records)));
+			if (refresh != _refresh)
+				return;
+		}
+
+		if (players.Count == 1)
+			ListSingleCauses(explained[0]);
+		else
+			ListCompareCauses(players, explained);
+	}
+
+	private void ListSingleCauses(LossCauses? causes)
+	{
+		if (causes is null)
 			return;
 
 		var largest = Math.Max(1, causes.Causes.Max(c => c.Largest));
@@ -174,6 +450,40 @@ public sealed class TrendsViewModel : ObservableObject
 		CausesNote = $"From the outcome model, over {causes.Duels:N0} lost duels: how often each factor lowered the chance to win the most."
 			+ " Situation factors are context, not mistakes; the right-hand list leaves them out, to show what to work on."
 			+ (causes.WithAimCost < causes.Duels ? $" In {causes.Duels - causes.WithAimCost:N0} lost duels no aim factor counted against you." : "");
+	}
+
+	private void ListCompareCauses(IReadOnlyList<ProfileRecord> players, IReadOnlyList<LossCauses?> explained)
+	{
+		static double Share(LossCauses? causes, string name) => causes is null
+			? 0
+			: (causes.Causes.FirstOrDefault(c => c.Name == name)?.LargestAim ?? 0) / (double)Math.Max(1, causes.Duels);
+
+		var rows = explained
+			.Where(c => c is not null)
+			.SelectMany(c => c!.Causes)
+			.Where(c => !c.IsSituation && c.LargestAim > 0)
+			.Select(c => c.Name)
+			.Distinct()
+			.Select(name => (Name: name, Shares: explained.Select(c => Share(c, name)).ToList()))
+			.OrderByDescending(r => r.Shares.Max())
+			.Take(6)
+			.ToList();
+		var largest = Math.Max(0.01, rows.SelectMany(r => r.Shares).DefaultIfEmpty(0).Max());
+		foreach (var (name, shares) in rows)
+		{
+			var bars = shares
+				.Select((s, i) => new CauseBar(
+					explained[i] is null ? "—" : $"{s:P0}",
+					new Rect(0, 0, Math.Max(0.01, s / largest), 1),
+					Display.SeriesColors[i]))
+				.ToList();
+			CompareCauses.Add(new CauseCompareRow(name, bars));
+		}
+
+		HasCauses = CompareCauses.Count > 0;
+		var counts = string.Join(", ", players.Select((p, i) => $"{p.Name} {explained[i]?.Duels ?? 0:N0}"));
+		CausesNote = $"From the outcome model, over each player's lost duels ({counts}): how often each aim factor lowered the chance to win the most."
+			+ " Situation factors are left out: they are context, not mistakes.";
 	}
 
 	private static CauseRow Row(string name, bool situation, int count, int duels, int largest) => new(
