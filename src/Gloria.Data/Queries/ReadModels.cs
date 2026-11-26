@@ -101,6 +101,8 @@ public sealed record EncounterDetail(
 /// <param name="Clean">Encounters with no habit flagged.</param>
 /// <param name="MedianPreAimError">Median crosshair error when the flick to the first shot began, in degrees.</param>
 /// <param name="PreAimed">Encounters with none of the flick categories flagged.</param>
+/// <param name="MedianTimeToKill">Median seconds from the first shot to the kill, over kills on full-health opponents.</param>
+/// <param name="TimeToKillKills">Kills on full-health opponents, which <paramref name="MedianTimeToKill"/> is over.</param>
 public sealed record EncounterStats(
     int Encounters,
     int Kills,
@@ -112,7 +114,9 @@ public sealed record EncounterStats(
     int[] HabitCounts,
     int Clean,
     double? MedianPreAimError,
-    int PreAimed);
+    int PreAimed,
+    double? MedianTimeToKill,
+    int TimeToKillKills);
 
 /// <summary>The player's numbers with one class of weapon (what they fired first with).</summary>
 public sealed record WeaponClassStats(WeaponClass Class, EncounterStats Stats);
@@ -121,16 +125,25 @@ public sealed record WeaponClassStats(WeaponClass Class, EncounterStats Stats);
 /// <param name="Demos">Oldest first.</param>
 /// <param name="DeathIds">Encounters in those demos that the player lost, for explaining with the outcome model.</param>
 /// <param name="OlderVersionDemos">Demos left out because an older analysis version produced them.</param>
+/// <param name="Guns">Time to kill per gun fired first, most kills first.</param>
 public sealed record ProgressData(
     IReadOnlyList<DemoStats> Demos,
     IReadOnlyList<WeaponClassStats> WeaponClasses,
     IReadOnlyList<int> DeathIds,
-    int OlderVersionDemos);
+    int OlderVersionDemos,
+    IReadOnlyList<GunTimeToKill> Guns);
+
+/// <summary>Time to kill with one gun (the one fired first), over kills on full-health opponents.</summary>
+/// <param name="Weapon">Normalized weapon name, e.g. <c>ak47</c>.</param>
+/// <param name="Median">Median seconds over all those kills.</param>
+/// <param name="SamplesPerDemo">Each kill's seconds, per demo, in the order of <see cref="ProgressData.Demos"/>.</param>
+public sealed record GunTimeToKill(string Weapon, int Kills, double Median, IReadOnlyList<IReadOnlyList<double>> SamplesPerDemo);
 
 /// <summary>One demo's numbers for one player, for trends.</summary>
 /// <param name="HabitCounts">Encounters flagged per <see cref="AimCategory"/>, indexed by the enum value.</param>
 /// <param name="MedianPreAimError">Median crosshair error when the flick to the first shot began, in degrees.</param>
 /// <param name="PreAimed">Encounters with none of the flick categories flagged.</param>
+/// <param name="MedianTimeToKill">See <see cref="EncounterStats.MedianTimeToKill"/>.</param>
 public sealed record DemoStats(
     int DemoId,
     string MapName,
@@ -145,11 +158,13 @@ public sealed record DemoStats(
     int[] HabitCounts,
     int Clean,
     double? MedianPreAimError,
-    int PreAimed)
+    int PreAimed,
+    double? MedianTimeToKill,
+    int TimeToKillKills)
 {
     /// <summary>The same counts as <see cref="EncounterStats"/>, for <see cref="Comparison.Metrics"/>.</summary>
     public EncounterStats Stats => new(Encounters, Kills, Deaths, FirstShotHits, FirstShotKnown, MedianTimeToFirstShot,
-        MovingFirstShots, HabitCounts, Clean, MedianPreAimError, PreAimed);
+        MovingFirstShots, HabitCounts, Clean, MedianPreAimError, PreAimed, MedianTimeToKill, TimeToKillKills);
 }
 
 /// <param name="Recent">The latest demos, oldest first.</param>

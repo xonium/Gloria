@@ -21,4 +21,36 @@ public static class Rolling
 
         return result;
     }
+
+    /// <summary>
+    /// Trailing median of the samples in each demo and the demos before it, over up to <paramref name="window"/>
+    /// demos. For sparse numbers, e.g. kills with one gun, where most demos have a sample or two and a median of
+    /// per-demo medians would rest on almost nothing. NaN where fewer than <paramref name="minSamples"/> are pooled.
+    /// </summary>
+    public static double[] PooledMedian(IReadOnlyList<IReadOnlyList<double>> samplesPerDemo, int window, int minSamples)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(window, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(minSamples, 1);
+        var result = new double[samplesPerDemo.Count];
+        for (var i = 0; i < samplesPerDemo.Count; i++)
+        {
+            var pooled = samplesPerDemo
+                .Skip(Math.Max(0, i + 1 - window))
+                .Take(Math.Min(window, i + 1))
+                .SelectMany(s => s)
+                .Where(v => !double.IsNaN(v))
+                .Order()
+                .ToList();
+            result[i] = pooled.Count < minSamples ? double.NaN : pooled[pooled.Count / 2];
+        }
+
+        return result;
+    }
+
+    /// <summary>The median of the known values, the upper one of an even count as elsewhere; NaN when none are known.</summary>
+    public static double MedianOf(IEnumerable<double> values)
+    {
+        var sorted = values.Where(v => !double.IsNaN(v)).Order().ToList();
+        return sorted.Count == 0 ? double.NaN : sorted[sorted.Count / 2];
+    }
 }

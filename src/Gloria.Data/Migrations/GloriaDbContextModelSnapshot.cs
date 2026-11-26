@@ -270,6 +270,9 @@ namespace Gloria.Data.Migrations
                     b.Property<double?>("TimeToFirstShot")
                         .HasColumnType("REAL");
 
+                    b.Property<double?>("TimeToKill")
+                        .HasColumnType("REAL");
+
                     b.Property<double?>("TimeToOnTarget")
                         .HasColumnType("REAL");
 

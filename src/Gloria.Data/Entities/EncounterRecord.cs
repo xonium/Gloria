@@ -35,6 +35,12 @@ public sealed class EncounterRecord
 
     public int FirstShotTick { get; set; }
 
+    /// <summary>
+    /// Seconds from the first shot to the kill (<see cref="Gloria.Core.Encounters.TimeToKill"/>), on every kill; null
+    /// otherwise. Readers keep only kills on full-health opponents. Kept out of the models' features: it gives away the outcome.
+    /// </summary>
+    public double? TimeToKill { get; set; }
+
     public string FirstShotWeapon { get; set; } = "";
 
     public string OpponentWeapon { get; set; } = "";

@@ -205,8 +205,23 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
             current.Select(d => StatsOf(d, data)).ToList(),
             weapons,
             facts.Where(f => f.Outcome == EncounterOutcome.Death).Select(f => f.Id).ToList(),
-            data.Demos.Count(d => d.AnalysisVersionKey != currentAnalysisVersion));
+            data.Demos.Count(d => d.AnalysisVersionKey != currentAnalysisVersion),
+            Guns(current, data));
     }
+
+    /// <summary>Time to kill per gun fired first, with each kill's seconds per demo in the order of <paramref name="demos"/>.</summary>
+    private static IReadOnlyList<GunTimeToKill> Guns(IReadOnlyList<DemoInfo> demos, PlayerData data) => demos
+        .SelectMany((d, i) => data.FactsOf(d.Id).Where(f => f.CountedTimeToKill is not null).Select(f => (Demo: i, Fact: f)))
+        .GroupBy(k => StaticWeaponData.Normalize(k.Fact.Weapon))
+        .Select(g =>
+        {
+            var perDemo = demos.Select((_, i) => (IReadOnlyList<double>)g.Where(k => k.Demo == i).Select(k => k.Fact.CountedTimeToKill!.Value).ToList()).ToList();
+            var all = g.Select(k => k.Fact.CountedTimeToKill!.Value).Order().ToList();
+            return new GunTimeToKill(g.Key, all.Count, all[all.Count / 2], perDemo);
+        })
+        .OrderByDescending(g => g.Kills)
+        .ThenBy(g => g.Weapon, StringComparer.Ordinal)
+        .ToList();
 
     /// <summary>The encounters with what the models need, without their traces. Order is not kept.</summary>
     public async Task<IReadOnlyList<EncounterRecord>> FeatureRecordsAsync(IReadOnlyCollection<int> ids, CancellationToken ct = default)
@@ -249,13 +264,15 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
     {
         var s = Tally(data.FactsOf(d.Id));
         return new DemoStats(d.Id, d.MapName, d.PlayedAt, s.Encounters, s.Kills, s.Deaths, s.FirstShotHits, s.FirstShotKnown,
-            s.MedianTimeToFirstShot, s.MovingFirstShots, s.HabitCounts, s.Clean, s.MedianPreAimError, s.PreAimed);
+            s.MedianTimeToFirstShot, s.MovingFirstShots, s.HabitCounts, s.Clean, s.MedianPreAimError, s.PreAimed,
+            s.MedianTimeToKill, s.TimeToKillKills);
     }
 
     private static EncounterStats Tally(IReadOnlyList<Facts> facts)
     {
         var times = facts.Where(f => f.TimeToFirstShot is not null).Select(f => f.TimeToFirstShot!.Value).Order().ToList();
         var preAim = facts.Where(f => f.PreAimError is not null).Select(f => f.PreAimError!.Value).Order().ToList();
+        var kills = facts.Where(f => f.CountedTimeToKill is not null).Select(f => f.CountedTimeToKill!.Value).Order().ToList();
         var flicks = RuleBasedAimLabeler.Flicks.Aggregate(0, (mask, c) => mask | 1 << (int)c);
         var habits = new int[Enum.GetValues<AimCategory>().Length];
         foreach (var f in facts)
@@ -278,7 +295,9 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
             habits,
             facts.Count(f => f.Flags == 0),
             preAim.Count == 0 ? null : preAim[preAim.Count / 2],
-            facts.Count(f => (f.Flags & flicks) == 0));
+            facts.Count(f => (f.Flags & flicks) == 0),
+            kills.Count == 0 ? null : kills[kills.Count / 2],
+            kills.Count);
     }
 
     private static async Task<PlayerData> LoadAsync(GloriaDbContext db, ulong steamId, int? demoId, CancellationToken ct)
@@ -332,7 +351,9 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
                 e.SmallFlickProbability,
                 e.MediumFlickProbability,
                 e.LargeFlickProbability,
-                e.PreAimErrorDegrees))
+                e.PreAimErrorDegrees,
+                e.TimeToKill,
+                e.OpponentHealthAtStart))
             .ToListAsync(ct);
 
         var names = await db.DemoPlayers
@@ -468,8 +489,13 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
         float PSmallFlick,
         float PMediumFlick,
         float PLargeFlick,
-        float? PreAimError)
+        float? PreAimError,
+        double? TimeToKill,
+        int OpponentHealthAtStart)
     {
+        /// <summary>The time to kill when it counts: a kill on an opponent at full health.</summary>
+        public double? CountedTimeToKill => TimeToKill is { } t && Core.Encounters.TimeToKill.Counts(OpponentHealthAtStart) ? t : null;
+
         public static Facts From(EncounterRecord e) => new(
             e.Id,
             e.DemoId,
@@ -493,7 +519,9 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
             e.SmallFlickProbability,
             e.MediumFlickProbability,
             e.LargeFlickProbability,
-            e.PreAimErrorDegrees);
+            e.PreAimErrorDegrees,
+            e.TimeToKill,
+            e.OpponentHealthAtStart);
     }
 
     private sealed record PlayerData(

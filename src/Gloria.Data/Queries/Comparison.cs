@@ -100,6 +100,8 @@ public static class Comparison
         new("Duels won", null, MetricUnit.Share, true, true, s => Ratio(s.Kills, s.Kills + s.Deaths)),
         new("First-shot hit", null, MetricUnit.Share, true, false, s => Ratio(s.FirstShotHits, s.FirstShotKnown)),
         new("Median time to first shot", null, MetricUnit.Seconds, false, true, s => s.MedianTimeToFirstShot ?? double.NaN),
+        // Depends on the guns used and the opponents' armor as much as on the player, so it isn't ranked as a weakness.
+        new("Median time to kill", null, MetricUnit.Seconds, false, true, s => s.MedianTimeToKill ?? double.NaN),
         new("Moving first shots", null, MetricUnit.Share, false, false, s => Ratio(s.MovingFirstShots, s.Encounters)),
         new("Clean encounters", null, MetricUnit.Share, true, false, s => Ratio(s.Clean, s.Encounters)),
         new("Pre-aimed", null, MetricUnit.Share, true, false, s => Ratio(s.PreAimed, s.Encounters)),

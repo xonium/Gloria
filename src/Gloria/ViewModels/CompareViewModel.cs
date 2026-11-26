@@ -368,6 +368,7 @@ public sealed class CompareViewModel : ObservableObject
 		"Duels won" => "Kills ÷ (kills + deaths) · depends on who you play against",
 		"First-shot hit" => "First bullet of the encounter hit",
 		"Median time to first shot" => "From first sighting · ±0.5 s · depends on who you play against",
+		"Median time to kill" => "First shot to kill · full-HP opponents · depends on the guns used",
 		"Moving first shots" => "Above the weapon's accurate speed",
 		"Clean encounters" => "No habit flagged",
 		"Pre-aimed" => "Within 5° of the body before the flick",

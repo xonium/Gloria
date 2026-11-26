@@ -78,7 +78,8 @@ public sealed record ReferenceEncounter(
     int OpponentHealthAtStart,
     bool FiredFirst,
     bool? FirstShotHit,
-    bool? WonDuel)
+    bool? WonDuel,
+    double? TimeToKill = null)
 {
     public static ReferenceEncounter From(EncounterRecord e, int demo) => new(
         demo,
@@ -104,7 +105,8 @@ public sealed record ReferenceEncounter(
         e.OpponentHealthAtStart,
         e.FiredFirst,
         e.FirstShotHit,
-        e.WonDuel);
+        e.WonDuel,
+        e.TimeToKill);
 
     /// <param name="id">Stands in for a database id; the demo index is the <see cref="EncounterRecord.DemoId"/>.</param>
     public EncounterRecord ToRecord(int id, ulong steamId) => new()
@@ -135,5 +137,6 @@ public sealed record ReferenceEncounter(
         FiredFirst = FiredFirst,
         FirstShotHit = FirstShotHit,
         WonDuel = WonDuel,
+        TimeToKill = TimeToKill,
     };
 }

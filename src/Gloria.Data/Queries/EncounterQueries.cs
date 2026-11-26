@@ -22,6 +22,7 @@ public static class EncounterQueries
             TimeToFirstShot = e.TimeToFirstShot,
             TimeToOnTarget = e.TimeToOnTarget,
             FirstShotTick = e.FirstShotTick,
+            TimeToKill = e.TimeToKill,
             FirstShotWeapon = e.FirstShotWeapon,
             OpponentWeapon = e.OpponentWeapon,
             ShotCount = e.ShotCount,

@@ -89,7 +89,8 @@ public sealed class ComparisonTests : IDisposable
         var ct = TestContext.Current.CancellationToken;
         var encounters = new[]
         {
-            Encounter(Me, EncounterOutcome.Kill, 0.25, "ak47", hit: true, flags: 1 << (int)AimCategory.Overshoot, preAim: 3f),
+            Encounter(Me, EncounterOutcome.Kill, 0.25, "ak47", hit: true, flags: 1 << (int)AimCategory.Overshoot, preAim: 3f, ttk: 0.4),
+            Encounter(Me, EncounterOutcome.Kill, 0.3, "ak47", ttk: 0.1, opponentHealth: 40),
             Encounter(Me, EncounterOutcome.Death, 0.5, "ak47", hit: false, flags: 1 << (int)AimCategory.MediumFlick, speedRatio: 1.4f, preAim: 20f),
             Encounter(Me, EncounterOutcome.Disengage, null, "deagle"),
         };
@@ -108,10 +109,72 @@ public sealed class ComparisonTests : IDisposable
 
         Assert.Equal(
             (demoStats.Encounters, demoStats.Kills, demoStats.Deaths, demoStats.FirstShotHits, demoStats.FirstShotKnown, demoStats.MedianTimeToFirstShot,
-                demoStats.MovingFirstShots, demoStats.Clean, demoStats.MedianPreAimError, demoStats.PreAimed),
+                demoStats.MovingFirstShots, demoStats.Clean, demoStats.MedianPreAimError, demoStats.PreAimed, demoStats.MedianTimeToKill, demoStats.TimeToKillKills),
             (stats.Encounters, stats.Kills, stats.Deaths, stats.FirstShotHits, stats.FirstShotKnown, stats.MedianTimeToFirstShot,
-                stats.MovingFirstShots, stats.Clean, stats.MedianPreAimError, stats.PreAimed));
+                stats.MovingFirstShots, stats.Clean, stats.MedianPreAimError, stats.PreAimed, stats.MedianTimeToKill, stats.TimeToKillKills));
         Assert.Equal(demoStats.HabitCounts, stats.HabitCounts);
+        // The kill on a hurt opponent doesn't count.
+        Assert.Equal(1, stats.TimeToKillKills);
+        Assert.Equal(0.4, stats.MedianTimeToKill);
+    }
+
+    [Fact]
+    public async Task Progress_TimeToKillPerGunOverFullHealthKills()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using (var db = _factory.CreateDbContext())
+        {
+            // Oldest first.
+            (string Weapon, double Ttk, int Health)[][] kills =
+            [
+                [("ak47", 0.5, 100), ("weapon_m4a1_silencer", 0.6, 100), ("ak47", 0.05, 30)],
+                [],
+                [("ak47", 0.3, 100), ("m4a1_silencer", 0.4, 100), ("ak47", 0.7, 100)],
+            ];
+            for (var i = 0; i < kills.Length; i++)
+            {
+                var demo = new DemoRecord
+                {
+                    ContentHash = $"k{i}",
+                    FileName = $"k{i}.dem",
+                    MapName = "de_inferno",
+                    AnalysisVersionKey = "v",
+                    PlayedAt = new DateTimeOffset(2026, 10, 1 + i, 20, 0, 0, TimeSpan.Zero),
+                };
+                demo.Players.Add(new DemoPlayerRecord { SteamId = Me, Name = "me", TeamsByRound = "C" });
+                foreach (var (weapon, ttk, health) in kills[i])
+                    demo.Encounters.Add(Encounter(Me, EncounterOutcome.Kill, 0.3, weapon, ttk: ttk, opponentHealth: health));
+                demo.Encounters.Add(Encounter(Me, EncounterOutcome.Death, 0.3, "ak47"));
+                db.Demos.Add(demo);
+            }
+
+            await db.SaveChangesAsync(ct);
+        }
+
+        var progress = await new GloriaReadModel(_factory, "v").ProgressAsync(Me, ct: ct);
+
+        // Upper middle of an even count, as for the other medians: 0.5 and 0.6 → 0.6.
+        Assert.Equal([0.6, null, 0.4], progress.Demos.Select(d => d.MedianTimeToKill));
+        Assert.Equal([2, 0, 3], progress.Demos.Select(d => d.TimeToKillKills));
+        Assert.Equal(["ak47", "m4a1_silencer"], progress.Guns.Select(g => g.Weapon));
+        var ak = progress.Guns[0];
+        Assert.Equal(3, ak.Kills);
+        Assert.Equal(0.5, ak.Median);
+        Assert.Equal([[0.5], [], [0.3, 0.7]], ak.SamplesPerDemo.Select(s => s.ToArray()));
+        Assert.Equal(2, progress.Guns[1].Kills);
+    }
+
+    [Fact]
+    public void Gaps_TimeToKillIsLowerBetterAndDependsOnOpposition()
+    {
+        var you = Stats(kills: 4, deaths: 6, firstShotHits: 2, known: 10, time: 0.6, moving: 5, encounters: 10, ttk: 0.5);
+        var them = Stats(kills: 8, deaths: 2, firstShotHits: 5, known: 10, time: 0.3, moving: 1, encounters: 10, ttk: 0.4);
+
+        var gap = Comparison.Gaps(you, them).Single(g => g.Name == "Median time to kill");
+
+        Assert.True(gap.Gap > 0);
+        Assert.True(gap.DependsOnOpposition);
+        Assert.DoesNotContain(Comparison.Gaps(you, Stats(1, 0, 0, 0, null, 0, 1)), g => g.Name == "Median time to kill");
     }
 
     [Fact]
@@ -156,7 +219,7 @@ public sealed class ComparisonTests : IDisposable
     {
         var records = new[]
         {
-            Encounter(Me, EncounterOutcome.Kill, 0.25, "m4a1_silencer", hit: true, speedRatio: 0.3f, preAim: 2.5f),
+            Encounter(Me, EncounterOutcome.Kill, 0.25, "m4a1_silencer", hit: true, speedRatio: 0.3f, preAim: 2.5f, ttk: 0.45),
             Encounter(Me, EncounterOutcome.Death, null, "glock", hit: null, speedRatio: 1.7f, preAim: null),
         };
         records[0].TimeToOnTarget = 0.2;
@@ -188,6 +251,7 @@ public sealed class ComparisonTests : IDisposable
         Assert.Equal(Me, read.SteamId);
         Assert.Equal(records.Select(r => r.ToFeatures()), restored.Select(r => r.ToFeatures()));
         Assert.Equal(records.Select(r => (r.Outcome, r.FirstShotHit, r.WonDuel)), restored.Select(r => (r.Outcome, r.FirstShotHit, r.WonDuel)));
+        Assert.Equal([0.45, null], restored.Select(r => r.TimeToKill));
         Assert.Equal(2, restored.Select(r => r.Id).Distinct().Count());
     }
 
@@ -199,7 +263,9 @@ public sealed class ComparisonTests : IDisposable
         bool? hit = null,
         int flags = 0,
         float speedRatio = 0.5f,
-        float? preAim = 4f) => new()
+        float? preAim = 4f,
+        double? ttk = null,
+        int opponentHealth = TimeToKill.FullHealth) => new()
     {
         PlayerSteamId = player,
         RoundNumber = 1,
@@ -211,10 +277,12 @@ public sealed class ComparisonTests : IDisposable
         Flags = flags,
         SpeedRatioAtFirstShot = speedRatio,
         PreAimErrorDegrees = preAim,
+        TimeToKill = ttk,
+        OpponentHealthAtStart = opponentHealth,
     };
 
-    private static EncounterStats Stats(int kills, int deaths, int firstShotHits, int known, double? time, int moving, int encounters) =>
-        new(encounters, kills, deaths, firstShotHits, known, time, moving, new int[Enum.GetValues<AimCategory>().Length], encounters, null, encounters);
+    private static EncounterStats Stats(int kills, int deaths, int firstShotHits, int known, double? time, int moving, int encounters, double? ttk = null) =>
+        new(encounters, kills, deaths, firstShotHits, known, time, moving, new int[Enum.GetValues<AimCategory>().Length], encounters, null, encounters, ttk, ttk is null ? 0 : kills);
 
     private sealed class TestDbContextFactory(SqliteConnection connection) : IDbContextFactory<GloriaDbContext>
     {

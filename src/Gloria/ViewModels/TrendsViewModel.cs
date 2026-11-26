@@ -16,6 +16,7 @@ namespace Gloria.ViewModels;
 /// <param name="Range">Where the median started and its low and high, with one player.</param>
 /// <param name="IsMulti">Several players: <paramref name="Leader"/> and <paramref name="Improved"/> replace <paramref name="Now"/> and <paramref name="Range"/>.</param>
 /// <param name="Note">A caveat about the metric, e.g. that it depends on the opposition; empty for none.</param>
+/// <param name="Icon">A weapon icon shown before the title; null for none.</param>
 public sealed record TrendItem(
 	string Title,
 	string Now,
@@ -26,11 +27,14 @@ public sealed record TrendItem(
 	Color? LeaderColor = null,
 	string Improved = "",
 	Color? ImprovedColor = null,
-	string Note = "")
+	string Note = "",
+	string? Icon = null)
 {
 	public bool IsSingle => !IsMulti;
 
 	public bool HasNote => Note.Length > 0;
+
+	public bool HasIcon => Icon is not null;
 
 	public Color LeaderDot => LeaderColor ?? Colors.Transparent;
 
@@ -100,6 +104,15 @@ public sealed class TrendsViewModel : ObservableObject
 	/// <summary>Players on the page at once, the viewed profile included: one per color.</summary>
 	public static readonly int MaxPlayers = Display.SeriesColors.Count;
 
+	/// <summary>Counted kills with a gun, by one of the players, for it to get a time-to-kill card.</summary>
+	public const int MinGunKills = 10;
+
+	/// <summary>Time-to-kill cards at most, for the guns with the most kills.</summary>
+	public const int MaxGunCharts = 6;
+
+	/// <summary>Kills pooled from the recent demos before a gun's line has a point.</summary>
+	public const int MinPooledKills = 3;
+
 	private const string PeriodKey = "progress-period";
 	private const string PlayersKey = "progress-players";
 
@@ -114,6 +127,8 @@ public sealed class TrendsViewModel : ObservableObject
 	private string _causesNote = "";
 	private string _causesTitle = "";
 	private string _weaponsNote = "";
+	private string _gunNote = "";
+	private bool _hasGunCharts;
 	private bool _hasCauses;
 	private bool _isMulti;
 	private bool _canAdd;
@@ -144,6 +159,13 @@ public sealed class TrendsViewModel : ObservableObject
 	public ObservableCollection<PlayerChip> Players { get; } = [];
 
 	public ObservableCollection<TrendItem> Charts { get; } = [];
+
+	/// <summary>Time to kill per gun, for the guns with enough kills.</summary>
+	public ObservableCollection<TrendItem> GunCharts { get; } = [];
+
+	public bool HasGunCharts { get => _hasGunCharts; private set => Set(ref _hasGunCharts, value); }
+
+	public string GunNote { get => _gunNote; private set => Set(ref _gunNote, value); }
 
 	public ObservableCollection<WeaponRow> Weapons { get; } = [];
 
@@ -235,6 +257,7 @@ public sealed class TrendsViewModel : ObservableObject
 		}
 
 		BuildCharts(players, data);
+		BuildGunCharts(players, data);
 		BuildWeapons(players, data);
 		await BuildCausesAsync(players, data, refresh);
 	}
@@ -314,46 +337,118 @@ public sealed class TrendsViewModel : ObservableObject
 		foreach (var metric in Comparison.Metrics)
 		{
 			var title = metric.Habit is { } h ? Display.Habit(h) : metric.Name;
-			string Format(double v) => Display.Metric(metric.Unit, v);
-			var values = data.Select(d => d.Demos.Select(s => metric.Value(s.Stats)).ToList()).ToList();
+			var values = data.Select(d => (IReadOnlyList<double>)d.Demos.Select(s => metric.Value(s.Stats)).ToList()).ToList();
 			var trends = values.Select(v => (IReadOnlyList<double>)Rolling.Median(v, RollingWindow)).ToList();
-
-			if (players.Count == 1)
-			{
-				var known = trends[0].Where(v => !double.IsNaN(v)).ToList();
-				var range = known.Count switch
-				{
-					0 => "Not enough demos yet",
-					1 => "Just enough demos for one median",
-					_ => $"Started at {Format(known[0])} · low {Format(known.Min())} · high {Format(known.Max())}",
-				};
-				Charts.Add(new TrendItem(title, known.Count == 0 ? "—" : Format(known[^1]), range, new SparklineDrawable { Values = values[0], Trend = trends[0] }));
-				continue;
-			}
-
-			var standing = ProgressRace.Rank(trends, metric.HigherIsBetter, RollingWindow);
-			var leader = standing.Leaders.Count == 0
-				? "Not enough demos yet"
-				: $"{string.Join(" & ", standing.Leaders.Select(i => players[i].Name))} · {Format(standing.Best!.Value)}";
-			var improved = standing.Improvement switch
-			{
-				Improvement.Improved => $"{players[standing.MostImproved!.Value].Name} · {Display.MetricChange(metric.Unit, standing.Change!.Value)}",
-				Improvement.NoOneImproved => "No one improved",
-				_ => "Not enough demos yet",
-			};
-			var chart = new SparklineDrawable { Series = trends.Select((t, i) => new SparkSeries(t, Display.SeriesColors[i])).ToList() };
-			Charts.Add(new TrendItem(
-				title,
-				"",
-				"",
-				chart,
-				IsMulti: true,
-				leader,
-				standing.Leaders.Count == 1 ? Display.SeriesColors[standing.Leaders[0]] : null,
-				improved,
-				standing.MostImproved is { } m ? Display.SeriesColors[m] : null,
-				metric.DependsOnOpposition ? "Depends on who they play against" : ""));
+			Charts.Add(Card(title, metric.Unit, metric.HigherIsBetter, players, values, trends,
+				multiNote: metric.DependsOnOpposition ? "Depends on who they play against" : ""));
 		}
+	}
+
+	/// <summary>
+	/// A card per gun fired first that some player has <see cref="MinGunKills"/> counted kills with, most kills first.
+	/// Kills with one gun are sparse, so each line is the median of the kills in the last <see cref="RollingWindow"/>
+	/// demos rather than a median of per-demo medians.
+	/// </summary>
+	private void BuildGunCharts(IReadOnlyList<ProfileRecord> players, IReadOnlyList<ProgressData> data)
+	{
+		GunCharts.Clear();
+		var guns = data
+			.SelectMany(d => d.Guns)
+			.GroupBy(g => g.Weapon)
+			.Where(g => g.Any(x => x.Kills >= MinGunKills))
+			.OrderByDescending(g => g.Sum(x => x.Kills))
+			.Take(MaxGunCharts)
+			.Select(g => g.Key)
+			.ToList();
+
+		foreach (var weapon in guns)
+		{
+			var mine = data.Select(d => d.Guns.FirstOrDefault(g => g.Weapon == weapon)).ToList();
+			var samples = data
+				.Select((d, i) => mine[i]?.SamplesPerDemo ?? d.Demos.Select(_ => (IReadOnlyList<double>)[]).ToList())
+				.ToList();
+			var values = samples.Select(s => (IReadOnlyList<double>)s.Select(Rolling.MedianOf).ToList()).ToList();
+			var trends = samples.Select(s => (IReadOnlyList<double>)Rolling.PooledMedian(s, RollingWindow, MinPooledKills)).ToList();
+			static string Kills(int n) => n == 1 ? "1 kill" : $"{n:N0} kills";
+			GunCharts.Add(Card(
+				Display.Weapon(weapon),
+				MetricUnit.Seconds,
+				higherIsBetter: false,
+				players,
+				values,
+				trends,
+				singleDetail: Kills(mine[0]?.Kills ?? 0),
+				multiNote: string.Join(" · ", players.Select((p, i) => $"{p.Name} {Kills(mine[i]?.Kills ?? 0)}")),
+				icon: Display.WeaponIcon(weapon)));
+		}
+
+		HasGunCharts = GunCharts.Count > 0;
+		GunNote = HasGunCharts
+			? $"From the first shot, hit or miss, to the kill, over kills on opponents at full health. Grouped by the gun fired first; guns with at least {MinGunKills} such kills. "
+				+ (IsMulti
+					? $"Each line is the median of a player's kills in their last {RollingWindow} demos."
+					: $"Dots are single demos; the line is the median of the kills in the last {RollingWindow} demos.")
+			: "";
+	}
+
+	/// <summary>
+	/// A chart card: with one player the latest median and its range; with several, one line each and who leads and
+	/// who improved most.
+	/// </summary>
+	/// <param name="values">Per player, the value of each demo (dots, shown with one player).</param>
+	/// <param name="trends">Per player, the smoothed line.</param>
+	/// <param name="singleDetail">Added to the range line with one player.</param>
+	/// <param name="multiNote">The card's note with several players.</param>
+	private static TrendItem Card(
+		string title,
+		MetricUnit unit,
+		bool higherIsBetter,
+		IReadOnlyList<ProfileRecord> players,
+		IReadOnlyList<IReadOnlyList<double>> values,
+		IReadOnlyList<IReadOnlyList<double>> trends,
+		string singleDetail = "",
+		string multiNote = "",
+		string? icon = null)
+	{
+		string Format(double v) => Display.Metric(unit, v);
+
+		if (players.Count == 1)
+		{
+			var known = trends[0].Where(v => !double.IsNaN(v)).ToList();
+			var range = known.Count switch
+			{
+				0 => "Not enough demos yet",
+				1 => "Just enough demos for one median",
+				_ => $"Started at {Format(known[0])} · low {Format(known.Min())} · high {Format(known.Max())}",
+			};
+			if (singleDetail.Length > 0)
+				range += $" · {singleDetail}";
+			return new TrendItem(title, known.Count == 0 ? "—" : Format(known[^1]), range, new SparklineDrawable { Values = values[0], Trend = trends[0] }, Icon: icon);
+		}
+
+		var standing = ProgressRace.Rank(trends, higherIsBetter, RollingWindow);
+		var leader = standing.Leaders.Count == 0
+			? "Not enough demos yet"
+			: $"{string.Join(" & ", standing.Leaders.Select(i => players[i].Name))} · {Format(standing.Best!.Value)}";
+		var improved = standing.Improvement switch
+		{
+			Improvement.Improved => $"{players[standing.MostImproved!.Value].Name} · {Display.MetricChange(unit, standing.Change!.Value)}",
+			Improvement.NoOneImproved => "No one improved",
+			_ => "Not enough demos yet",
+		};
+		var chart = new SparklineDrawable { Series = trends.Select((t, i) => new SparkSeries(t, Display.SeriesColors[i])).ToList() };
+		return new TrendItem(
+			title,
+			"",
+			"",
+			chart,
+			IsMulti: true,
+			leader,
+			standing.Leaders.Count == 1 ? Display.SeriesColors[standing.Leaders[0]] : null,
+			improved,
+			standing.MostImproved is { } m ? Display.SeriesColors[m] : null,
+			multiNote,
+			icon);
 	}
 
 	private void BuildWeapons(IReadOnlyList<ProfileRecord> players, IReadOnlyList<ProgressData> data)

@@ -89,7 +89,8 @@ src\Gloria\bin\Debug\net10.0-windows10.0.19041.0\win-x64\Gloria.exe
   - A by-weapon table, grouped by the weapon fired first.
   - "What cost your lost duels": the outcome model runs over every lost duel. It counts how often each factor was the largest cost overall, and the largest aim factor (situation factors left out).
   - A period selector (last 20, last 50, all).
-- **Overview:** period selector (last 10, 20, 50 or all demos), compared with the window before. Periods count demos, not days, because file dates are unreliable. Both choices are saved in `Settings`.
+  - Time to kill: an overall card ("Median time to kill", also on Compare) and a card per gun with at least 10 kills on full-health opponents, up to six. A gun's line is the median of its kills in the last 5 demos.
+- **Overview:** period selector (last 10, 20, 50 or all demos), compared with the window before. Periods count demos, not days, because file dates are unreliable. Both choices are saved in `Settings`. A sixth tile shows the median time to kill.
 - **Matches:** filters for result, map and main habit, with Clear and a "no matches" message. They are not saved.
 - **The first round was missing** from every demo until parser version 5, so sides seemed to switch after round 11 and pistol-round encounters were lost.
   - Cause: `RoundTracker.MatchStart` cleared the round in progress, but the match start is announced during the first live round.

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Gloria.Core.Analysis;
 using Gloria.Core.Classification;
+using Gloria.Core.Encounters;
 using Gloria.Core.Ingestion;
 using Gloria.Data.Corrections;
 using Gloria.Data.Entities;
@@ -201,6 +202,7 @@ public sealed class DemoImporter(
                 TimeToFirstShot = m.TimeToFirstShot,
                 TimeToOnTarget = m.TimeToOnTarget,
                 FirstShotTick = m.FirstShotTick,
+                TimeToKill = TimeToKill.Seconds(encounter.Outcome, m.FirstShotTick, encounter.EndTick, demo.TickRate),
                 FirstShotWeapon = m.FirstShotWeapon,
                 OpponentWeapon = m.OpponentWeapon,
                 ShotCount = m.ShotTicks.Count,

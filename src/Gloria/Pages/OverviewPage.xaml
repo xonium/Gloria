@@ -36,7 +36,7 @@
             </Border>
 
             <!-- One column per tile; a FlexLayout with a percentage basis clipped the cards at narrower widths. -->
-            <Grid ColumnDefinitions="*,*,*,*,*" ColumnSpacing="14" BindableLayout.ItemsSource="{Binding Tiles}" IsVisible="{Binding HasData}">
+            <Grid ColumnDefinitions="*,*,*,*,*,*" ColumnSpacing="14" BindableLayout.ItemsSource="{Binding Tiles}" IsVisible="{Binding HasData}">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="vm:TileItem">
                         <Border Style="{StaticResource Card}" Padding="18,16,18,12" Grid.Column="{Binding Column}">
