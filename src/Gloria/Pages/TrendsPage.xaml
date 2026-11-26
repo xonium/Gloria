@@ -25,7 +25,8 @@
                         <Ellipse Grid.Row="1" Grid.Column="1" Fill="{Binding ImprovedDot}" WidthRequest="8" HeightRequest="8" VerticalOptions="Center" />
                         <Label Grid.Row="1" Grid.Column="2" Text="{Binding Improved}" FontSize="13" FontFamily="OpenSansSemibold" LineBreakMode="TailTruncation" VerticalOptions="Center" />
                     </Grid>
-                    <Label Text="{Binding Note}" Style="{StaticResource Caption}" IsVisible="{Binding HasNote}" />
+                    <!-- Capped at the card's narrowest content width: in a FlexLayout a long label would widen the card past its slot instead of wrapping. -->
+                    <Label Text="{Binding Note}" Style="{StaticResource Caption}" IsVisible="{Binding HasNote}" LineBreakMode="WordWrap" MaximumWidthRequest="284" HorizontalOptions="Start" />
                     <GraphicsView Drawable="{Binding Chart}" HeightRequest="120" SemanticProperties.Description="{Binding Title}" />
                 </VerticalStackLayout>
             </Border>

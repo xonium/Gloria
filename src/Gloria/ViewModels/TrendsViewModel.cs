@@ -105,7 +105,7 @@ public sealed class TrendsViewModel : ObservableObject
 	public static readonly int MaxPlayers = Display.SeriesColors.Count;
 
 	/// <summary>Counted kills with a gun, by one of the players, for it to get a time-to-kill card.</summary>
-	public const int MinGunKills = 10;
+	public const int MinGunKills = 5;
 
 	/// <summary>Time-to-kill cards at most, for the guns with the most kills.</summary>
 	public const int MaxGunCharts = 6;
@@ -378,7 +378,7 @@ public sealed class TrendsViewModel : ObservableObject
 				values,
 				trends,
 				singleDetail: Kills(mine[0]?.Kills ?? 0),
-				multiNote: string.Join(" · ", players.Select((p, i) => $"{p.Name} {Kills(mine[i]?.Kills ?? 0)}")),
+				multiNote: string.Join(" · ", players.Select((p, i) => (p.Name, Kills: mine[i]?.Kills ?? 0)).Where(x => x.Kills > 0).Select(x => $"{x.Name} {Kills(x.Kills)}")),
 				icon: Display.WeaponIcon(weapon)));
 		}
 
