@@ -78,6 +78,7 @@ public sealed class ShellViewModel : ObservableObject
 			new NavItem("Matches", "matches", Go("//matches")),
 			new NavItem("Progress", "trends", Go("//trends")),
 			new NavItem("Compare", "compare", Go("//compare")),
+			new NavItem("Spray", "spray", Go("//spray")),
 			new NavItem("Import", "import", Go("//import")),
 			new NavItem("Player", "player", Go("//player")),
 		];

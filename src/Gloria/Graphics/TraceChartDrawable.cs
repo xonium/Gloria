@@ -63,14 +63,14 @@ public sealed class TraceChartDrawable : IDrawable
 		canvas.FontColor = Display.Muted;
 		canvas.FontSize = 11;
 		canvas.StrokeSize = 1;
-		foreach (var v in Ticks(MinY, MaxY, 4))
+		foreach (var v in ChartTicks.Nice(MinY, MaxY, 4))
 		{
 			canvas.StrokeColor = Math.Abs(v) < 1e-6 ? Display.LineStrong : Display.Line;
 			canvas.DrawLine(plot.Left, Y(v), plot.Right, Y(v));
 			canvas.DrawString(FormatY(v), rect.Left, Y(v) - 7, Left - 8, 14, HorizontalAlignment.Right, VerticalAlignment.Center);
 		}
 
-		foreach (var t in Ticks(t0, t1, 6))
+		foreach (var t in ChartTicks.Nice(t0, t1, 6))
 			canvas.DrawString(Math.Abs(t) < 1e-6 ? "0 s" : $"{t:0.##}", X(t) - 30, plot.Bottom + 6, 60, 14, HorizontalAlignment.Center, VerticalAlignment.Top);
 
 		if (Threshold is { } threshold)
@@ -161,17 +161,5 @@ public sealed class TraceChartDrawable : IDrawable
 			canvas.StrokeSize = 1.5f;
 			canvas.DrawLine(X(Seconds[i]), plot.Top, X(Seconds[i]), plot.Bottom);
 		}
-	}
-
-	private static IEnumerable<float> Ticks(float min, float max, int target)
-	{
-		var raw = (max - min) / target;
-		if (raw <= 0)
-			yield break;
-
-		var magnitude = MathF.Pow(10, MathF.Floor(MathF.Log10(raw)));
-		var step = new[] { 1f, 2f, 2.5f, 5f, 10f }.Select(m => m * magnitude).First(s => s >= raw);
-		for (var v = MathF.Ceiling(min / step) * step; v <= max + step * 0.001f; v += step)
-			yield return MathF.Round(v / step) * step;
 	}
 }

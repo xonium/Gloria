@@ -295,6 +295,17 @@ public sealed class ImportTests : IDisposable
         TestContext.Current.SendDiagnosticMessage(string.Join(", ", stored.Select(p =>
             $"{p.Name} {p.Kills}-{p.Deaths} ADR {(double)(p.Damage ?? 0) / Math.Max(p.TeamsByRound.Count(c => c != '-'), 1):0}")));
 
+        // Sprays are stored for every player, and read back per gun with a full magazine of bullets.
+        Assert.True(await db.SprayBullets.Select(s => s.SteamId).Distinct().CountAsync(ct) > 1);
+        var sprayer = await db.SprayBullets.GroupBy(s => s.SteamId).OrderByDescending(g => g.Sum(s => s.Fired)).Select(g => g.Key).FirstAsync(ct);
+        var spray = await readModel.SprayAsync(sprayer, ct: ct);
+        var gun = spray.Guns[0];
+        Assert.Equal(1, spray.Demos);
+        Assert.Equal(gun.Clip, gun.Bullets.Count);
+        Assert.Equal(1.0, gun.Reach(1));
+        TestContext.Current.SendDiagnosticMessage(
+            $"{gun.Weapon}: {gun.Sprays} sprays, median {gun.MedianLength} bullets, hit rate {gun.HitRate:P0}, most kills on bullet {gun.KillBullet}");
+
         var detail = await readModel.MatchDetailAsync(match.DemoId, candidate.SteamId, ct);
         Assert.NotNull(detail);
         var encounter = await readModel.EncounterDetailAsync(detail.Encounters[0].Id, ct);

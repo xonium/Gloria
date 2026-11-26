@@ -49,9 +49,9 @@ public sealed class SyntheticDemoBuilder
         return this;
     }
 
-    public SyntheticDemoBuilder Fire(int tick, ulong shooter, string weapon = "weapon_ak47")
+    public SyntheticDemoBuilder Fire(int tick, ulong shooter, string weapon = "weapon_ak47", int? shotsFired = null)
     {
-        _events.Add(new WeaponFireEvent(tick, shooter, weapon));
+        _events.Add(new WeaponFireEvent(tick, shooter, weapon, shotsFired));
         return this;
     }
 

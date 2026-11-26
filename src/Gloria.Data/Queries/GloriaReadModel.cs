@@ -257,6 +257,38 @@ public sealed class GloriaReadModel(IDbContextFactory<GloriaDbContext> dbFactory
         return ComparisonSide.From(name, kind, ids.Count, encounters);
     }
 
+    /// <summary>One player's sprays per full-auto gun in their latest demos analyzed by the current version.</summary>
+    /// <param name="lastDemos">How many of the latest demos to include; null for all.</param>
+    public async Task<SprayProfile> SprayAsync(ulong steamId, int? lastDemos = null, CancellationToken ct = default)
+    {
+        await using var db = dbFactory.CreateDbContext();
+        var demos = await db.DemoPlayers
+            .Where(p => p.SteamId == steamId)
+            .Select(p => new { p.DemoId, p.Demo!.PlayedAt, p.Demo.AnalysisVersionKey })
+            .ToListAsync(ct);
+        var ids = demos
+            .Where(d => d.AnalysisVersionKey == currentAnalysisVersion)
+            .OrderByDescending(d => d.PlayedAt).ThenByDescending(d => d.DemoId)
+            .Take(lastDemos ?? int.MaxValue)
+            .Select(d => d.DemoId)
+            .ToList();
+        var rows = new List<SprayBulletRecord>();
+        foreach (var chunk in ids.Chunk(500))
+            rows.AddRange(await db.SprayBullets.AsNoTracking().Where(s => s.SteamId == steamId && chunk.Contains(s.DemoId)).ToListAsync(ct));
+
+        var guns = rows
+            .GroupBy(r => r.Weapon)
+            .Select(g => SprayWeapons.TryGetClip(g.Key, out var clip)
+                ? GunSpray.From(g.Key, clip, g.Select(r => new SprayBullet(r.Bullet, r.Fired, r.Hits, r.Kills)))
+                : null)
+            .OfType<GunSpray>()
+            .Where(g => g.Sprays > 0)
+            .OrderByDescending(g => g.Sprays)
+            .ThenBy(g => g.Weapon, StringComparer.Ordinal)
+            .ToList();
+        return new SprayProfile(guns, ids.Count, demos.Count(d => d.AnalysisVersionKey != currentAnalysisVersion));
+    }
+
     /// <summary>The counts over a set of one player's encounters, as the other queries make them.</summary>
     public static EncounterStats Tally(IEnumerable<EncounterRecord> encounters) => Tally(encounters.Select(Facts.From).ToList());
 

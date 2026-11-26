@@ -13,7 +13,8 @@ public sealed class DemoFileDemoParser : IDemoParser
 
     // 5: the first live round is no longer dropped when the match start is announced during it.
     // 6: hurt events carry the victim's remaining health, for damage per round.
-    public int Version => 6;
+    // 7: fire events carry the shooter's consecutive-shot counter, for sprays.
+    public int Version => 7;
 
     public async Task<ParsedDemo> ParseAsync(Stream demo, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
     {
@@ -23,6 +24,9 @@ public sealed class DemoFileDemoParser : IDemoParser
         var events = new List<DemoEvent>();
         var timeline = new PlayerTimelineBuilder();
         var rounds = new RoundTracker();
+
+        // Fire events whose shot counter is read once the tick's entity updates have arrived.
+        var pendingFires = new List<(int EventIndex, CCSPlayerPawn Pawn)>();
 
         int Tick() => parser.CurrentDemoTick.Value;
 
@@ -67,6 +71,11 @@ public sealed class DemoFileDemoParser : IDemoParser
         {
             if (SteamIdOf(e.Player) is { } shooter)
             {
+                if (e.Player?.PlayerPawn is { } pawn)
+                {
+                    pendingFires.Add((events.Count, pawn));
+                }
+
                 events.Add(new WeaponFireEvent(Tick(), shooter, e.Weapon));
             }
         };
@@ -88,6 +97,7 @@ public sealed class DemoFileDemoParser : IDemoParser
         // Sample after every command; a tick can span several commands, so later ones overwrite the row.
         parser.OnCommandFinishPersistent = () =>
         {
+            ResolveShotCounters(events, pendingFires);
             if (IsWarmup())
             {
                 return;
@@ -103,6 +113,7 @@ public sealed class DemoFileDemoParser : IDemoParser
         }
 
         await reader.ReadAllAsync(cancellationToken);
+        ResolveShotCounters(events, pendingFires);
 
         foreach (var player in parser.PlayersIncludingDisconnected)
         {
@@ -123,6 +134,23 @@ public sealed class DemoFileDemoParser : IDemoParser
             timeline.Build(),
             rounds.Rounds,
             events);
+    }
+
+    /// <summary>
+    /// Fills in the shooter's <c>m_iShotsFired</c> on fire events. The game event can arrive before the pawn's update
+    /// for the same tick, so the counter is read after the command, when it includes the shot.
+    /// </summary>
+    private static void ResolveShotCounters(List<DemoEvent> events, List<(int EventIndex, CCSPlayerPawn Pawn)> pending)
+    {
+        foreach (var (eventIndex, pawn) in pending)
+        {
+            if (events[eventIndex] is WeaponFireEvent fire)
+            {
+                events[eventIndex] = fire with { ShotsFired = pawn.IsActive ? pawn.ShotsFired : null };
+            }
+        }
+
+        pending.Clear();
     }
 
     private static void SampleTick(CsDemoParser parser, PlayerTimelineBuilder timeline, int tick)

@@ -371,6 +371,37 @@ namespace Gloria.Data.Migrations
                     b.ToTable("Settings");
                 });
 
+            modelBuilder.Entity("Gloria.Data.Entities.SprayBulletRecord", b =>
+                {
+                    b.Property<int>("DemoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("SteamId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Weapon")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Bullet")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Fired")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Hits")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Kills")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("DemoId", "SteamId", "Weapon", "Bullet");
+
+                    b.HasIndex("SteamId", "DemoId");
+
+                    b.ToTable("SprayBullets");
+                });
+
             modelBuilder.Entity("Gloria.Data.Entities.DemoPlayerRecord", b =>
                 {
                     b.HasOne("Gloria.Data.Entities.DemoRecord", "Demo")
@@ -404,6 +435,17 @@ namespace Gloria.Data.Migrations
                     b.Navigation("Demo");
                 });
 
+            modelBuilder.Entity("Gloria.Data.Entities.SprayBulletRecord", b =>
+                {
+                    b.HasOne("Gloria.Data.Entities.DemoRecord", "Demo")
+                        .WithMany("SprayBullets")
+                        .HasForeignKey("DemoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Demo");
+                });
+
             modelBuilder.Entity("Gloria.Data.Entities.DemoRecord", b =>
                 {
                     b.Navigation("Encounters");
@@ -411,6 +453,8 @@ namespace Gloria.Data.Migrations
                     b.Navigation("Players");
 
                     b.Navigation("Rounds");
+
+                    b.Navigation("SprayBullets");
                 });
 #pragma warning restore 612, 618
         }

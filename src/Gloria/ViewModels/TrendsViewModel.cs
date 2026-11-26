@@ -82,7 +82,7 @@ public sealed record CauseBar(string Percent, Rect Bar, Color Color);
 /// <summary>A cause of lost duels with a bar per player.</summary>
 public sealed record CauseCompareRow(string Name, IReadOnlyList<CauseBar> Bars);
 
-/// <summary>A player shown on the Progress page, in their line color.</summary>
+/// <summary>A player shown on a page that compares players, in their line color.</summary>
 public sealed record PlayerChip(string Name, string Detail, Color Color, bool CanRemove, ICommand RemoveCommand)
 {
 	public string RemoveDescription => $"Remove {Name}";
@@ -101,9 +101,6 @@ public sealed class TrendsViewModel : ObservableObject
 	/// <summary>Demos in each rolling median. Odd, so the median is one demo's value.</summary>
 	public const int RollingWindow = 5;
 
-	/// <summary>Players on the page at once, the viewed profile included: one per color.</summary>
-	public static readonly int MaxPlayers = Display.SeriesColors.Count;
-
 	/// <summary>Counted kills with a gun, by one of the players, for it to get a time-to-kill card.</summary>
 	public const int MinGunKills = 5;
 
@@ -120,8 +117,7 @@ public sealed class TrendsViewModel : ObservableObject
 	private readonly ProfileState _profiles;
 	private readonly DuelOutcomes _outcomes;
 	private readonly AppSettings _settings;
-	private readonly List<ulong> _added;
-	private readonly List<ProfileRecord> _addable = [];
+	private readonly ComparedPlayers _compared;
 	private int? _period;
 	private string _subtitle = "";
 	private string _causesNote = "";
@@ -141,14 +137,13 @@ public sealed class TrendsViewModel : ObservableObject
 		_outcomes = outcomes;
 		_settings = settings;
 		_period = ChoiceOption.LoadPeriod(_settings, PeriodKey, fallback: null);
-		_added = (_settings.Get(PlayersKey) ?? "")
-			.Split(',', StringSplitOptions.RemoveEmptyEntries)
-			.Select(s => ulong.TryParse(s, out var id) ? id : 0)
-			.Where(id => id != 0)
-			.Distinct()
-			.ToList();
+		_compared = new ComparedPlayers(settings, profiles, PlayersKey);
 		Periods = ChoiceOption.Periods([20, 50, null], _period, SelectPeriod);
-		AddCommand = new Command(async () => await AddAsync());
+		AddCommand = new Command(async () =>
+		{
+			if (await _compared.AskToAddAsync())
+				await RefreshAsync();
+		});
 		_profiles.CurrentChanged += async (_, _) => await RefreshAsync();
 		_profiles.Profiles.CollectionChanged += async (_, _) => await RefreshAsync();
 	}
@@ -233,14 +228,14 @@ public sealed class TrendsViewModel : ObservableObject
 
 		// A newer refresh (another period, another profile) wins over one still loading.
 		var refresh = ++_refresh;
-		var players = SelectedPlayers(profile);
-		RebuildAddOptions(players);
+		var players = _compared.Select(profile);
+		CanAdd = _compared.CanAdd;
 		var data = await Task.WhenAll(players.Select(p => _readModel.ProgressAsync(p.SteamId, _period)));
 		if (refresh != _refresh)
 			return;
 
 		IsMulti = players.Count > 1;
-		RebuildChips(players, data);
+		_compared.FillChips(Players, players, i => data[i].Demos.Count == 1 ? "1 demo" : $"{data[i].Demos.Count} demos", RefreshAsync);
 		if (IsMulti)
 		{
 			var older = data.Sum(d => d.OlderVersionDemos);
@@ -261,75 +256,6 @@ public sealed class TrendsViewModel : ObservableObject
 		BuildWeapons(players, data);
 		await BuildCausesAsync(players, data, refresh);
 	}
-
-	/// <summary>The viewed profile, then the added ones still tracked, up to <see cref="MaxPlayers"/>.</summary>
-	private List<ProfileRecord> SelectedPlayers(ProfileRecord current)
-	{
-		var players = new List<ProfileRecord> { current };
-		foreach (var id in _added)
-		{
-			if (id != current.SteamId && _profiles.Profiles.FirstOrDefault(p => p.SteamId == id) is { } p && players.Count < MaxPlayers)
-				players.Add(p);
-		}
-
-		return players;
-	}
-
-	private void RebuildAddOptions(IReadOnlyList<ProfileRecord> players)
-	{
-		_addable.Clear();
-		_addable.AddRange(_profiles.Profiles.Where(p => players.All(s => s.SteamId != p.SteamId)).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase));
-		CanAdd = _addable.Count > 0 && players.Count < MaxPlayers;
-	}
-
-	private async Task AddAsync()
-	{
-		if (_addable.Count == 0 || Shell.Current?.CurrentPage is not { } page)
-			return;
-
-		// The sheet answers with the label, so two profiles with the same name get their SteamID added.
-		var candidates = _addable.ToList();
-		var labels = candidates
-			.Select(p => candidates.Count(o => o.Name == p.Name) > 1 ? $"{p.Name} ({p.SteamId})" : p.Name)
-			.ToList();
-		var choice = await page.DisplayActionSheetAsync("Add a player to compare", "Cancel", null, [.. labels]);
-		var index = choice is null ? -1 : labels.IndexOf(choice);
-		if (index < 0)
-			return;
-
-		if (!_added.Contains(candidates[index].SteamId))
-			_added.Add(candidates[index].SteamId);
-		SaveAdded();
-		await RefreshAsync();
-	}
-
-	private void RebuildChips(IReadOnlyList<ProfileRecord> players, IReadOnlyList<ProgressData> data)
-	{
-		Players.Clear();
-		if (players.Count == 1)
-			return;
-
-		for (var i = 0; i < players.Count; i++)
-		{
-			var id = players[i].SteamId;
-			var demos = data[i].Demos.Count;
-			Players.Add(new PlayerChip(
-				players[i].Name,
-				demos == 1 ? "1 demo" : $"{demos} demos",
-				Display.SeriesColors[i],
-				CanRemove: i > 0,
-				new Command(async () => await RemoveAsync(id))));
-		}
-	}
-
-	private async Task RemoveAsync(ulong id)
-	{
-		_added.Remove(id);
-		SaveAdded();
-		await RefreshAsync();
-	}
-
-	private void SaveAdded() => _settings.Set(PlayersKey, _added.Count == 0 ? null : string.Join(',', _added));
 
 	private void BuildCharts(IReadOnlyList<ProfileRecord> players, IReadOnlyList<ProgressData> data)
 	{

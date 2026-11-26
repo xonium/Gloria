@@ -91,6 +91,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<MatchesViewModel>();
 		builder.Services.AddSingleton<TrendsViewModel>();
 		builder.Services.AddSingleton<CompareViewModel>();
+		builder.Services.AddSingleton<SprayViewModel>();
 		builder.Services.AddTransient<MatchViewModel>();
 		builder.Services.AddTransient<EncounterViewModel>();
 		builder.Services.AddTransient<WelcomePage>();
@@ -100,6 +101,7 @@ public static class MauiProgram
 		builder.Services.AddTransient<MatchesPage>();
 		builder.Services.AddTransient<TrendsPage>();
 		builder.Services.AddTransient<ComparePage>();
+		builder.Services.AddTransient<SprayPage>();
 		builder.Services.AddTransient<MatchPage>();
 		builder.Services.AddTransient<EncounterPage>();
 

@@ -185,6 +185,19 @@ public sealed class DemoImporter(
             });
         }
 
+        foreach (var spray in analysis.Sprays)
+        {
+            record.SprayBullets.Add(new SprayBulletRecord
+            {
+                SteamId = spray.SteamId,
+                Weapon = spray.Weapon,
+                Bullet = spray.Bullet,
+                Fired = spray.Fired,
+                Hits = spray.Hits,
+                Kills = spray.Kills,
+            });
+        }
+
         for (var i = 0; i < analysis.Encounters.Count; i++)
         {
             var (encounter, m, _, labels) = analysis.Encounters[i];

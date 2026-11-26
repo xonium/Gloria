@@ -2,6 +2,7 @@ using Gloria.Core.Classification;
 using Gloria.Core.Encounters;
 using Gloria.Core.Ingestion;
 using Gloria.Core.Metrics;
+using Gloria.Core.Sprays;
 
 namespace Gloria.Core.Analysis;
 
@@ -12,7 +13,12 @@ public sealed record AnalyzedEncounter(
     EncounterFeatures Features,
     OutcomeLabels Labels);
 
-public sealed record DemoAnalysis(ParsedDemo Demo, IReadOnlyList<AnalyzedEncounter> Encounters, SegmentationResult Segmentation);
+/// <param name="Sprays">Every player's sprays with full-auto guns, per bullet position.</param>
+public sealed record DemoAnalysis(
+    ParsedDemo Demo,
+    IReadOnlyList<AnalyzedEncounter> Encounters,
+    SegmentationResult Segmentation,
+    IReadOnlyList<SprayBulletStats> Sprays);
 
 /// <summary>Runs segmentation, metrics, features and outcome labels for every player of a parsed demo.</summary>
 public sealed class DemoAnalyzer(
@@ -28,7 +34,7 @@ public sealed class DemoAnalyzer(
 
     /// <summary>Changes whenever any stage changes, so cached analysis output can be invalidated.</summary>
     public string VersionKey =>
-        $"s{_segmenter.Version}-m{_metrics.Version}-f{EncounterFeatures.SchemaVersion}-l{_labeler.Version}";
+        $"s{_segmenter.Version}-m{_metrics.Version}-f{EncounterFeatures.SchemaVersion}-l{_labeler.Version}-r{SprayAnalyzer.Version}";
 
     /// <summary><see cref="VersionKey"/> with the parser's version in front, for results that also depend on what was parsed.</summary>
     public string VersionKeyFor(IDemoParser parser) => $"p{parser.Version}-{VersionKey}";
@@ -49,6 +55,6 @@ public sealed class DemoAnalyzer(
                 _labeler.Label(demo, encounter, m)));
         }
 
-        return new DemoAnalysis(demo, analyzed, segmentation);
+        return new DemoAnalysis(demo, analyzed, segmentation, SprayAnalyzer.Compute(demo));
     }
 }

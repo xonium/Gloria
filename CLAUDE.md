@@ -12,7 +12,7 @@ The projects, the Velopack startup hook, update source, database location and mi
 - outcome labels
 - ML training via `tools/Gloria.Trainer`
 
-A base model is shipped in `src/Gloria/models/base/`. A first UI slice runs on real data: Import (drop zone, demo folders, queue), Player (profiles, with search), Overview, Matches, Match, Encounter (with replay), Progress and Compare (against a bundled pro or a tracked friend). Findings and the gaps against the design are in `docs/ui-spike.md`. The Encounter replay shows where each bullet went (crosshair plus recoil), both players' health, the last hit's damage, weapon icons, the opponent's agent model (pre-rendered sprites) and a radar map of where the duel happened. User corrections work and retrain the user's model in the background. Progress has rolling medians, time to kill per gun, a by-weapon table and lost-duel causes, and can add other tracked profiles (not pros) under its title: each gets a colored line, right-aligned so everyone's latest demo is at the right edge, and every chart names the current leader and the most improved (`Data/Queries/ProgressRace`); Overview and Progress have period selectors and Matches has filters.
+A base model is shipped in `src/Gloria/models/base/`. A first UI slice runs on real data: Import (drop zone, demo folders, queue), Player (profiles, with search), Overview, Matches, Match, Encounter (with replay), Progress, Compare (against a bundled pro or a tracked friend) and Spray (spray control per full-auto gun). Findings and the gaps against the design are in `docs/ui-spike.md`. The Encounter replay shows where each bullet went (crosshair plus recoil), both players' health, the last hit's damage, weapon icons, the opponent's agent model (pre-rendered sprites) and a radar map of where the duel happened. User corrections work and retrain the user's model in the background. Progress has rolling medians, time to kill per gun, a by-weapon table and lost-duel causes, and can add other tracked profiles (not pros) under its title: each gets a colored line, right-aligned so everyone's latest demo is at the right edge, and every chart names the current leader and the most improved (`Data/Queries/ProgressRace`); Overview, Progress and Spray have period selectors and Matches has filters. Spray shows, per bullet of the chosen gun's magazine, the share of sprays that reached it and its hit rate, with a marker on the bullet that killed most often, and adds tracked profiles the same way.
 
 ## Commands
 
@@ -43,16 +43,18 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
   - `Visibility`: spotted state, with a view-cone fallback.
   - `Encounters`: `EncounterSegmenter`, `ShotAttribution`, `DemoIndex`.
   - `Metrics`: `AimMetricsCalculator`, `AimMath`, `BodyModel`.
-  - `Weapons`: speeds and classes for every gun.
+  - `Weapons`: speeds and classes for every gun; `SprayWeapons` holds the magazine sizes of the full-auto guns, the only ones with sprays.
   - `Classification`: the feature extractor and `OutcomeLabeler`.
   - `Analysis`: `DemoAnalyzer`, which runs the whole chain.
   - `Aggregation`: `Rolling.Median` for per-demo trends.
+  - `Sprays`: `SprayAnalyzer` cuts every player's full-auto shots into sprays and counts, per bullet position, the sprays that got there and the hits and kills (`SprayBulletStats`).
 - `src/Gloria.Data`: EF Core SQLite: `GloriaDbContext`, `Migrations/`, `DatabaseLocation` (`%LocalAppData%\Gloria.Data\gloria.db`, or `GLORIA_DATA_DIR`), and `DatabaseInitializer.Migrate`, which runs at startup.
   - `Import`: `DemoImporter` analyzes a demo once, for every player in it, and stores rounds, encounters, classifications and a compact per-tick trace (`TraceCodec`, format 3: aim angles, plus a `TraceScene` with positions, yaw, health, crouch, held weapons, damage between the two and the deciding death). No parse cache: the `.dem` isn't needed afterwards.
   - `Queries`: `GloriaReadModel`, the UI's read side. Every query takes the viewed profile's SteamID. `Comparison` ranks the metrics of two players (`ComparisonSide`); duels won and reaction times depend on the opposition and aren't ranked.
   - `References`: `ReferencePlayer`, the bundled reference file format (encounter metrics, no traces).
   - `AppSettings`: key-value settings in the `Settings` table. Don't use MAUI `Preferences` or `FileSystem.AppDataDirectory`: unpackaged, they live in `%LocalAppData%\Gloria\Gloria`, inside the Velopack install folder, which `Setup.exe` and uninstall delete.
   - `DemoDates`: user-set played-at dates, kept by content hash so re-analysis doesn't lose them.
+  - `SprayBulletRecord`: per demo, player, gun and bullet position, the sprays that reached it, hits and kills. `GloriaReadModel.SprayAsync` sums them into a `GunSpray` per gun (reach, hit rate per bullet, kill bullet, median length).
   - `Corrections`: `CorrectionStore` stores the user's verdicts, keyed so they survive re-analysis. It also applies them to `EncounterRecord.Flags`, builds the training set, and reclassifies stored encounters.
   - Profiles: one SteamID each (`ProfileRecord`). Demos are shared between profiles; switching profile only changes the SteamID filter.
 - `src/Gloria.Core/Classification`: aim categories (`AimCategory`), `EncounterFeatures`, `RuleBasedAimLabeler`, and `IAimClassifier` with its rule-based fallback. It has no ML.NET reference.
@@ -71,8 +73,9 @@ Run from the repo root. `global.json` pins the SDK and opts `dotnet test` into M
   - `Pages/` and `ViewModels/` (plain `ObservableObject`, no MVVM package). `Graphics/` holds the `GraphicsView` drawables: sparklines, trace charts, the replay and the map (`MapDrawable`, using `Core/Maps/MapProjection`).
   - `Services/`: `ImportQueue` (background import), `ProfileState` (current profile), `DemoSources` (pickers, drag and drop, CS2 replays folder), `DuelOutcomes` (the outcome model on a stored encounter), `UserModelTraining` (background retraining and promotion), `Display` (wording, colors, weapon names and icons, and the number culture), `GameArt` (loads radars and agent sprites from `Resources/Raw` once, outside `Draw`), `ClickableHover` (hand cursor and hover highlight on buttons, pickers and anything with a `TapGestureRecognizer`, applied to every view's handler, so new clickable elements need nothing extra).
   - Unhandled exceptions are written to `crash.log` in the data folder, failed imports to `import-errors.log`.
-  - Progress page: added players are saved in the `progress-players` setting. Its metric list is `Comparison.Metrics`, shared with Compare.
+  - Progress page: added players are saved in the `progress-players` setting (`ViewModels/ComparedPlayers`, shared with Spray). Its metric list is `Comparison.Metrics`, shared with Compare.
   - Compare page: the current profile against a bundled pro (`Services/ReferencePlayers`, classified with the app's current aim model so both sides are judged alike) or another tracked profile.
+  - Spray page: `SprayViewModel` with `Graphics/SprayChartDrawable` (solid line: reach; dashed: hit rate per bullet, hidden below `GunSpray.MinBulletsForHitRate` bullets; ▼: kill bullet). Settings: `spray-players`, `spray-period`, `spray-weapon`.
   - MAUI pitfalls hit so far: see `docs/ui-spike.md`. The main one: use `Grid` columns, not `FlexLayout` with a percentage basis, for cards with long text.
 - `tests/Gloria.Core.Tests`, `tests/Gloria.Data.Tests`, `tests/Gloria.Ml.Tests`: xUnit v3. ML tests train on seeded synthetic features (`SyntheticEncounters`). Data tests use in-memory SQLite. `Fixtures/DemoFiles` finds `_demos/` and skips tests when it is empty.
 - Package versions are managed centrally in `Directory.Packages.props`.
@@ -158,6 +161,11 @@ Keep these layers separate. Parsing is slow, and analysis heuristics will change
     - Per gun, kills are grouped by the first-shot weapon. They are sparse, so the Progress lines pool the kills of the last 5 demos (`Rolling.PooledMedian`).
     - Keep it out of `EncounterFeatures`: it only exists for kills, so it gives away the outcome.
   - **Scoreboard numbers:** `Analysis/PlayerMatchStats` counts kills, deaths and damage for every player at import and stores them on `DemoPlayerRecord` (null for demos imported before parser version 6). Kills follow the scoreboard (a team kill is −1); damage is the health removed from enemies, from the hurt event's remaining `health` (parser version 6), utility included; ADR divides by the rounds with a known side in `TeamsByRound`.
+  - **Sprays (parser version 7):**
+    - Each `WeaponFireEvent` carries the shooter's `pawn.ShotsFired` (`m_iShotsFired`). It counts up while fire is held and resets on release.
+    - The game event can arrive before the pawn's update for that tick, so `DemoFileDemoParser` reads the counter after the command finishes, when it includes the shot. Read that way, it is 1 on every shot after a pause, and 98% of shots fired within 7 ticks of the last one read one more than it (`SprayDemoTests`).
+    - `SprayAnalyzer` starts a new spray when the counter doesn't climb, the gun changes, or 0.5 s passes without a shot. The counter keeps climbing when fire is held through a reload. Bullets past the magazine size stay on the last bullet.
+    - A bullet that hits two players is one hit: hits are counted per fire event, not per `AttributedShot`. Only shots in live rounds count.
   - **Maps:** radar pixel = ((x − pos_x) / scale, (pos_y − y) / scale) on the 1024 px radar. Nuke, Vertigo and Train have a lower level, below `lowerBelow` altitude in `maps.json`.
   - **API pitfall:** `parser.GameRules` throws until the game rules entity exists.
   - **First round:**

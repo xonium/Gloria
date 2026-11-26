@@ -11,6 +11,8 @@ public sealed class GloriaDbContext(DbContextOptions<GloriaDbContext> options) :
 
     public DbSet<RoundRecord> Rounds => Set<RoundRecord>();
 
+    public DbSet<SprayBulletRecord> SprayBullets => Set<SprayBulletRecord>();
+
     public DbSet<EncounterRecord> Encounters => Set<EncounterRecord>();
 
     public DbSet<ProfileRecord> Profiles => Set<ProfileRecord>();
@@ -30,6 +32,14 @@ public sealed class GloriaDbContext(DbContextOptions<GloriaDbContext> options) :
             demo.HasMany(d => d.Players).WithOne(p => p.Demo).HasForeignKey(p => p.DemoId);
             demo.HasMany(d => d.Rounds).WithOne(r => r.Demo).HasForeignKey(r => r.DemoId);
             demo.HasMany(d => d.Encounters).WithOne(e => e.Demo).HasForeignKey(e => e.DemoId);
+            demo.HasMany(d => d.SprayBullets).WithOne(s => s.Demo).HasForeignKey(s => s.DemoId);
+        });
+
+        modelBuilder.Entity<SprayBulletRecord>(spray =>
+        {
+            spray.HasKey(s => new { s.DemoId, s.SteamId, s.Weapon, s.Bullet });
+            spray.HasIndex(s => new { s.SteamId, s.DemoId });
+            spray.Property(s => s.Weapon).HasMaxLength(32);
         });
 
         modelBuilder.Entity<DemoPlayerRecord>(player =>
